@@ -22,13 +22,13 @@
  * tsx types for `ctx.db` are derived from this file automatically,
  * so the schema is the single source of truth (no DTO duplication).
  *
- * scope: phase 1 ONLY so far
- * phase 1 = `scans`, `sessions`, `sessionParticipants`.
- * phase 2+ adds `messages`, `annotations`, `sessionSummaries`, `jarvisRequests`.
+ * Phase 1: scans, sessions, sessionParticipants.
+ * Shared human/agent records (#56): annotations, messages, sessionSummaries, exports.
  */
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { vAuthor } from "./lib/author";
 
 // ---------------------------------------------------------------------------
 // Reusable validators
@@ -58,6 +58,23 @@ export const vSegmentationSource = v.union(
   v.literal("expert"), // dataset expert label (the hour-8 fallback, D4)
   v.literal("none"), // not segmented (yet)
 );
+
+/** Point anchors are RAS millimetres; structure anchors store resolved ids. */
+export const vAnnotationAnchor = v.union(
+  v.object({ kind: v.literal("point"), ras_mm: vVec3 }),
+  v.object({ kind: v.literal("structure"), id: v.string() }),
+  v.object({ kind: v.literal("tumor") }),
+);
+
+/** Same compact step fields as the agentRuns plan; args are tool-specific data. */
+export const vToolStep = v.object({
+  id: v.string(),
+  tool: v.string(),
+  args: v.any(),
+  ok: v.boolean(),
+  message: v.string(),
+  ms: v.number(),
+});
 
 export default defineSchema({
 
@@ -288,4 +305,70 @@ export default defineSchema({
     .index("by_token", ["token"])
     // Participant list for a room.
     .index("by_session", ["sessionId"]),
+
+  // Shared human/agent records. Writers stamp attribution on the server.
+  // Text lengths, anchor bounds and D10 transitions belong to shared mutations.
+  annotations: defineTable({
+    ...vAuthor.fields,
+    jobId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    text: v.string(), // Shared mutation enforces <= 280 characters.
+    anchor: vAnnotationAnchor,
+    status: v.union(v.literal("accepted"), v.literal("suggested"), v.literal("dismissed")),
+  })
+    .index("by_job", ["jobId"])
+    .index("by_session", ["sessionId"]),
+
+  messages: defineTable({
+    ...vAuthor.fields,
+    jobId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    clientId: v.optional(v.string()),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    text: v.string(), // Shared mutation enforces <= 2000 characters.
+    runId: v.optional(v.id("agentRuns")), // agentRuns arrives with P3 (#67).
+    toolSteps: v.optional(v.array(vToolStep)),
+  })
+    .index("by_job_time", ["jobId", "createdAt"])
+    .index("by_session_time", ["sessionId", "createdAt"])
+    .index("by_client_time", ["clientId", "createdAt"])
+    .searchIndex("search_text", {
+      searchField: "text",
+      filterFields: ["jobId", "sessionId", "clientId"],
+    }),
+
+  sessionSummaries: defineTable({
+    ...vAuthor.fields,
+    jobId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    clientId: v.optional(v.string()),
+    text: v.string(),
+    coversUpTo: v.number(),
+    version: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_client", ["clientId"]),
+
+  exports: defineTable({
+    ...vAuthor.fields,
+    jobId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    format: v.union(v.literal("md"), v.literal("pdf")),
+    trigger: v.union(v.literal("manual"), v.literal("auto")),
+    reason: v.optional(v.union(v.literal("job_done"), v.literal("left_explore"), v.literal("checkpoint"))),
+    status: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    fileId: v.optional(v.id("_storage")),
+    error: v.optional(v.string()),
+    version: v.number(),
+    sections: v.array(v.string()),
+  })
+    .index("by_job", ["jobId"])
+    .index("by_session", ["sessionId"]),
+  // MCP fixed-window counters. Only SHA-256 token hashes are stored.
+  mcpRateLimits: defineTable({
+    tokenHash: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_token_hash", ["tokenHash"]),
+
 });
