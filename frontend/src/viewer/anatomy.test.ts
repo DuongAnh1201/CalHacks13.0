@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayName, explodeOffset, structureColors, type Structure } from './anatomy';
+import { displayName, explodeOffset, explodedSphere, structureColors, type Structure } from './anatomy';
 import type { Vec3 } from './transform';
 
 const mk = (id: string, side: Structure['side'], group: Structure['group'], centroidMm: Vec3): Structure => ({
@@ -49,5 +49,28 @@ describe('colours and names', () => {
   it('adds the side to display names', () => {
     expect(displayName(lhFront)).toBe('lh_superior_frontal (L)');
     expect(displayName(stem)).toBe('brainstem');
+  });
+});
+
+describe('explodedSphere', () => {
+  const box = (s: Structure, h: number): Structure => ({ ...s, bboxMm: { min: [s.centroidMm[0] - h, s.centroidMm[1] - h, s.centroidMm[2] - h], max: [s.centroidMm[0] + h, s.centroidMm[1] + h, s.centroidMm[2] + h] } });
+  const list = [box(lhFront, 5), box(rhFront, 5), box(stem, 5)];
+
+  it('is the plain bbox sphere at amount 0', () => {
+    const { center, radius } = explodedSphere(list, 0, C);
+    expect(center).toEqual([0, 1.5, 0.5]);
+    expect(radius).toBeCloseTo(Math.hypot(18, 37.5, 41.5), 6);
+  });
+  it('grows with explosion and contains every offset bbox', () => {
+    const a = explodedSphere(list, 0, C).radius;
+    const b = explodedSphere(list, 1, C);
+    expect(b.radius).toBeGreaterThan(a);
+    for (const s of list) {
+      const o = explodeOffset(s, 1, C);
+      for (const corner of [s.bboxMm.min, s.bboxMm.max]) {
+        const d = Math.hypot(corner[0] + o[0] - b.center[0], corner[1] + o[1] - b.center[1], corner[2] + o[2] - b.center[2]);
+        expect(d).toBeLessThanOrEqual(b.radius + 1e-6);
+      }
+    }
   });
 });

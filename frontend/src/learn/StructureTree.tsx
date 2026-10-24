@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { dispatch } from '../actions/dispatch';
+import { useEffect, useMemo, useState } from 'react';
+import { dispatch, viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
 import eyeOff from '../assets/figma/73f19.svg';
 import { GROUP_LABEL, type Atlas } from '../viewer/anatomy';
@@ -12,6 +12,11 @@ export function StructureTree({ atlas, colors, missing }: Props) {
   const [q, setQ] = useState('');
   const selected = useViewer((s) => s.selectedStructure);
   const hiddenMap = useViewer((s) => s.hiddenStructures);
+  useEffect(() => {
+    const clear = () => setQ('');
+    viewEvents.addEventListener('reset', clear);
+    return () => viewEvents.removeEventListener('reset', clear);
+  }, []);
   const groups = useMemo(() => groupStructures(filterStructures(atlas.structures, q)), [atlas, q]);
   return (
     <aside className={css.card} aria-label="Brain structures">

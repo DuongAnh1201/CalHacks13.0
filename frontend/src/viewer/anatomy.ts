@@ -88,3 +88,18 @@ export function explodeOffset(s: Structure, amount: number, brainCentroid: Vec3)
   if (k === 0) return [hx, 0, 0]; // avoids -0 from d * 0, which breaks toEqual([0, 0, 0])
   return [hx + d[0] * k, d[1] * k, d[2] * k];
 }
+
+/** Bounding sphere (RAS mm) of all structure bboxes after the explode offset; used to refit the camera. */
+export function explodedSphere(list: readonly Structure[], amount: number, brainCentroid: Vec3): { center: Vec3; radius: number } {
+  const lo: Vec3 = [Infinity, Infinity, Infinity];
+  const hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const s of list) {
+    const o = explodeOffset(s, amount, brainCentroid);
+    for (let i = 0; i < 3; i++) {
+      lo[i] = Math.min(lo[i], s.bboxMm.min[i] + o[i]);
+      hi[i] = Math.max(hi[i], s.bboxMm.max[i] + o[i]);
+    }
+  }
+  const center: Vec3 = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  return { center, radius: Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2 };
+}

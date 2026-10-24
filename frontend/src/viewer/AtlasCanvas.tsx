@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { dispatch, viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
-import { ATLAS_GLB_URL, CORTICAL_GROUPS, displayName, explodeOffset, type Atlas, type Structure } from './anatomy';
+import { ATLAS_GLB_URL, CORTICAL_GROUPS, displayName, explodeOffset, explodedSphere, type Atlas, type Structure } from './anatomy';
 import { worldMatrix } from './transform';
 import css from './AtlasCanvas.module.css';
 
@@ -92,13 +92,26 @@ function AtlasScene({ atlas, colors, onMissing }: Props) {
     void controls.current.fitToSphere(sphere, true);
   }, [st.selectedStructure, nodes]);
 
+  // Explode changes the extent: refit unless a selection owns the camera (fly-to above).
+  const lastExplode = useRef(0);
+  useEffect(() => {
+    if (lastExplode.current === st.explodeAmount) return;
+    lastExplode.current = st.explodeAmount;
+    if (st.selectedStructure || !controls.current) return;
+    const { center, radius } = explodedSphere(atlas.structures.filter((s) => nodes.byId.has(s.id)), st.explodeAmount, atlas.brain.centroidMm);
+    void controls.current.fitToSphere(new THREE.Sphere(new THREE.Vector3(...center), radius).applyMatrix4(world), true);
+  }, [st.explodeAmount, st.selectedStructure, atlas, nodes, world]);
+
+  // A tooltip must not outlive a double-click isolate (the pointer-out never fires for hidden meshes).
+  useEffect(() => { setHover(null); document.body.style.cursor = ''; }, [st.isolate]);
+
   // Home pose + Reset.
   useEffect(() => {
     const c = controls.current;
     if (!c) return;
     void c.setLookAt(...HOME, false);
     c.saveState();
-    const onReset = () => { void c.reset(true); };
+    const onReset = () => { lastExplode.current = 0; void c.reset(true); }; // reset zeroes explode: skip the refit
     viewEvents.addEventListener('reset', onReset);
     return () => viewEvents.removeEventListener('reset', onReset);
   }, []);
