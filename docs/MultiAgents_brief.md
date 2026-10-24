@@ -17,182 +17,301 @@
 
 ---
 
-> **Everything below this line was added by the lead (claude) on 2026-10-24, from Tom's brief above.**
-> The brief above is unchanged. Markers: **🆕** = new content, **✏️** = an item of the brief clarified or reinterpreted.
-> Status: **DRAFT plan for Tom's approval.** Nothing here is built yet. The full list of changes is in the [Change log](#11-change-log) at the end.
+> **Everything below this line was added by the lead (claude), from Tom's brief above.**
+> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames.
+> Status: **DRAFT v2 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
 
-# 🆕 Multi-agent assistant: detailed plan
+# 🆕 Multi-agent assistant: detailed plan (v2)
+
+## 0. 🔄 What the frontend already gives us (read before the plan)
+
+v1 was planned from the docs. v2 is planned from the code on `main` and in PR #50 (Ben's Milestone B). What exists today:
+
+| Already in the frontend | File | What it means for this plan |
+|---|---|---|
+| **One action door**: `dispatch(action, source)` validates and clamps every change, and returns `{ ok, message }` | `frontend/src/actions/dispatch.ts` | Every tool call ends as a `dispatch` call. No tool gets its own code path. |
+| A `Source` type that already lists `'voice'` | `frontend/src/actions/types.ts` | Voice and chat are planned for; we add `'chat'` and `'mcp'`. |
+| 15 typed `Action`s: `setMode`, `setOpacity`, `setExplosion`, `setIsolate`, `selectStructure`, `setStructureVisible`, `setHemisphereVisible`, `setLayerVisible`, `focusTumor`, `resetView`, … | `frontend/src/actions/types.ts` | Most brief items already have an action. Zoom, rotate and undo do not (§3). |
+| The viewer state lives in the browser (zustand `useViewer`); the camera is not state (SPEC §8.2) | `frontend/src/actions/store.ts` | Tool calls must be **applied in the browser**. Convex carries them; it does not render them (§2). |
+| Camera is drei `CameraControls`, home pose `[-260, 80, -200]`, distance limits 20–900 mm, Reset via `viewEvents` | `viewer/AtlasCanvas.tsx`, `viewer/CaseCanvas.tsx` | Zoom and rotate are camera commands sent through the same `viewEvents` bus as Reset. |
+| `/learn`: 95 atlas structures, Solid / X-Ray, cortex opacity, explode, L / R, isolate, search, info panel | `routes/Learn.tsx`, `learn/*` | The richest page. **The assistant ships here first.** |
+| `/jobs/:id/explore` (PR #50): brain + tumor, Show tumor, Reset only. `CaseCanvas` ignores `brainOpacity`, `hidden`, `layers` and `explodeAmount` today | `routes/Explore.tsx`, `viewer/CaseCanvas.tsx` | Most viewer tools can't do anything here until the Explore controls land (Milestone D). The agent must only offer tools the page supports (§3.3). |
+| Educational text for every structure: description, functions, "when damaged" | `frontend/src/content/anatomy.json` | The ground truth for `explain_structure`. No invented anatomy. |
+| Figma frame 04 has a full **"Neuro Agent" panel** (nodes `46:*`) and a **Tool Call** row (`45:30`) | `docs/figma/04-explore.png`, `04-explore.ref.tsx`, `symbol-tool-call.ref.tsx` (PR #50) | That panel is the UI spec for chat and voice (§4). |
+| **No Convex client in the frontend** (`convex` is not in `frontend/package.json`) | | Adding it is a P3 task. P1 and P2 work with no Convex and no LLM. |
 
 ## 1. 🆕 Goal
 
-Chat and voice both drive the same set of **tool calls**. The tools run on **Convex**, so every change shows up on every connected screen. The same tools are also served over **MCP**, so an outside agent (Claude Desktop, Claude Code) can drive the viewer too. A small **multi-agent** system routes each request to the right specialist.
+Chat and voice both drive the same **tool calls**. A tool call becomes a typed `Action` and goes through the existing `dispatch`, so the panel, the keyboard and the assistant all change the viewer the same way. Claude agents run in **Convex** actions. The same tools are served over **MCP**, so Claude Desktop can drive the viewer as well.
 
-## 2. 🆕 Core idea: one tool registry, three ways in
+## 2. 🔄 Architecture: tools run in the browser, Convex carries them
 
 ```
- Chat panel / "/jarvis ..."  ─┐
- Voice (push-to-talk → STT)  ─┼─► Convex: agent.submit ─► Router agent ─► specialist agent ─┐
- MCP client (Claude, etc.)   ─┘          │                                                 │
-                                         └─► fast path: deterministic parser ──────────────┤
-                                                                                           ▼
-                                                    executeTool (one door: auth, validate, clamp, rate-limit, log)
-                                                                                           ▼
-                                                         Convex shared state ─► every browser re-renders
+ AgentPanel text box ─┐
+ Push-to-talk (Space) ┤
+                      ▼
+            parseIntent(text, page)            ← in the browser, no network, no LLM (SPEC D8)
+              │ match                │ no match
+              ▼                      ▼
+        tool calls          Convex mutation agent.ask({ clientId, text, source, snapshot })
+              │                      ▼ schedules
+              │             internalAction agent.run: Router → one specialist (Claude, ≤ 6 tool turns)
+              │               · viewer tool → checked with the SAME pure reducer → tool_result → appended to agentRuns.steps
+              │               · knowledge tool → runs on the server (anatomy.json, report.json)
+              │                      ▼
+              │             agentRuns row (status, steps[], reply)
+              │                      │ useQuery subscription: each new step is applied once (by step id)
+              ▼                      ▼
+        toolToActions(step) ──► dispatch(action, 'voice' | 'chat' | 'mcp') ──► useViewer ──► 3D view
+                                     │
+                                     └─► actionLog event ──► AgentPanel shows a Tool Call row (✓/✗, message, ms)
+
+ MCP client (Claude Desktop) ─► mcp/ server ─► Convex mutation agent.callTool({ pairCode, name, args })
+                                               └─► agentRuns row with one step ─► same browser path as above
 ```
 
-- **One registry.** Every tool is defined once, in `convex/tools/registry.ts`: name, description, typed argument schema, permission (presenter or anyone), handler.
-- **One door.** Every tool call, from any source, goes through one `executeTool` mutation. It checks the session token and role, validates and clamps arguments, applies rate limits, writes the change, and logs the call in `agentRuns`.
-- **No extra privileges.** Chat, voice, the in-app agents and MCP clients all get exactly the same checks. LLM output never writes to the database directly; it can only request a registered tool. (Matches `sage_context/BACKEND_CONTEXT.md` guardrail 6.)
+**Why the browser applies the tools (🔄 replaces v1 §3 "widen `sessions.view` first"):**
+- The viewer state (`useViewer`) and the camera live in the browser. A server agent can't move the camera directly.
+- Applying the step through `dispatch` keeps the house rule: one door, one validation (SPEC §7.3).
+- v1's wider shared view (M6) is still useful for **multi-viewer** live review, but it is no longer needed to ship chat, voice or MCP. It moves to P8.
 
-## 3. 🆕 First change: widen the shared view (open item M6)
+**Why the server can still answer "did it work?":** the reducer inside `dispatch` is pulled out into a pure function, `reduce(state, action, ctx) → { state, result }` (§5, P1). The Convex action runs the same function on the state snapshot the browser sent, so Claude gets the real `{ ok, message }` (e.g. "No tumor detected in this scan") as its `tool_result`, and the browser gets the same result when it applies the step.
 
-The agents run on the server (Convex actions), so they can only change what a browser shows by writing **shared state** the browser subscribes to. Today Convex syncs only `plane`, `cursorRasMm` and `tumorVisible` (`docs/CONVEX_BACKEND.md` §4, M6).
+## 3. ✏️ Tool catalog, mapped to the frontend
 
-Add to `sessions.view`:
+### 3.1 🔄 Tool names
 
-| Field | Values | Notes |
-|---|---|---|
-| `mode` | `whole` · `xray` · `exploded` · `cutaway` | SPEC §4 modes |
-| `brainOpacity` | 0–1 | existing `setOpacity` |
-| `layerOpacity` | `{ edema, core, enhancing }`, each 0–1 | new; defaults from SPEC §7.4 |
-| `explodeAmount` | 0–1 | existing `setExplosion` |
-| `layers`, `hidden` | visibility per layer and hemisphere | existing actions |
-| `isolate` | `{ on, target }` | target = `tumor`, `left`, `right`, a layer, or an atlas structure id |
-| `camera` | `{ zoomPct, yawDeg, pitchDeg, spin, version }` | new; see the rule below |
+Claude API tool names may only use letters, digits, `_` and `-`, so v1's `viewer.zoom` style is invalid. v2 uses **snake_case**, matching the names in the Figma panel (`focus_region`, `explain_structure`, `toggle_visibility`). MCP uses the same names.
 
-**Camera rule:** `camera` is written only by deliberate commands ("zoom to 150%", "left view"). Mouse orbiting stays local to each browser, so there are never 60 writes per second. Each browser applies a new `camera.version` once, through the existing `dispatch()`.
+### 3.2 Tools
 
-## 4. ✏️ Tool catalog (the brief's tool list, mapped)
-
-| Brief item | Tool | Arguments | Maps to | Who can call |
+| Brief item | Tool | Arguments | Becomes (frontend) | New code needed |
 |---|---|---|---|---|
-| ✏️ Zoom in/out, default or set % | `viewer.zoom` | `in` · `out` · `set` (+ `percent`) · `fit`. Default step 20%, clamped to 25–400% | `camera.zoomPct` | presenter |
-| ✏️ Rotating | `viewer.rotate` | `preset` (front, back, left, right, top, bottom) **or** `yawDeg` / `pitchDeg` **or** `spin` on/off | `camera` | presenter |
-| ✏️ Opacity | `viewer.setOpacity` | `target` (brain, edema, core, enhancing) + `percent` | `brainOpacity` / `layerOpacity` | presenter |
-| ✏️ Switch mode (X-ray or solid) | `viewer.setMode` | `xray` · `solid` · `exploded` · `cutaway`. **"Solid" = SPEC's `whole` mode** | `mode` | presenter |
-| ✏️ Explode the 3D | `viewer.explode` | `percent` 0–100 | `explodeAmount` | presenter |
-| ✏️ Isolate specific part | `viewer.isolate` | `target` + `on` | `isolate` (+ `selectStructure` on `/learn`) | presenter |
-| 🆕 (existing actions) | `viewer.focusTumor`, `viewer.resetView`, `viewer.setCutPlane`, `viewer.setSlice` | as in SPEC §7.3 | existing | presenter |
-| ✏️ Annotation | `annotation.create` / `list` / `remove` | `anchor` (cursor, tumor centroid, voxel `[i,j,k]`, or RAS mm point) + `text` (≤ 280 chars) | new `annotations` table, stored in **voxel** coordinates | anyone; remove = author or host |
-| ✏️ Summarization | `chat.summarize` | `scope`: session, since last summary, or a topic | new `sessionSummaries` table | anyone |
-| ✏️ Search | `search.query` | `query` + `sources` (chat, report, atlas, help) | Convex full-text search on messages + lookup over `report.json` and the atlas `structures.json` | anyone |
-| ✏️ Explain system | `explain.topic` | `topic`: how the app works, a mode, an anatomy structure, or a finding | template over report + Knowledge agent. **No diagnosis** (contract §5) | anyone |
-| ✏️ Export document (on request) | `export.document` | `format` (Markdown or PDF), `sections`, `trigger: manual` | Convex file storage → download link | anyone |
-| ✏️ Export document (auto after a phase) | same tool, `trigger: auto` | fired by the Scribe agent; see §6 | same | system |
-| 🆕 Review phases | `session.setPhase` | `orientation` · `findings` · `discussion` · `wrapUp` | `sessions.phase` | presenter |
+| ✏️ Zoom in/out, default or set % | `zoom_view` | `action`: `in` · `out` · `set` · `fit`; `percent` for `set` | 🆕 `{ type: 'zoom', … }` → `viewEvents` `camera` event → `controls.dollyTo(homeDist × 100 / pct)` | Action + camera module. **100% = home distance (≈ 338 mm)**; step ±20%; clamp 50–400% |
+| ✏️ Rotating | `rotate_view` | `preset`: `front` `back` `left` `right` `top` `bottom`, **or** `yaw_deg` / `pitch_deg` (relative) | 🆕 `{ type: 'rotate', … }` → presets: `setLookAt(eye, target)` at the current distance; relative: `controls.rotate(yaw, pitch)` | Action + camera module. Presets in scene axes: front = −z, left = −x, top = +y (from the `HOME` comment) |
+| ✏️ Rotating (continuous) | `spin_view` | `on`, `speed` (deg/s, default 20) | 🆕 `{ type: 'spin', … }` → `useFrame` adds to `azimuthAngle`; any pointer drag stops it | Camera module |
+| ✏️ Switch mode | `set_mode` | `solid` · `xray` (+ `exploded` · `cutaway` on Explore later) | `setMode` (**"solid" = `whole`**) | none on `/learn` |
+| ✏️ Opacity | `set_opacity` | `target`: `cortex` (on `/learn`) or `brain` (Explore); `percent` | `setMode xray` + `setOpacity` | none. 🔄 Opacity only shows in X-Ray (the toolbar slider is disabled in Solid), so the tool switches to X-Ray first and says so |
+| ✏️ Explode | `set_explode` | `percent` 0–100 | `setExplosion` | none on `/learn` |
+| ✏️ Isolate | `isolate` | `target` (structure or `tumor`), `on` | `/learn`: `selectStructure` + `setIsolate`. Explore: `focusTumor` + hide both hemispheres | none on `/learn` |
+| 🆕 (Figma) Focus | `focus_region` | `region`: a structure ("hippocampus"), a group ("right temporal"), or `tumor` | structure → `selectStructure` (camera flies there); group → camera fit to the group's box; `tumor` → `focusTumor` | group fit in camera module |
+| 🆕 (Figma) Show / hide | `toggle_visibility` | `targets[]` (`cortex`, a group, a structure, `left`, `right`, `edema`, `core`, `enhancing`), `visible` | many `setStructureVisible` / `setHemisphereVisible` / `setLayerVisible` | none on `/learn` |
+| 🆕 | `reset_view` | — | `resetView` | none |
+| 🆕 (Figma "Undo") | `undo` | — | 🆕 `{ type: 'undo' }` → restores the last state from a 20-step history kept by `dispatch` | history in `dispatch` |
+| ✏️ Explain | `explain_structure` | `name`, `depth`: `brief` · `detailed` | server: text from `content/anatomy.json`; browser: `selectStructure` so the info panel opens too | server tool |
+| ✏️ Explain | `explain_finding` | — | server: the SPEC §8.3 template over `report.json` (Explore only) | server tool |
+| ✏️ Search | `search` | `query`, `sources`: `atlas` · `report` · `chat` | server: name/group match (same rule as `learn/filter.ts`) + chat history | server tool |
+| ✏️ Annotation | `add_annotation` / `remove_annotation` | `text` (≤ 280), `anchor`: `selected` · `tumor` · RAS mm point | 🆕 `annotations` table + a 3D pin component | P7 |
+| ✏️ Summarization | `summarize` | `scope`: `session` · `since_last` | server; stored in `sessionSummaries` | P7 |
+| ✏️ Export (on request) | `export_document` | `format`: `md` · `pdf`; `sections` | built in the browser from report + transcript + annotations; download | P7 |
+| ✏️ Export (auto after a phase) | same, `trigger: auto` | — | §7 | P7 |
 
-**Clamp vs reject** (same house rule as `docs/CONVEX_BACKEND.md` §3.3): out-of-range values from a real interaction are clamped ("zoom to 900%" → 400%); impossible input (NaN, unknown target, tumor tool on a no-tumor case) is rejected with `{ code, message }`.
+**Name → id resolution** ("hippocampus" → `lh_hippocampus` + `rh_hippocampus`; "left hippocampus" → `lh_hippocampus`): one pure function, `resolveTarget(text, atlas)`, in `frontend/src/agent/resolveTarget.ts`. It uses the same matching as `learn/filter.ts` plus side words (left/right/L/R). If two structures match and no side is given, the tool picks both for show/hide and asks back for focus ("Left or right hippocampus?").
 
-## 5. 🆕 Multi-agent architecture
+**Clamp vs reject** stays as in `dispatch`: out-of-range numbers are clamped ("zoom 900%" → 400%); unknown targets and tumor tools on a no-tumor case are rejected with the dispatcher's own message.
 
-| Agent | Job | Tools | Model setting |
-|---|---|---|---|
-| **Fast path** (code, not an LLM) | Deterministic parser for common phrases: "zoom in", "x-ray mode", "show the tumor", "left view", "explode 50%" | any `viewer.*` | none. Instant, works with no LLM provider (keeps SPEC D8 true for basics) |
-| **Router** | Classifies the request and hands it to one specialist; answers trivial single-tool requests itself | `handoff(specialist)` + a few `viewer.*` | low effort, for speed |
-| **Viewer Control** | Multi-step view requests ("compare the left and right side at 40% opacity") | all `viewer.*` | low |
-| **Annotation** | Places and manages anchored notes | `annotation.*`, `viewer.focusTumor` | low |
-| **Knowledge** | Search and explain, grounded in the report, atlas notes, help text and session chat | `search.query`, `explain.topic` | medium |
-| **Scribe** | Summaries and documents, incl. auto-export | `chat.summarize`, `export.document` | medium |
-| **Guard** (code, not an LLM) | Permissions, rate limits, a per-session LLM spend cap, medical-wording rules (contract §5) | inside `executeTool` and the reply path | none |
+### 3.3 🆕 Tools per page (the agent only sees what the page supports)
 
-**How a request flows**
+Every request carries `page` and `availableTools`. The Router never offers a tool the page can't apply. Today:
 
-1. Chat text, a voice transcript, or an MCP call arrives. Chat and voice go through `agent.submit`, which stores an `agentRuns` row and schedules the agent action.
-2. The fast-path parser tries first. A match calls `executeTool` directly and the run ends with no LLM call.
-3. Otherwise the Router runs and hands off to one specialist.
-4. The specialist calls tools in a bounded loop (**max 6 tool turns**). Every call goes through `executeTool`.
-5. The run's status, tool calls and final reply are written to `agentRuns`. The UI subscribes, so everyone sees "Jarvis is zooming…" and the result.
+| Tool | `/learn` (main) | `/jobs/:id/explore` (PR #50) |
+|---|---|---|
+| `zoom_view`, `rotate_view`, `spin_view`, `reset_view`, `undo` | ✅ after P1 | ✅ after P1 (same camera module) |
+| `set_mode` solid / xray | ✅ | ⏳ needs Explore mode tabs (Milestone D) |
+| `set_opacity` | ✅ cortex | ⏳ `CaseCanvas` ignores `brainOpacity` |
+| `set_explode` | ✅ | ⏳ `CaseCanvas` ignores `explodeAmount` |
+| `toggle_visibility` | ✅ structures, groups, L / R | ⏳ `CaseCanvas` ignores `hidden` and `layers` (marked `shortcut:` in the code) |
+| `isolate`, `focus_region` | ✅ | `tumor` only ✅ (`focusTumor`) |
+| `explain_structure` | ✅ | — (no atlas on Explore) |
+| `explain_finding` | — | ✅ |
 
-**Concurrency:** one active run per session; later requests queue. A user can cancel the active run.
+⏳ rows turn ✅ as Ben's Explore controls land. The agent picks them up with no agent change: the page's tool list is the switch.
 
-**Context:** each agent gets the latest rolling summary, a bounded window of recent messages, the current shared view, and the case report. Chat text is treated as untrusted content, never as instructions (`BACKEND_CONTEXT.md` §8).
+## 4. 🆕 The Agent Panel (Figma frame 04, nodes `46:*`)
 
-**LLM implementation** (needs Tom's decision on provider and key, §9):
-- Claude via the official Anthropic TypeScript SDK (`@anthropic-ai/sdk`), called from a Convex **action** (actions are the only Convex functions that may call external APIs).
-- Default model `claude-opus-5-5`. Effort `low` for the Router, Viewer Control and Annotation agents (fast, for voice); `medium` for Knowledge and Scribe. Option for Tom: `claude-haiku-5-5` for the Router to cut cost and latency.
-- Hand-written tool loop rather than the SDK's tool runner, so each call can be permission-checked and logged by `executeTool`.
-- Tool schemas use `strict: true`. Forced `tool_choice` is not supported on this model, so prompts steer tool use with `tool_choice: auto`.
-- Prompt caching: a frozen system prompt and a fixed, sorted tool list first; per-request content after the cache breakpoint.
-- If the provider is down or no key is set: the fast path, chat, annotations and manual controls still work, and the agent replies "assistant unavailable" instead of failing.
+The Figma frame already designs the chat and voice UI. Mapping each part to code and data:
 
-## 6. ✏️ Export document, including auto-export after a phase
+| Figma part | Component (new, `frontend/src/agent/`) | Data |
+|---|---|---|
+| Agent Header: avatar, **"Neuro Agent"**, "Navigates the brain for you", status pill | `AgentHeader` | status: `Listening` (Space held) · `Thinking` (run active) · `Ready` · `Voice off` (no mic / denied) · `Offline` (no Convex or no key; fast path still works) |
+| Mode Tabs: **Voice · Script · History** | `AgentPanel` tabs | Voice = live conversation. Script = the demo script as clickable steps (each sends its phrase). History = past runs, export button, MCP pair code (§8) |
+| Context chips ("Tumor · focused", "Explode 75%") | `ContextChips` | derived from `useViewer` (mode, explode %, selection, isolate). Also sent to the agent as context |
+| Event row ("Pinch · you selected Hippocampus") | `ConversationLog` | 🆕 `actionLog` bus: `dispatch` emits `{ source, action, result }` for **every** source, so pointer and gesture actions show here too |
+| User bubble ("You · voice · 10:45") | `ConversationLog` | transcript + source |
+| Agent message with its role label and reply | `ConversationLog` | `agentRuns.reply` + which specialist answered. ✏️ Figma says "Neuro · Clinical Reasoner"; proposed **"Neuro · Navigator" / "Neuro · Anatomy tutor" / "Neuro · Scribe"**, since "clinical" clashes with the no-diagnosis rule (D9) |
+| **Tool Calls** rows: ✓ + `focus_region("right_temporal")` + "14 ms" | `ToolCallRow` (Figma `45:30`) | one row per step: call text, ✓ or ✗ with the dispatch message, latency = server time + apply time |
+| "Try saying" chips | `SuggestionChips` | from state: exploded → "Bring it back together"; X-Ray → "Bring cortex back"; selection → "Explain this"; else the SPEC §8.3 phrases |
+| Voice Input Bar: mic, live transcript, waveform, "Hold Space or open palm to talk" | `VoiceInputBar` + `usePushToTalk` | Web Speech API interim results; a text box is always there (SPEC §8.3 fallback) |
+| Toast "Tumor placed on the 3D brain … **Undo**" (top of the frame) | `ActionToast` | shown after an agent or voice change, with the `undo` action |
 
-**On request:** "export the findings as PDF" → Scribe calls `export.document` → a Convex action builds the document → stored in Convex file storage → a download link is posted in chat.
+**Where the panel goes (D8):**
+- **Explore:** the right column, as in Figma.
+- **`/learn`:** the right column already holds the structure info panel. Proposed: right column tabs **Info | Agent**. `explain_structure` switches to Info.
 
-**Document contents** (all from real data, nothing invented): case and segmentation source badge, report numbers (volumes, side, lesion count, `expertDice` on samples), annotations with their anchors, chat summary, decisions, and the "educational, not clinically validated" notice. Optional: 3D/2D snapshots captured by the presenter's browser.
+The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: "Voice off").
 
-**Auto-export triggers** (Tom decides which to turn on):
+## 5. 🆕 Frontend work, file by file
 
-| Trigger | When |
+| File | Change |
 |---|---|
-| Job finished | a job reaches `done` (Results page ready) |
-| Phase change | `session.setPhase` moves to the next review phase |
-| Session end | `sessions.end` |
-| Summary checkpoint | every ~15 new chat messages, when the rolling summary updates |
+| `actions/reduce.ts` 🆕 | the pure reducer pulled out of `dispatch.ts`: `(state, action, ctx) → { state, result, effects }`. No zustand import, so Convex can import it too |
+| `actions/dispatch.ts` | becomes: run `reduce`, set the store, run effects (camera), push history (non-pointer sources), emit `actionLog`. Behaviour and tests unchanged |
+| `actions/types.ts` | add actions `zoom`, `rotate`, `spin`, `fitBox`, `undo`; `Source` adds `'chat'` and `'mcp'` |
+| `viewer/cameraCommands.ts` 🆕 | one hook used by `AtlasCanvas` and `CaseCanvas`: listens on `viewEvents` for `camera` events and calls `CameraControls`. Shares `HOME` (today copied in both canvases) |
+| `agent/tools.ts` 🆕 | **the tool registry**: name, description, JSON schema, `pages`, `toActions(args, ctx)`. Imported by the frontend, Convex and `mcp/`, so names and schemas can't drift |
+| `agent/parseIntent.ts` 🆕 + test | the fast path. The 8 SPEC §8.3 phrases + the brief's: "zoom in", "zoom to 150%", "left view", "spin", "x-ray", "solid", "explode 50%", "isolate the hippocampus", "hide the cortex", "undo". Output: tool calls, not actions, so the panel shows the same rows either way |
+| `agent/resolveTarget.ts` 🆕 + test | structure / group / side names → ids |
+| `agent/AgentPanel.tsx` + parts 🆕 | §4 |
+| `agent/usePushToTalk.ts` 🆕 | hold Space (not when typing in an input), Web Speech API, mic-denied → `Voice off` |
+| `agent/useAgentRun.ts` 🆕 | P3: `useMutation(api.agent.ask)` + `useQuery(api.agent.getRun)`; applies each new step once by `step.id` |
+| `main.tsx` | P3: `ConvexProvider` with `VITE_CONVEX_URL`; with no URL the panel runs fast-path-only |
+| `routes/Learn.tsx`, `routes/Explore.tsx` | mount the panel; pass `page` and `availableTools` |
+| `components/TopNavBar.tsx` | voice chip |
 
-Auto-exports are versioned per session (`export-v1`, `export-v2`, …) and never overwrite each other.
+**Coordination:** Ben owns the frontend (PR #50 open). P1 touches `dispatch.ts`, both canvases and `Explore.tsx`, so **PR #50 merges first** and Ben reviews every frontend PR from this plan (D10).
 
-## 7. 🆕 MCP server
+## 6. 🔄 Multi-agent architecture (Convex side)
 
-- **Package:** new `mcp/` directory, TypeScript, using the official MCP TypeScript SDK (`@modelcontextprotocol/sdk`).
-- **Tools:** the same registry as §4, imported from `convex/tools/registry.ts`, so names and schemas never drift.
-- **Resources (read-only):** current session view, case report, annotations, latest summary.
-- **Path to Convex:** one public Convex mutation, `tools.execute({ sessionId, participantToken, name, args })`, called with the Convex HTTP client. Same `executeTool` checks as chat and voice.
-- **Auth:** the MCP server is configured with a participant token (presenter for view control, viewer for read and annotate). No Convex admin key in the MCP server.
-- **Transports:** stdio (Claude Desktop, Claude Code) and HTTP (remote clients).
-- **Demo moment:** in Claude Desktop, "rotate to the left view and isolate the tumor" → every browser in the session updates.
-- **Option (not planned by default):** the in-app agents could call this same MCP server through the Claude API's MCP connector. That needs a public URL and adds a network hop, so the in-app agents call the registry directly instead.
-
-## 8. 🆕 Voice
-
-- **Input:** push-to-talk (hold Space, SPEC §8.1) → Web Speech API transcript → posted as a message with `source: "voice"`. The text box is always the fallback (SPEC §8.3 risk: noisy hall, network STT).
-- **Processing:** fast-path parser first; the agents only when no fast-path match.
-- **Output:** the reply shows in the transcript; optional spoken reply with the browser's built-in speech synthesis.
-- **Latency targets:** fast-path commands feel instant (< ~300 ms to a visible change); agent requests show a "thinking" state at once and answer within a few seconds.
-
-## 9. 🆕 Conflicts and decisions for Tom
-
-| # | Item | Why it matters | Proposed resolution |
+| Agent | Job | Tools it gets | Model |
 |---|---|---|---|
-| D1 | **SPEC D8** is locked: "Jarvis = deterministic; LLM intent fallback is P1" | This plan makes LLM agents a core feature | Spec PR amending D8 + Decision Log line: deterministic fast path stays, LLM agents added on top |
-| D2 | **M6**: the shared view must grow (§3) | Changes the Convex contract the frontend reads | Spec/contract PR, heads-up to the viewer and app owners |
-| D3 | **M4**: annotations need the scan's affine in `report.json` | Our backend contract is signed (v1.1) | Contract v1.2: add `affineRowMajor` (16 numbers, `p_ras = A·[i,j,k,1]ᵀ`) |
-| D4 | LLM provider, API key, and Router model | Nothing LLM-based runs without it | Claude (`claude-opus-5-5`); decide Router model; key in Convex env vars only |
-| D5 | Which auto-export triggers (§6) | Avoids surprise documents | Proposed default: job finished + session end |
-| D6 | Feature freeze at h29 (SPEC D10) | P5–P8 below may not fit | Aim for P0–P4 before freeze; rest is stretch |
-| D7 | Product name: NeuroVision vs NeuroLens (`CONVEX_BACKEND.md` M2) | Agent replies and exported documents show the name | Pick one before the pitch |
+| **Fast path** (`parseIntent`, browser code) | Common commands, instantly, with no network | all viewer tools | none |
+| **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (option: `claude-haiku-5-5`, D4) |
+| **Navigator** | Multi-step view requests ("spin to the right side and fade the cortex") | viewer tools for this page | `claude-opus-5-5`, `low` |
+| **Anatomy tutor** | Explain and search, only from `anatomy.json`, `structures.json`, `report.json` and session chat | `explain_structure`, `explain_finding`, `search`, `focus_region` | `claude-opus-5-5`, `medium` |
+| **Scribe** | Summaries, annotations, exports | `summarize`, `add_annotation`, `export_document` | `claude-opus-5-5`, `medium` |
+| **Guard** (code) | Tool allow-list per page, rate limit (1 active run per client, 10 runs/min), spend cap, banned wording (diagnosis, prognosis, "healthy") checked on every reply | inside `agent.run` | none |
 
-## 10. 🆕 Build phases
+The Figma example, as one run: *"Spin to the right side. How close is the hippocampus to the tumor?"*
+1. The fast path misses (two requests in one), so the Router hands off to **Navigator**.
+2. Navigator calls:
+   - `rotate_view({ preset: "right" })` → ✓;
+   - `toggle_visibility({ targets: ["cortex"], visible: false })` → ✓.
+3. It hands off to **Anatomy tutor**, which calls `explain_structure({ name: "hippocampus", depth: "brief" })` → ✓.
+4. Distance numbers come only from real data. On `/learn` there is no tumor, so the tutor says so. On Explore, a distance needs the atlas registered to the patient, which is out of scope (SPEC D6). The agent says it can't measure that, rather than inventing "6.2 mm".
 
-Each phase is its own GitHub issue with acceptance criteria. Every PR is reviewed by the lead and **merged only by Tom**.
+**Convex files (P3):**
 
-| # | Phase | Suggested owner | Done when |
+| File | Contents |
+|---|---|
+| `convex/schema.ts` | 🆕 `agentRuns` { clientId, sessionId?, text, source, page, status, steps[ { id, tool, args, ok, message, ms } ], reply, agent, error, createdAt }, index `by_client` |
+| `convex/agent.ts` | `ask` (mutation: check rate limit, insert run, `scheduler.runAfter(0, internal.agent.run)`), `run` (internalAction: Claude loop), `getRun` / `listRuns` (queries), `cancel`, `callTool` (MCP) |
+| `convex/agentPrompts.ts` | system prompts per agent; frozen text so prompt caching works |
+| shared imports | `frontend/src/agent/tools.ts` and `frontend/src/actions/reduce.ts` imported by Convex (check in P3 that the Convex bundler accepts imports from outside `convex/`; if not, move both to a root `shared/` folder) |
+
+**Claude call details:**
+- `@anthropic-ai/sdk` inside the action; key in a Convex env var only.
+- Hand-written tool loop, max 6 turns, so each call is checked and logged.
+- `strict: true` tool schemas and `tool_choice: auto`.
+- Prompt caching: system prompt + sorted tool list first.
+- The state snapshot, recent chat and the user text go after the cache breakpoint.
+- Chat text is untrusted data, never instructions.
+
+## 7. ✏️ Export, and auto-export after a phase
+
+- **On request:** "export this as PDF" → Scribe → `export_document`. The browser builds the file:
+  - Markdown first;
+  - PDF through the browser's print-to-PDF of a print stylesheet, so no new dependency.
+
+  Figma's share icon (bottom-left of frame 04) is the manual button.
+- **Contents:**
+  - the case, or "Atlas (template brain, not a patient)" on `/learn`;
+  - report numbers;
+  - annotations;
+  - the conversation;
+  - the tool steps;
+  - the "Educational, not clinically validated" notice.
+- **Auto triggers (D5):**
+  - job reaches `done`;
+  - leaving Explore;
+  - every ~15 messages (with the rolling summary).
+
+  Versioned `export-v1`, `export-v2`, …; nothing is overwritten.
+
+## 8. 🔄 MCP server
+
+- `mcp/` package, `@modelcontextprotocol/sdk`, stdio (Claude Desktop, Claude Code) + Streamable HTTP.
+- Tools: generated from `frontend/src/agent/tools.ts` (same names, same schemas).
+- 🔄 **Pairing instead of session tokens:** the frontend has no live-review session yet. The Agent Panel's History tab shows a 6-character pair code for this browser tab. The code expires after 10 minutes and is stored in an `agentLinks` table.
+  - The user gives the code to Claude Desktop once (`pair` tool).
+  - Calls then go to `agent.callTool({ pairCode, name, args })` → an `agentRuns` row → the browser applies it like any other step.
+  - Rows show `source: mcp`.
+- Resources: current context chips, `report.json`, the atlas list.
+- **Demo moment:** in Claude Desktop, "rotate to the left view and isolate the hippocampus" → the browser turns, with the tool rows in the panel.
+
+## 9. ✏️ Voice
+
+- Hold **Space** (SPEC §8.1) → Web Speech API with interim results in the Voice Input Bar → on release the transcript is sent with `source: 'voice'`.
+- Fast path first. The agent only runs when there is no match.
+- Spoken reply (browser speech synthesis): off by default, with a toggle in the header.
+- **Targets:**
+  - a fast-path command visibly changes the view < 300 ms after release;
+  - an agent request shows `Thinking` at once and finishes in a few seconds.
+- **Fallbacks:** no mic or denied → `Voice off` chip; the text box always works (SPEC §8.3 hall-noise risk).
+
+## 10. 🔄 Decisions for Tom
+
+| # | Decision | Proposed |
+|---|---|---|
+| D1 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Amend D8: fast path stays deterministic and offline; Claude agents added behind it |
+| D2 | 🔄 M6 (wider shared view) | Not needed for chat, voice or MCP any more; keep for multi-viewer review (P8) |
+| D3 | M4: affine in `report.json` (contract v1.2) | Only needed for P7 annotations on Explore |
+| D4 | LLM key and Router model | `claude-opus-5-5`, effort `low`; or `claude-haiku-5-5` for the Router |
+| D5 | Auto-export triggers | job done + leaving Explore |
+| D6 | What ships before the h29 freeze | P1–P3, plus P5 (MCP) if time |
+| D7 | Name: NeuroVision vs NeuroLens | NeuroVision (the UI already uses it) |
+| D8 🆕 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
+| D9 🆕 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
+| D10 🆕 | Frontend ownership | PR #50 merges first; Ben reviews the frontend PRs from this plan |
+
+## 11. 🔄 Build phases (each = one GitHub issue, merged only by Tom)
+
+| # | Phase | Owner | Done when (acceptance) |
 |---|---|---|---|
-| P0 | Decisions D1–D7, spec/contract PRs | lead + Tom | Decision Log entries merged |
-| P1 | Tool registry, `executeTool`, wider shared view, deterministic parser | codex1 | `/jarvis zoom 150%` and "x-ray mode" change both tabs, no LLM involved; tests per tool |
-| P2 | Convex chat (`messages`, paginated) + `agentRuns` + frontend hooks | codex2 + frontend | chat appears in two tabs with no refresh; run status visible |
-| P3 | Router + Viewer Control agent | claude2 | ≥ 90% correct tool calls on a ~40-phrase eval set; LLM-off still works |
-| P4 | MCP server (stdio + HTTP) | codex1 | Claude Desktop controls the viewer; MCP inspector lists all tools |
-| P5 | Annotations (needs D3) | codex2 | marker within 2 mm in 2D and 3D on both tabs (SPEC §5.3) |
-| P6 | Knowledge agent: search + explain | claude-old | answers cite the report, atlas or chat; no diagnosis wording |
-| P7 | Scribe agent: summarize + export + auto-export | claude2 | manual and triggered exports download correctly; summaries only use this session |
-| P8 | Voice polish + demo hardening | frontend + lead | demo script runs twice; fast-path commands work with the LLM switched off |
+| P0 | Decisions D1–D10; SPEC D8 amendment | lead + Tom | Decision Log lines merged |
+| **P1** | Pure `reduce` + `cameraCommands` + new actions (zoom, rotate, spin, undo) + `actionLog` + `tools.ts` + `parseIntent` + `resolveTarget` + Agent Panel with a text box, on `/learn` | codex1 (logic) + claude2 (panel), Ben reviews | On `/learn`, typing each of these changes the view and shows a ✓ row with ms: "zoom to 150%", "left view", "spin", "x-ray", "cortex 20%", "explode 50%", "isolate the left hippocampus", "hide the cortex", "undo", "reset". Existing dispatch tests still pass; new tests for every parser phrase and every tool's `toActions`. **No Convex, no LLM** |
+| P2 | Push-to-talk + voice chip + suggestion chips + Script tab | claude2 | Same 10 phrases by voice in Chrome; mic denied → `Voice off`, text still works |
+| P3 | Convex client in the frontend + `agentRuns` + `agent.ask` / `run` + Router + Navigator | codex2 | The Figma request works end to end; 40-phrase eval ≥ 90% correct tool calls; with no key: "Assistant unavailable", fast path still works |
+| P4 | Anatomy tutor: `explain_structure`, `explain_finding`, `search` | claude-old | Answers quote `anatomy.json` / the report; banned-wording test passes |
+| P5 | MCP server + pairing | codex1 | MCP Inspector lists all tools; Claude Desktop drives `/learn` after pairing |
+| P6 | Explore parity: wire `CaseCanvas` to opacity, hidden, layers, explode (with or after Milestone D) | Ben | the ⏳ rows in §3.3 turn ✅ with no agent change |
+| P7 | Scribe: summarize, annotations (needs D3), export + auto-export | claude2 | manual and auto exports download; pins sit within 2 mm |
+| P8 | Multi-viewer sync (M6), hardening, demo script twice | lead | two tabs follow one presenter; demo runs twice with the LLM off and on |
 
-**Tests across all phases:** schema tests per tool; clamp/reject tests; permission tests (viewer cannot change the presenter's view); parser phrase tests; agent eval set; two-tab manual check (`CONVEX_BACKEND.md` §5); MCP inspector run; LLM-off run.
+## 12. 🆕 Test plan
 
-## 11. Change log
+- **Unit (vitest):**
+  - `reduce` (all existing dispatch tests move over);
+  - `parseIntent` (every phrase above and the SPEC §8.3 list);
+  - `resolveTarget` (sides, groups, ambiguity);
+  - each tool's `toActions`;
+  - zoom % ↔ distance;
+  - undo history.
+- **Convex (`convex-test`):**
+  - rate limit;
+  - page allow-list;
+  - a step's `{ ok, message }` equals what the browser's `dispatch` returns for the same snapshot.
+- **Eval:** 40 phrases per page with the expected tool calls, run on every prompt change.
+- **Manual:**
+  - the Figma request;
+  - LLM off;
+  - mic denied;
+  - MCP pairing;
+  - a no-tumor case ("show the tumor" → "No tumor detected in this scan").
 
-All changes by the lead (claude), 2026-10-24, as a draft for Tom's review:
+## 13. Change log
 
-- 🆕 Added a separator and a status note under Tom's original brief. **The brief itself is unchanged.**
-- 🆕 Added §1 Goal and §2 architecture (one tool registry, one `executeTool` door, three inputs: chat, voice, MCP).
-- 🆕 Added §3: widen the Convex shared view (M6) so server-side agents can change what browsers show.
-- ✏️ §4 turned each brief tool into a typed tool with arguments, permissions and storage. Clarifications:
-  - "Turn on solid" = SPEC's `whole` mode.
-  - "Zoom by default or set the percentage" = 20% default step, or an exact % clamped to 25–400%.
-  - "Search - Explain system" split into two tools, `search.query` and `explain.topic`.
-  - "Isolate specific part" covers the tumor, a hemisphere, a tumor layer, or an atlas structure.
-- 🆕 Added `viewer.focusTumor`, `resetView`, `setCutPlane`, `setSlice` (already in SPEC §7.3) and `session.setPhase` (needed for auto-export).
-- 🆕 Added §5 multi-agent architecture: fast path, Router, four specialists, Guard.
-- ✏️ §6 defined "a phase" (job finished, review phase change, session end, summary checkpoint) and what an exported document contains.
-- 🆕 Added §7 MCP server, §8 voice, §9 conflicts and decisions, §10 build phases.
+**v1 (2026-10-24):** first draft from the docs: tool registry, `executeTool`, wider shared view, tool catalog, agents, export, MCP, voice, decisions D1–D7, phases P0–P8.
+
+**v2 (2026-10-24), after reading the frontend code (main + PR #50) and the Figma frames:**
+- 🆕 §0: inventory of what the frontend already has (dispatch door, `Source: 'voice'`, actions, the Figma Neuro Agent panel, no Convex client yet).
+- 🔄 §2: tools are **applied in the browser** through `dispatch`; Convex carries them in `agentRuns`. Replaces v1's "widen `sessions.view` first", which moves to P8.
+- 🔄 §3.1: tool names changed to **snake_case** (the Claude API rejects dots) and aligned with the Figma names.
+- 🔄 §3.2: every tool now names the exact frontend action. New actions: zoom, rotate, spin, fitBox, undo. Zoom % is defined against the home camera distance. Opacity switches to X-Ray first.
+- 🆕 §3.3: tools per page; the agent only gets tools the page supports.
+- 🆕 §4: the Figma Agent Panel mapped to components and data, plus the panel location question (D8) and the "Clinical Reasoner" label (D9).
+- 🆕 §5: frontend file-by-file plan; PR #50 first.
+- 🔄 §6: agents renamed to Navigator / Anatomy tutor / Scribe; the fast path moves into the browser; the Figma example walked through, including what the agent must refuse to invent.
+- 🔄 §8: MCP uses a short-lived pair code instead of session tokens.
+- 🔄 §10: decisions D8–D10 added; D2 downgraded.
+- 🔄 §11: phases reordered: frontend-only P1–P2 first (no LLM needed), the Convex agent in P3.
+- 🆕 §12: test plan.
