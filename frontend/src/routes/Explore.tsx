@@ -23,15 +23,16 @@ type Result =
 const OFFLINE = 'Backend offline — start docker compose up';
 
 /** Shows error.message so a MissingNodeError names the node ("3D model is missing node: brain_left"). */
-class LoadBoundary extends Component<{ id: string; children: ReactNode }, { error: Error | null }> {
+class LoadBoundary extends Component<{ id: string; onFail: (failed: boolean) => void; children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
   static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch() { this.props.onFail(true); }
   render() {
     if (!this.state.error) return this.props.children;
     return (
       <div className={css.error} role="alert">
         <p>{this.state.error.message}</p>
-        <button className={css.retry} onClick={() => { useGLTF.clear(modelUrl(this.props.id)); this.setState({ error: null }); }}>Retry</button>
+        <button className={css.retry} onClick={() => { useGLTF.clear(modelUrl(this.props.id)); this.setState({ error: null }); this.props.onFail(false); }}>Retry</button>
       </div>
     );
   }
@@ -43,6 +44,7 @@ export default function Explore() {
   const key = `${id}:${attempt}`;
   const [res, setRes] = useState<{ key: string; result: Result } | null>(null);
   const [layers, setLayers] = useState<Partial<Record<Layer, boolean>>>({});
+  const [failedId, setFailedId] = useState<string | null>(null); // the 3D model for this job failed to load
   const [message, setMessage] = useState<DispatchResult | null>(null);
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function Explore() {
 
   const act = (a: Parameters<typeof dispatch>[0]) => setMessage(dispatch(a, 'pointer'));
   const report = result?.kind === 'ready' ? result.report : null;
+  const modelFailed = failedId === id;
 
   return (
     <div className={css.page}>
@@ -87,7 +90,7 @@ export default function Explore() {
           )}
           {report && (
             <>
-              <LoadBoundary key={id} id={id}>
+              <LoadBoundary key={id} id={id} onFail={(f) => setFailedId(f ? id : null)}>
                 <Suspense fallback={<p className={css.loading}>Loading 3D brain…</p>}>
                   <CaseCanvas jobId={id} report={report} onLayers={setLayers} />
                 </Suspense>
@@ -95,9 +98,9 @@ export default function Explore() {
               <div className={css.bottom}>
                 <p className={css.status} role="status">{message?.message}</p>
                 <div className={css.bar}>
-                  <button className={`${css.chip} ${css.tumor}`} disabled={!report.tumorDetected} title={report.tumorDetected ? undefined : 'No tumor detected in this scan'}
+                  <button className={`${css.chip} ${css.tumor}`} disabled={!report.tumorDetected || modelFailed} title={report.tumorDetected ? undefined : 'No tumor detected in this scan'}
                     onClick={() => act({ type: 'focusTumor' })}>Show tumor</button>
-                  <button className={css.chip} onClick={() => act({ type: 'resetView' })}>Reset view</button>
+                  <button className={css.chip} disabled={modelFailed} onClick={() => act({ type: 'resetView' })}>Reset view</button>
                 </div>
               </div>
             </>
@@ -111,7 +114,7 @@ export default function Explore() {
                 <dt>Side</dt><dd>{sideLabel(report.side)}</dd>
                 {report.tumorDetected && <><dt>Whole tumor</dt><dd>{cm3(report.volumesCm3.whole)}</dd></>}
               </dl>
-              <Legend available={layers} />
+              {!modelFailed && <Legend available={layers} />}
               <Link className={css.back} to={`/jobs/${id}/results`}>Back to results</Link>
             </>
           )}
