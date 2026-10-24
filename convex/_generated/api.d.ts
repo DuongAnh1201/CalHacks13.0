@@ -15,6 +15,7 @@ import type * as lib_errors from "../lib/errors.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_transform from "../lib/transform.js";
 import type * as lib_viewCommands from "../lib/viewCommands.js";
+import type * as messages from "../messages.js";
 import type * as scans from "../scans.js";
 import type * as seed from "../seed.js";
 import type * as sessionParticipants from "../sessionParticipants.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tokens": typeof lib_tokens;
   "lib/transform": typeof lib_transform;
   "lib/viewCommands": typeof lib_viewCommands;
+  messages: typeof messages;
   scans: typeof scans;
   seed: typeof seed;
   sessionParticipants: typeof sessionParticipants;
