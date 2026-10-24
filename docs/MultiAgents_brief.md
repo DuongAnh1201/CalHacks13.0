@@ -345,10 +345,11 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D7 ✅ #81 | How the in-app agent calls MCP | **A (Tom):** the Convex agent action is the MCP client of `neuro-mcp`, so every call is logged and rate limited. The Claude API MCP connector is not used |
 | D8 ✅ #82 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
 | D9 ✅ #83 | General-education questions (§6.1 kind 2) | **B (Tom):** general knowledge + the Claude API server-side web search tool, with cited sources, labelled "General information, not from this scan" |
-| D10 | Do agent-authored notes need a human Accept? | Yes: agent rows start `suggested`; exports include only `accepted` unless asked |
+| D10 ✅ #84 | Do agent-authored notes need a human Accept? | Yes: agent rows start `suggested`; exports include only `accepted` unless asked |
 
 **Already decided:**
 - ✅ Model certainty in `report.json` (issue #52, PR #55).
+- ✅ Agent-authored items need a human Accept (D10): agent annotations start `suggested`; a human Accepts or Dismisses; exports include only `accepted` items unless asked for all; AI summaries are always labelled.
 - ✅ One table per record type with an `author` field. We create the tables (#56); Sage writes the human-side functions + REST; Tom owns the MCP agent side.
 
 **✂️ Removed (not part of the multi-agent system; owned elsewhere):**
