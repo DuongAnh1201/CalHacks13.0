@@ -262,9 +262,9 @@ What the model does and doesn't give us:
 **Claude call details:**
 - `@anthropic-ai/sdk` inside the action; the key is the Convex env var `ANTHROPIC_API_KEY` only, never in the frontend or git (D2).
 - Hand-written tool loop, max 6 turns, so each call is checked and logged.
-- 🔀 **How the agent reaches MCP (D7):**
-  - **A (proposed):** the Convex action is an MCP client (`@modelcontextprotocol/sdk` `Client`). It lists `neuro-mcp`'s tools once, passes them to Claude next to the viewer tools, and runs each MCP `tool_use` itself. We keep the rate limit, the log row and the latency for every call.
-  - **B:** the Claude API's MCP connector (`mcp_servers` in the request). Less code, but Anthropic calls the server, so it needs a public URL + token and we log the calls after the fact.
+- 🔀 **How the agent reaches MCP (D7, decided by Tom: A):**
+  - **A:** the Convex action is an MCP client (`@modelcontextprotocol/sdk` `Client`). It lists `neuro-mcp`'s tools once, passes them to Claude next to the viewer tools, and runs each MCP `tool_use` itself. We keep the rate limit, the log row and the latency for every call.
+  - Not used: the Claude API's MCP connector (option B). It would have Anthropic call the server, needing a public URL + token, and we could only log the calls after the fact.
 - `strict: true` tool schemas and `tool_choice: auto`.
 - Prompt caching: system prompt + sorted tool list first.
 - The state snapshot, recent chat and the user text go after the cache breakpoint.
@@ -342,7 +342,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D4 ✅ #78 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
 | D5 ✅ #79 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
 | D6 ✅ #80 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
-| D7 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
+| D7 ✅ #81 | How the in-app agent calls MCP | **A (Tom):** the Convex agent action is the MCP client of `neuro-mcp`, so every call is logged and rate limited. The Claude API MCP connector is not used |
 | D8 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
 | D9 | General-education questions (§6.1 kind 2) | **A** (general knowledge, labelled). B = + web search; C = strict refusal |
 | D10 | Do agent-authored notes need a human Accept? | Yes: agent rows start `suggested`; exports include only `accepted` unless asked |
