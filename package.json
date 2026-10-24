@@ -9,10 +9,12 @@
     "dev": "convex dev",
     "deploy": "static-hosting deploy --dist frontend/dist --build-command \"npm --prefix frontend run build\"",
     "typecheck": "tsc --noEmit -p convex",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:mcp-stdio",
     "test:watch": "vitest",
     "test-harness:build": "esbuild test-harness/app.js --bundle --format=esm --platform=browser --outfile=test-harness/dist/app.js",
-    "test-harness": "npm run test-harness:build && node test-harness/serve.mjs"
+    "test-harness": "npm run test-harness:build && node test-harness/serve.mjs",
+    "mcp:stdio": "node mcp/stdio.mjs",
+    "test:mcp-stdio": "node --test mcp/proxy.test.mjs"
   },
   "dependencies": {
     "@convex-dev/static-hosting": "^0.2.1",
