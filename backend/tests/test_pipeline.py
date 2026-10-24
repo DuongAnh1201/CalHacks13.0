@@ -122,3 +122,41 @@ def test_ambiguous_voxel_contacts_are_closed():
     assert not trimesh.Trimesh(vertices, faces, process=False).is_watertight
     mesh = to_mesh(mask, np.eye(4), [242, 201, 76, 255])
     assert mesh.is_watertight
+
+
+@pytest.mark.parametrize("step_size", [1, 2])
+def test_taubin_smoothing_preserves_volume_and_limits_movement(step_size):
+    from src.mask_to_mesh import to_mesh
+
+    i, j, k = np.ogrid[:40, :40, :40]
+    mask = (i - 20)**2 + (j - 20)**2 + (k - 20)**2 <= 12**2
+    before = to_mesh(mask, np.eye(4), [217, 212, 207, 255],
+                     smooth_iters=0, step_size=step_size)
+    after = to_mesh(mask, np.eye(4), [217, 212, 207, 255], step_size=step_size)
+    assert after.is_watertight
+    np.testing.assert_array_equal(before.faces, after.faces)
+    distance = np.linalg.norm(after.vertices - before.vertices, axis=1).mean()
+    assert 0 < distance < 1
+    assert abs(abs(after.volume) - mask.sum()) / mask.sum() < 0.02
+
+
+def test_smoothing_does_not_change_report_or_segmentation(tmp_path, masks, monkeypatch):
+    from src import pipeline
+
+    before = tmp_path / "before" / "same-job"
+    after = tmp_path / "after" / "same-job"
+    before.mkdir(parents=True)
+    after.mkdir(parents=True)
+    smoothed = pipeline.build_outputs(after, *masks, np.eye(4), (1, 1, 1))
+    original = pipeline.to_mesh
+
+    def unsmoothed(*args, **kwargs):
+        kwargs["smooth_iters"] = 0
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline, "to_mesh", unsmoothed)
+    baseline = pipeline.build_outputs(before, *masks, np.eye(4), (1, 1, 1))
+    assert smoothed == baseline
+    assert (before / "report.json").read_bytes() == (after / "report.json").read_bytes()
+    np.testing.assert_array_equal(nib.load(before / "seg.nii.gz").get_fdata(),
+                                  nib.load(after / "seg.nii.gz").get_fdata())
