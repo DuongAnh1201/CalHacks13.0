@@ -239,16 +239,16 @@ export async function createJob(files: Record<Sequence, File>): Promise<string> 
 
 **Files:** none committed. Report only.
 
-- [ ] **Step 1:** From the repo root: `docker compose up -d --build` (arm64). Wait for `curl -s localhost:8000/health` → `{"ok":true,…}`.
-- [ ] **Step 2: Smoke** (all must match):
+- [x] **Step 1:** From the repo root: `docker compose up -d --build` (arm64). Wait for `curl -s localhost:8000/health` → `{"ok":true,…}`.
+- [x] **Step 2: Smoke** (all must match):
   - `curl -s localhost:8000/jobs/sample` → `status: "done"`.
   - `curl -s localhost:8000/jobs/sample/report | jq .side` → `"right"`; `sample-2` → `"left"`.
   - `curl -sI localhost:8000/jobs/sample/model.glb` → 200, `content-type` glb/octet-stream.
   - `curl -s -o /dev/null -w '%{http_code}' localhost:8000/jobs/nope` → 404.
   - `curl -s -H 'Origin: http://localhost:5173' -I localhost:8000/health | grep -i access-control-allow-origin` → present.
   - `curl -s -F t1c=@/etc/hosts\;filename=a.jpg -F t1=@/etc/hosts\;filename=b.jpg -F t2=@/etc/hosts\;filename=c.jpg -F flair=@/etc/hosts\;filename=d.jpg localhost:8000/jobs` → 422 `INVALID_FORMAT`.
-- [ ] **Step 3:** Find where the container's `jobs/` directory lives on the host (compose volume or bind mount). qa needs it in T10 to seed a broken GLB job named `sample-broken` (names starting with `sample` survive restarts).
-- [ ] **Step 4:** Leave the backend running. `hc send lead` and `hc send qa` with: pass/fail per smoke line, and the host path of `jobs/`. Afterwards, answer contract questions from fe/ai.
+- [x] **Step 3:** Find where the container's `jobs/` directory lives on the host (compose volume or bind mount). qa needs it in T10 to seed a broken GLB job named `sample-broken` (names starting with `sample` survive restarts).
+- [x] **Step 4:** Leave the backend running. `hc send lead` and `hc send qa` with: pass/fail per smoke line, and the host path of `jobs/`. Afterwards, answer contract questions from fe/ai.
 
 ---
 
@@ -695,10 +695,10 @@ Behaviour (follow frame 04 `docs/figma/04-explore.png` for the stage + right pan
 
 For each "Tn ready at <hash>" message:
 
-- [ ] `git show --stat <hash>`: only that task's files changed.
-- [ ] `npm test`, `npx tsc -b`, `npm run lint`, `npm run build` pass at that commit or later.
-- [ ] Diff against this plan's task: interfaces match exactly; Global Constraints hold (no Tailwind classes, no `lib/`, no inline SVG, no keyboard shortcuts, no banned word, SPEC-over-Figma content rules).
-- [ ] Reply to the owner: `PASS Tn` or `FAIL Tn: <file:line> <problem>` (one line per problem). Send each PASS/FAIL to `lead` too.
+- [x] `git show --stat <hash>`: only that task's files changed.
+- [x] `npm test`, `npx tsc -b`, `npm run lint`, `npm run build` pass at that commit or later.
+- [x] Diff against this plan's task: interfaces match exactly; Global Constraints hold (no Tailwind classes, no `lib/`, no inline SVG, no keyboard shortcuts, no banned word, SPEC-over-Figma content rules).
+- [x] Reply to the owner: `PASS Tn` or `FAIL Tn: <file:line> <problem>` (one line per problem). Send each PASS/FAIL to `lead` too.
 
 ### Task 11: Figma alignment pass over every screen (fe, ai)
 
@@ -714,11 +714,11 @@ User request: the whole Figma page `43:2` ("NeuroVision Flow — Upload → Work
 | ai | Explore (04) stage + right panel, `/learn` (also frame 04 layout) |
 
 Per screen:
-- [ ] Open the running page and the frame PNG side by side at 1568 px wide. List every difference in spacing, size, font weight, colour, radius, border, shadow and icon.
-- [ ] Fix each in the CSS module, reusing `--nv-*` tokens (add a token only when a Figma value repeats in 2+ places). Run `impact` before editing any shared component (`TopNavBar`, `Footer`, `Legend`, `BackendBanner`).
-- [ ] SPEC/contract content rules stay above Figma (Global Constraints). Out-of-scope Figma panels (agent, voice, webcam, MPR slices) are **not** cloned; leave the slot or omit.
-- [ ] Screenshot after the fix into `docs/qa/2026-10-24-milestone-b/figma-<screen>.jpg`, then tsc, test, lint, build.
-- [ ] Commit `style(<screen>): match Figma frame <id>` with only your CSS/TSX files and screenshots. `hc send qa "T11 <screen> ready at <hash>"`. qa compares against the frame PNG and replies PASS/FAIL.
+- [x] Open the running page and the frame PNG side by side at 1568 px wide. List every difference in spacing, size, font weight, colour, radius, border, shadow and icon.
+- [x] Fix each in the CSS module, reusing `--nv-*` tokens (add a token only when a Figma value repeats in 2+ places). Run `impact` before editing any shared component (`TopNavBar`, `Footer`, `Legend`, `BackendBanner`).
+- [x] SPEC/contract content rules stay above Figma (Global Constraints). Out-of-scope Figma panels (agent, voice, webcam, MPR slices) are **not** cloned; leave the slot or omit.
+- [x] Screenshot after the fix into `docs/qa/2026-10-24-milestone-b/figma-<screen>.jpg`, then tsc, test, lint, build.
+- [x] Commit `style(<screen>): match Figma frame <id>` with only your CSS/TSX files and screenshots. `hc send qa "T11 <screen> ready at <hash>"`. qa compares against the frame PNG and replies PASS/FAIL.
 
 ### Task 10: Browser verification (qa)
 
@@ -741,7 +741,7 @@ Prereq: be's T2 message (backend running, host `jobs/` path). `npm run dev` in `
 | 11 | Real upload (optional, only if 4 NIfTI files are at hand, e.g. `backend/seed/sample/flair.nii.gz` copied 4× under sequence names): Processing shows live stages `validating → inferring → meshing` |
 | 12 | `grep -rni` for the banned word in `frontend/src` (non-test files): none |
 
-- [ ] Commit the README + screenshots as `docs(qa): Milestone B browser verification`. `hc send lead "T10: <n> PASS / <m> FAIL, commit <hash>"`. Send each FAIL to the owning worker too.
+- [x] Commit the README + screenshots as `docs(qa): Milestone B browser verification`. `hc send lead "T10: <n> PASS / <m> FAIL, commit <hash>"`. Send each FAIL to the owning worker too.
 
 ---
 
