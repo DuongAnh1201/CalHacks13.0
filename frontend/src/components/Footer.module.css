@@ -1,0 +1,40 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--nv-footer-h);
+  margin: 0 24px 8px;
+  padding: 0 16px;
+  background: var(--nv-surface);
+  border: 1px solid var(--nv-border);
+  border-radius: var(--nv-radius-control);
+  box-shadow: var(--nv-shadow);
+  backdrop-filter: blur(var(--nv-blur));
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--nv-text-3);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.note img { width: 12.5px; height: 12.5px; display: block; }
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: var(--nv-text-2);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.guide { color: var(--nv-primary); font-weight: 600; }

@@ -1,0 +1,430 @@
+{
+  "caudal_anterior_cingulate": {
+    "description": "The rear part of the anterior cingulate cortex lies on the inner surface of the frontal lobe, above the corpus callosum.",
+    "functions": [
+      "Effort allocation",
+      "Action monitoring",
+      "Pain processing"
+    ],
+    "whenDamaged": "Damage here is associated with reduced motivation and difficulty adjusting behavior after errors."
+  },
+  "caudal_middle_frontal": {
+    "description": "This frontal gyrus lies behind the rostral middle frontal region, near areas involved in preparing movements.",
+    "functions": [
+      "Working memory",
+      "Movement preparation",
+      "Attention control"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty holding information in mind and organizing goal-directed actions."
+  },
+  "cuneus": {
+    "description": "The cuneus is a wedge of occipital cortex on the inner surface of the hemisphere, above the calcarine sulcus.",
+    "functions": [
+      "Visual processing",
+      "Visual attention"
+    ],
+    "whenDamaged": "Damage here is associated with loss of part of the opposite visual field, depending on the affected cortex."
+  },
+  "entorhinal": {
+    "description": "The entorhinal cortex lies in the inner temporal lobe and forms a major connection between the hippocampus and other cortex.",
+    "functions": [
+      "Memory encoding",
+      "Spatial navigation"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty forming new memories and finding familiar routes."
+  },
+  "fusiform": {
+    "description": "The fusiform gyrus runs along the underside of the temporal and occipital lobes.",
+    "functions": [
+      "Visual object recognition",
+      "Face recognition",
+      "Written word recognition"
+    ],
+    "whenDamaged": "Damage here is associated with impaired recognition of faces or written words, depending on side and extent."
+  },
+  "inferior_parietal": {
+    "description": "The inferior parietal cortex lies below the intraparietal sulcus and combines sensory information with language and spatial processing.",
+    "functions": [
+      "Spatial attention",
+      "Skilled action",
+      "Language integration"
+    ],
+    "whenDamaged": "Damage here is associated with spatial neglect or difficulty with learned actions and calculation, depending on side."
+  },
+  "inferior_temporal": {
+    "description": "The inferior temporal gyrus lies along the lower outer temporal lobe and contributes to identifying complex visual information.",
+    "functions": [
+      "Object recognition",
+      "Visual categorization"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty recognizing objects despite preserved basic vision."
+  },
+  "isthmus_cingulate": {
+    "description": "The isthmus is the narrow posterior part of the cingulate gyrus, linking it with the parahippocampal region.",
+    "functions": [
+      "Contextual memory",
+      "Spatial orientation"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty using familiar surroundings to orient and recall context."
+  },
+  "lateral_occipital": {
+    "description": "The lateral occipital cortex covers the outer back of the hemisphere and processes visual form.",
+    "functions": [
+      "Shape perception",
+      "Object recognition"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty recognizing objects from their visual appearance."
+  },
+  "lateral_orbitofrontal": {
+    "description": "The lateral orbitofrontal cortex lies on the outer underside of the frontal lobe, above the eye socket.",
+    "functions": [
+      "Outcome evaluation",
+      "Behavior adjustment"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty changing behavior when previously rewarded choices stop being useful."
+  },
+  "lingual": {
+    "description": "The lingual gyrus lies on the inner underside of the occipital lobe, below the calcarine sulcus.",
+    "functions": [
+      "Visual feature processing",
+      "Visual word processing"
+    ],
+    "whenDamaged": "Damage here is associated with visual field changes or difficulty processing written and other complex visual information."
+  },
+  "medial_orbitofrontal": {
+    "description": "The medial orbitofrontal cortex lies on the inner underside of the frontal lobe and connects value with decisions.",
+    "functions": [
+      "Reward valuation",
+      "Emotion-guided decisions"
+    ],
+    "whenDamaged": "Damage here is associated with altered judgment and difficulty using emotional outcomes to guide choices."
+  },
+  "middle_temporal": {
+    "description": "The middle temporal gyrus runs along the outer temporal lobe between the superior and inferior temporal gyri.",
+    "functions": [
+      "Word meaning",
+      "Semantic memory"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty understanding words and accessing knowledge about objects, especially on the language-dominant side."
+  },
+  "parahippocampal": {
+    "description": "The parahippocampal cortex lies on the inner underside of the temporal lobe, beside the hippocampus.",
+    "functions": [
+      "Scene recognition",
+      "Contextual memory",
+      "Spatial orientation"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty recognizing places and remembering the context of events."
+  },
+  "paracentral": {
+    "description": "The paracentral lobule lies on the inner surface of the hemisphere around the upper end of the central sulcus.",
+    "functions": [
+      "Leg movement",
+      "Leg sensation"
+    ],
+    "whenDamaged": "Damage here is associated with weakness or sensory loss in the opposite leg, depending on the affected portion."
+  },
+  "pars_opercularis": {
+    "description": "The pars opercularis is the rear portion of the inferior frontal gyrus, beside the lower precentral cortex.",
+    "functions": [
+      "Speech planning",
+      "Response inhibition"
+    ],
+    "whenDamaged": "Damage here is associated with effortful speech on the language-dominant side or impaired response control on the other side."
+  },
+  "pars_orbitalis": {
+    "description": "The pars orbitalis is the lowest front portion of the inferior frontal gyrus, just above the orbit.",
+    "functions": [
+      "Meaning retrieval",
+      "Language selection"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty selecting word meanings and retrieving relevant verbal information."
+  },
+  "pars_triangularis": {
+    "description": "The pars triangularis is the triangular middle portion of the inferior frontal gyrus.",
+    "functions": [
+      "Language selection",
+      "Controlled word retrieval"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty producing fluent language and selecting words, especially on the language-dominant side."
+  },
+  "pericalcarine": {
+    "description": "The pericalcarine cortex surrounds the calcarine sulcus on the inner occipital surface and includes primary visual cortex.",
+    "functions": [
+      "Visual field representation",
+      "Early visual processing"
+    ],
+    "whenDamaged": "Damage here is associated with loss of vision in the corresponding part of the opposite visual field."
+  },
+  "postcentral": {
+    "description": "The postcentral gyrus lies immediately behind the central sulcus and contains primary somatosensory cortex.",
+    "functions": [
+      "Touch perception",
+      "Body position sensing"
+    ],
+    "whenDamaged": "Damage here is associated with reduced touch discrimination and position sense on the opposite side of the body."
+  },
+  "posterior_cingulate": {
+    "description": "The posterior cingulate cortex lies on the inner surface of the hemisphere behind the anterior cingulate region.",
+    "functions": [
+      "Autobiographical memory",
+      "Internal attention",
+      "Spatial orientation"
+    ],
+    "whenDamaged": "Damage here is associated with memory difficulties and problems orienting within familiar surroundings."
+  },
+  "precentral": {
+    "description": "The precentral gyrus lies immediately in front of the central sulcus and contains primary motor cortex.",
+    "functions": [
+      "Voluntary movement",
+      "Fine motor control"
+    ],
+    "whenDamaged": "Damage here is associated with weakness and reduced fine movement on the opposite side of the body."
+  },
+  "precuneus": {
+    "description": "The precuneus lies on the inner parietal surface, above the posterior cingulate cortex.",
+    "functions": [
+      "Visuospatial imagery",
+      "Episodic memory",
+      "Self-related processing"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty in spatial orientation and recalling event details."
+  },
+  "rostral_anterior_cingulate": {
+    "description": "The front part of the anterior cingulate cortex curves around the front of the corpus callosum.",
+    "functions": [
+      "Emotional regulation",
+      "Motivational processing"
+    ],
+    "whenDamaged": "Damage here is associated with changes in emotional regulation and reduced motivation."
+  },
+  "rostral_middle_frontal": {
+    "description": "The rostral middle frontal gyrus lies in the front portion of the outer frontal lobe.",
+    "functions": [
+      "Planning",
+      "Working memory",
+      "Cognitive flexibility"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty planning, maintaining goals and switching between tasks."
+  },
+  "superior_frontal": {
+    "description": "The superior frontal gyrus runs along the upper frontal lobe beside the midline.",
+    "functions": [
+      "Working memory",
+      "Planning",
+      "Supplementary motor control"
+    ],
+    "whenDamaged": "Damage here is associated with reduced initiative, working-memory problems and difficulty starting movements near its rear portion."
+  },
+  "superior_parietal": {
+    "description": "The superior parietal lobule lies in the upper back part of the parietal lobe and combines body and spatial information.",
+    "functions": [
+      "Body position integration",
+      "Visually guided reaching"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty directing movements toward seen targets and judging body position."
+  },
+  "superior_temporal": {
+    "description": "The superior temporal gyrus runs along the upper outer temporal lobe, below the lateral sulcus.",
+    "functions": [
+      "Auditory processing",
+      "Speech comprehension"
+    ],
+    "whenDamaged": "Damage here is associated with impaired sound processing or speech comprehension, depending on side and extent."
+  },
+  "supramarginal": {
+    "description": "The supramarginal gyrus curves around the rear end of the lateral sulcus in the inferior parietal lobe.",
+    "functions": [
+      "Speech sound processing",
+      "Skilled action",
+      "Sensory integration"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty repeating speech or performing learned gestures, especially on the language-dominant side."
+  },
+  "transverse_temporal": {
+    "description": "The transverse temporal gyri lie within the lateral sulcus on the upper surface of the temporal lobe and include primary auditory cortex.",
+    "functions": [
+      "Early sound processing",
+      "Pitch and timing analysis"
+    ],
+    "whenDamaged": "Damage here is associated with impaired sound analysis, with severe hearing loss more likely after damage on both sides."
+  },
+  "insula": {
+    "description": "The insula is cortex folded deep inside the lateral sulcus, covered by frontal, parietal and temporal regions.",
+    "functions": [
+      "Internal body sensing",
+      "Taste processing",
+      "Salience detection"
+    ],
+    "whenDamaged": "Damage here is associated with changes in taste, body awareness and emotional processing, depending on the affected portion."
+  },
+  "brainstem": {
+    "description": "The brainstem connects the cerebrum and cerebellum with the spinal cord and contains the midbrain, pons and medulla.",
+    "functions": [
+      "Breathing regulation",
+      "Arousal",
+      "Cranial nerve functions"
+    ],
+    "whenDamaged": "Damage here is associated with altered alertness, weakness, cranial nerve deficits or disturbed breathing, depending on location."
+  },
+  "third_ventricle": {
+    "description": "The third ventricle is a narrow cerebrospinal fluid cavity between the two halves of the diencephalon.",
+    "functions": [
+      "Cerebrospinal fluid passage",
+      "Fluid communication between ventricles"
+    ],
+    "whenDamaged": "Damage here is associated with disrupted fluid flow and pressure effects on surrounding tissue when the cavity is obstructed."
+  },
+  "fourth_ventricle": {
+    "description": "The fourth ventricle is a cerebrospinal fluid cavity between the brainstem and cerebellum, opening toward spaces around the brain.",
+    "functions": [
+      "Cerebrospinal fluid passage",
+      "Fluid outflow around the brain"
+    ],
+    "whenDamaged": "Damage here is associated with disrupted fluid circulation and pressure effects when its outlets are obstructed."
+  },
+  "optic_chiasm": {
+    "description": "The optic chiasm lies beneath the hypothalamus, where fibers from the nasal half of each retina cross.",
+    "functions": [
+      "Visual signal routing",
+      "Binocular visual field organization"
+    ],
+    "whenDamaged": "Damage here is associated with loss of the outer portions of both visual fields when crossing fibers are affected."
+  },
+  "lateral_ventricle": {
+    "description": "Each lateral ventricle is a cerebrospinal fluid cavity within a cerebral hemisphere, connected to the third ventricle.",
+    "functions": [
+      "Cerebrospinal fluid circulation",
+      "Fluid production by choroid plexus"
+    ],
+    "whenDamaged": "Damage here is associated with disturbed fluid circulation and pressure effects on nearby tissue when outflow is blocked."
+  },
+  "inferior_lateral_ventricle": {
+    "description": "The inferior horn of the lateral ventricle extends into the temporal lobe beside the hippocampus.",
+    "functions": [
+      "Cerebrospinal fluid passage",
+      "Fluid production by choroid plexus"
+    ],
+    "whenDamaged": "Damage here is associated with local fluid trapping and pressure on nearby temporal tissue when its connection is obstructed."
+  },
+  "cerebellum_gray_matter": {
+    "description": "Cerebellar gray matter contains neuron cell bodies in the folded cerebellar cortex and deeper nuclei.",
+    "functions": [
+      "Movement coordination",
+      "Motor learning",
+      "Balance adjustment"
+    ],
+    "whenDamaged": "Damage here is associated with unsteady movement, inaccurate reaching and impaired balance, depending on the region involved."
+  },
+  "cerebellum_white_matter": {
+    "description": "Cerebellar white matter lies beneath the cerebellar cortex and carries fibers between its cortex, nuclei and connections.",
+    "functions": [
+      "Cerebellar signal transmission",
+      "Coordination pathway connections"
+    ],
+    "whenDamaged": "Damage here is associated with impaired movement coordination and balance from disrupted cerebellar communication."
+  },
+  "thalamus": {
+    "description": "The thalamus is a deep collection of nuclei above the brainstem, bordering the third ventricle.",
+    "functions": [
+      "Sensory relay",
+      "Attention",
+      "Motor circuit integration"
+    ],
+    "whenDamaged": "Damage here is associated with altered sensation, alertness or memory, depending on the nuclei involved."
+  },
+  "caudate": {
+    "description": "The caudate is a curved basal ganglia nucleus that follows the lateral ventricle.",
+    "functions": [
+      "Action selection",
+      "Habit learning",
+      "Goal-directed control"
+    ],
+    "whenDamaged": "Damage here is associated with changes in movement, motivation and the ability to organize goal-directed behavior."
+  },
+  "putamen": {
+    "description": "The putamen is an outer basal ganglia nucleus beside the globus pallidus and forms part of the striatum.",
+    "functions": [
+      "Movement regulation",
+      "Motor habit learning"
+    ],
+    "whenDamaged": "Damage here is associated with altered movement speed, control or involuntary movements, depending on the affected circuits."
+  },
+  "pallidum": {
+    "description": "The pallidum, or globus pallidus, lies inside the putamen and provides major output from basal ganglia circuits.",
+    "functions": [
+      "Movement regulation",
+      "Motor output gating"
+    ],
+    "whenDamaged": "Damage here is associated with abnormal muscle tone and impaired control of voluntary movement."
+  },
+  "hippocampus": {
+    "description": "The hippocampus is a curved structure in the inner temporal lobe, beside the inferior horn of the lateral ventricle.",
+    "functions": [
+      "New episodic memory",
+      "Spatial navigation"
+    ],
+    "whenDamaged": "Damage here is associated with difficulty forming new event memories, especially when both sides are affected."
+  },
+  "amygdala": {
+    "description": "The amygdala is a group of nuclei in the front of the inner temporal lobe, near the hippocampus.",
+    "functions": [
+      "Emotional learning",
+      "Threat processing",
+      "Emotional memory"
+    ],
+    "whenDamaged": "Damage here is associated with altered recognition of emotional cues and changes in learned responses to threats."
+  },
+  "accumbens_area": {
+    "description": "The accumbens area lies in the ventral striatum where the caudate and putamen meet near the basal forebrain.",
+    "functions": [
+      "Reward learning",
+      "Motivation",
+      "Effort-based choice"
+    ],
+    "whenDamaged": "Damage here is associated with reduced motivation and altered responses to rewarding outcomes."
+  },
+  "ventral_diencephalon": {
+    "description": "This atlas region covers tissue below the thalamus, including hypothalamic and nearby deep structures.",
+    "functions": [
+      "Internal balance regulation",
+      "Autonomic control",
+      "Sleep and wake regulation"
+    ],
+    "whenDamaged": "Damage here is associated with disturbances of sleep, appetite, temperature or hormonal regulation, depending on the tissue involved."
+  },
+  "basal_forebrain": {
+    "description": "The basal forebrain lies below the front of the striatum and includes nuclei that send widespread signals to the cortex.",
+    "functions": [
+      "Attention modulation",
+      "Memory support",
+      "Cortical activation"
+    ],
+    "whenDamaged": "Damage here is associated with impaired attention and memory from disrupted signaling to the cortex and hippocampus."
+  },
+  "vermal_lobules_i_v": {
+    "description": "Lobules I through V form the upper front portion of the cerebellar vermis along the midline.",
+    "functions": [
+      "Trunk coordination",
+      "Postural adjustment"
+    ],
+    "whenDamaged": "Damage here is associated with unsteady posture and difficulty coordinating trunk and leg movements."
+  },
+  "vermal_lobules_vi_vii": {
+    "description": "Lobules VI and VII lie in the central upper portion of the cerebellar vermis.",
+    "functions": [
+      "Eye movement control",
+      "Postural coordination"
+    ],
+    "whenDamaged": "Damage here is associated with inaccurate eye movements and impaired balance or trunk coordination."
+  },
+  "vermal_lobules_viii_x": {
+    "description": "Lobules VIII through X occupy the lower vermis and include regions linked to balance and vestibular signals.",
+    "functions": [
+      "Balance control",
+      "Gaze stabilization",
+      "Trunk coordination"
+    ],
+    "whenDamaged": "Damage here is associated with unsteady gait, impaired balance and abnormal eye movements."
+  }
+}

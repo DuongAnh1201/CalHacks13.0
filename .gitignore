@@ -230,6 +230,7 @@ Task01_BrainTumour/
 # Node / Convex backend
 # ---------------------------------------------------------------------------
 node_modules/
+.vitest/
 npm-debug.log*
 yarn-error.log*
 

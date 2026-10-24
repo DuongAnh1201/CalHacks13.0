@@ -1,0 +1,7 @@
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
+  font: 600 12px var(--nv-font); color: var(--nv-text-2);
+  background: var(--nv-surface-warm); backdrop-filter: blur(var(--nv-blur));
+  border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill); box-shadow: var(--nv-shadow);
+}
+.dot { width: 8px; height: 8px; border-radius: var(--nv-radius-pill); background: var(--nv-success); }

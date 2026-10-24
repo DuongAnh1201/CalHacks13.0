@@ -1,0 +1,12 @@
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/cousine/400.css';
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font: 500 14px/1.45 var(--nv-font); color: var(--nv-text-2); background: #fbf9f5; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 2px; }
