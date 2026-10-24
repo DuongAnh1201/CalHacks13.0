@@ -14,6 +14,7 @@ const GHOST_OPACITY = 0.15;
 const MIN_FRAME_RADIUS_MM = 12; // tiny nuclei: don't fly inside them
 // Front-left three-quarter view. Brain front (RAS +y) is scene −z, left (RAS −x) is scene −x.
 const HOME: [number, number, number, number, number, number] = [-260, 80, -200, 0, 0, 0];
+const DRAG_PX = 5; // pointer travel (px) between down and up beyond which a click counts as a drag
 
 export function AtlasCanvas(props: Props) {
   const [lost, setLost] = useState(false);
@@ -141,6 +142,7 @@ function AtlasScene({ atlas, colors, onMissing }: Props) {
             if (idOf(e) === hover?.id) { setHover(null); document.body.style.cursor = ''; }
           }}
           onClick={(e: ThreeEvent<MouseEvent>) => {
+            if (e.delta > DRAG_PX) return; // orbit drag ended over a part, not a click
             const id = idOf(e);
             if (!pickable(id)) return;
             e.stopPropagation();
