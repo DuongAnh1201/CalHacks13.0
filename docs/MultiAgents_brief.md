@@ -201,7 +201,7 @@ The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: 
 | **Fast path** (`parseIntent`, browser code) | Common commands, instantly, with no network | all viewer tools | none |
 | **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (D2: Haiku only if latency or cost needs it later) |
 | **Navigator** | Multi-step view requests ("spin to the right side and fade the cortex") | viewer tools for this page | `claude-opus-5-5`, `low` |
-| **Anatomy tutor** | Explain, tumor numbers and search, only from `anatomy.json`, `structures.json`, `report.json` and session chat | 🔀 MCP: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search`; dispatch: `focus_region` | `claude-opus-5-5`, `medium` |
+| **Anatomy tutor** | Explain, tumor numbers and search: scan facts only from `anatomy.json`, `structures.json`, `report.json` and session chat; general-education questions also from the web with citations (D9) | 🔀 MCP: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search`; dispatch: `focus_region`; 🧭 Claude server tool `web_search` (general education only, `max_uses` 3) | `claude-opus-5-5`, `medium` |
 | **Scribe** | Summaries, annotations, exports | 🔀 MCP: `summarize`, `export_document`; dispatch: `add_annotation` | `claude-opus-5-5`, `medium` |
 | **Guard** (code) | Tool allow-list per page, rate limit (1 active run per client, 10 runs/min), spend cap, banned wording (diagnosis, prognosis, "healthy") checked on every reply | inside `agent.run` | none |
 
@@ -220,7 +220,7 @@ The Router sorts every question into one of five kinds before any specialist run
 | Kind | Example | What happens |
 |---|---|---|
 | **1. This scan or this brain** | "How big is the tumor?", "Where is the hippocampus?" | Anatomy tutor → MCP tools. Answers only with numbers and text from `report.json` / `anatomy.json`, and names the source |
-| **2. General education** | "What is a glioblastoma?", "What does edema mean?" | **Pending Tom (D9).** Proposed **A**: Claude answers from general knowledge, short, always labelled *"General information, not from this scan"*, never with numbers about this patient. Other options: **B** = A + a web search tool with cited sources (slower, needs a key); **C** = strict refusal ("I can only answer about this scan and the atlas") |
+| **2. General education** | "What is a glioblastoma?", "What does edema mean?" | **Decided by Tom (D9 = B):** Claude answers from general knowledge **plus the Claude API server-side web search tool**, with cited sources shown under the answer, always labelled *"General information, not from this scan"*, never with numbers about this patient. Kind 3 refusal and the Guard still apply to the whole reply |
 | **3. Medical judgement** | "Is it cancer?", "How long will he live?", "Should he have surgery?", "Is the scan healthy?" | **Always refused**, fixed text: *"I can't diagnose or predict outcomes. This is an educational view, not clinically validated. Please ask a doctor."* It may still state facts: volumes, side and the model's certainty of the outline (§6.2) |
 | **4. About the app** | "What can you do?", "How do I explode the brain?" | Short help text + this page's tool list + "Try saying" chips |
 | **5. Off-topic** | "What's the weather?" | One line: "I help with the brain viewer. Try: …" |
@@ -344,7 +344,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D6 ✅ #80 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
 | D7 ✅ #81 | How the in-app agent calls MCP | **A (Tom):** the Convex agent action is the MCP client of `neuro-mcp`, so every call is logged and rate limited. The Claude API MCP connector is not used |
 | D8 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
-| D9 | General-education questions (§6.1 kind 2) | **A** (general knowledge, labelled). B = + web search; C = strict refusal |
+| D9 ✅ #83 | General-education questions (§6.1 kind 2) | **B (Tom):** general knowledge + the Claude API server-side web search tool, with cited sources, labelled "General information, not from this scan" |
 | D10 | Do agent-authored notes need a human Accept? | Yes: agent rows start `suggested`; exports include only `accepted` unless asked |
 
 **Already decided:**
@@ -394,7 +394,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
   - bad token → 401;
   - 🧭 `certainty` passed through exactly; `null` → the tool says the certainty is not available;
   - MCP Inspector run.
-- 🧭 **Open questions:** 10 phrases per kind (§6.1). Kind 3 is always refused, kind 5 always redirected; the Guard word list is tested on replies.
+- 🧭 **Open questions:** 10 phrases per kind (§6.1). Kind 2 answers carry the label and at least one cited source; a scan question never triggers web search (D9). Kind 3 is always refused, kind 5 always redirected; the Guard word list is tested on replies.
 - **Eval:** 40 phrases per page with the expected tool calls, run on every prompt change.
 - **Manual:**
   - the Figma request;
