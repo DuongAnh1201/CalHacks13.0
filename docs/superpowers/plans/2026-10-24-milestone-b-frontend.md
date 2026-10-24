@@ -658,9 +658,9 @@ Behaviour:
 - **Reset:** listen to `viewEvents` `'reset'` exactly like AtlasCanvas and call `controls.reset(true)` so the camera returns to the saved home state. (`resetView` already restores `initialState`, so `tumorRevealed` goes back to `false` and the tumor hides.)
 - Background `--nv-canvas-bg` via the CSS module; canvas fills its parent.
 
-- [ ] **Step 1:** Implement per the behaviour list. Keep it under ~120 lines; no new state outside `useViewer`.
-- [ ] **Step 2:** `npx tsc -b`, `npm test`, `npm run lint`, `npm run build`.
-- [ ] **Step 3: Commit** `feat(viewer): CaseCanvas renders a job in Whole Brain mode (#10)`. `hc send qa "T7 ready at <hash>"`. (Browser check happens after T8 wires the route.)
+- [x] **Step 1:** Implement per the behaviour list. Keep it under ~120 lines; no new state outside `useViewer`.
+- [x] **Step 2:** `npx tsc -b`, `npm test`, `npm run lint`, `npm run build`.
+- [x] **Step 3: Commit** `feat(viewer): CaseCanvas renders a job in Whole Brain mode (#10)`. `hc send qa "T7 ready at <hash>"`. (Browser check happens after T8 wires the route.)
 
 ---
 
