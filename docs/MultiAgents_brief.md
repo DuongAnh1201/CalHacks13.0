@@ -19,7 +19,7 @@
 
 > **Everything below this line was added by the lead (claude), from Tom's brief above.**
 > Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions. **🧭** = changed in **v4**: the D1 wording, open questions, model certainty. **✂️** = changed in **v5**: decisions limited to the multi-agent system.
-> Status: **DRAFT v5 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
+> Status: **v6 on `agents/decisions`: decisions D1–D10 resolved (issues #75–#84), waiting for Tom's review. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
 
 # 🆕 Multi-agent assistant: detailed plan (v5)
 
@@ -330,11 +330,11 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
   - an agent request shows `Thinking` at once and finishes in a few seconds.
 - **Fallbacks:** no mic or denied → `Voice off` chip; the text box always works (SPEC §8.3 hall-noise risk).
 
-## 10. ✂️ Decisions for Tom (multi-agent system only)
+## 10. ✅ Decisions (multi-agent system only), all resolved on `agents/decisions`
 
 ✂️ v5: renumbered. Tom's scope is the multi-agent system, so the items that don't belong to it were removed (listed under the table).
 
-| # | Decision | Proposed |
+| # | Decision | Resolution |
 |---|---|---|
 | D1 ✅ #75 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
 | D2 ✅ #76 | LLM model and API key | `claude-opus-5-5`, effort `low`, for every agent; Haiku for the Router only if latency or cost needs it later. Key: Convex env var `ANTHROPIC_API_KEY` (Tom provides it before #67) |
@@ -442,3 +442,5 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
   - Removed: the wider shared view (old D2), the affine (old D3), the product name (old D7) and frontend ownership (old D10).
   - Added D10: do agent-authored notes need a human Accept?
   - D-references in the text updated to the new numbers. Earlier change-log entries keep the old numbers.
+
+**v6 (2026-10-24), Tom: D7 = A, D9 = B; resolve each decision:** one issue per decision (#75–#84), one commit each on the isolated branch `agents/decisions`. SPEC D8 amended (D1). Every affected build issue is updated.
