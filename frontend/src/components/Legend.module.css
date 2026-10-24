@@ -1,0 +1,5 @@
+.legend { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--nv-text-2); }
+.off { opacity: 0.5; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.note { margin-left: auto; font-size: 11px; color: var(--nv-text-3); }
