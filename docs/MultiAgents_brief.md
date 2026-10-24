@@ -18,10 +18,35 @@
 ---
 
 > **Everything below this line was added by the lead (claude), from Tom's brief above.**
-> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions. **🧭** = changed in **v4**: the D1 wording, open questions, model certainty. **✂️** = changed in **v5**: decisions limited to the multi-agent system.
-> Status: **v6 on `agents/decisions`: decisions D1–D10 resolved (issues #75–#84), waiting for Tom's review. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
+> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions. **🧭** = changed in **v4**: the D1 wording, open questions, model certainty. **✂️** = changed in **v5**: decisions limited to the multi-agent system. **🧱** = changed in **v7**: status after the MCP work landed and Ben's W1 pages.
+> Status: **v7. Decisions D1–D10 resolved (#75–#84). The MCP and document half is built and deployed; the agent half is in progress (§0.1).** The full list of changes is in the [Change log](#13-change-log).
 
-# 🆕 Multi-agent assistant: detailed plan (v5)
+# 🆕 Multi-agent assistant: detailed plan (v7)
+
+## 0.1 🧱 v7: built vs missing (2026-10-24)
+
+| Plan part | Status | Where |
+|---|---|---|
+| §8 `neuro-mcp`: `explain_structure`, `explain_finding`, `get_tumor_metrics` (+ `certainty`), `get_report`, `search` | ✅ on main, deployed | `convex/mcp/*`, `https://<deployment>.convex.site/api/mcp` (#104, #106) |
+| §7 `export_document` (Markdown, Human/AI labels, Convex storage) | ✅ | `convex/exportDoc.ts` (#105, #106) |
+| Shared human/agent tables + author block (D10) | ✅ | `annotations`, `messages`, `sessionSummaries`, `exports` (#96) |
+| §6.2 model certainty | ✅ | `report.json` v1.2 (#55), shown on `/mri` (#94) |
+| Claude Desktop / Claude Code wrapper | ✅ | `mcp/stdio.mjs`, `NEURO_MCP_URL` |
+| §4 Agent Panel UI | ✅ UI only, demo content | Ben's `components/agent/AgentPanel` on `/mri` and `/3d` (#86) |
+| §5 / P1 `reduce`, camera actions, `tools.ts`, `parseIntent`, `resolveTarget` | ⏳ Ben | #64, #65 |
+| §9 / P2 voice | ⏳ Ben | #66 |
+| §6 / P3 agent core: `agentRuns`, `agent.ask/run`, Router + Navigator, MCP client (D7) | 🔨 codex2 | #67 (Claude client mocked until the key lands) |
+| §6 Guard + §6.1 question kinds | 🔨 claude-old | #69 part 1 |
+| §8.2 auth: per-user Desktop tokens | 🔨 codex1 | #70 part 1 |
+| MCP `add/list/remove_annotation`, `post/list_messages`, chat in `search` | ⏳ after Sage's #110 / #107 | #54, #58 |
+| MCP `summarize` + `session://{id}/summary` | ⏳ Sage's #59 + API key | #60 |
+| Anatomy tutor (web search, D9), Scribe | ⏳ after #67 + API key | #69, #72 |
+| Auto-export triggers (D3), PDF (D8) | ⏳ | #62 follow-up |
+| Eval, LLM-off demo | ⏳ | #73 |
+
+**Needed from Tom:** `ANTHROPIC_API_KEY` (Convex env) for live agent runs; `MCP_TOKEN` in the prod Convex env (until then prod `/api/mcp` returns 401, failing closed).
+
+**Pages changed since v6 (Ben's W1, #85–#88):** Explore became `/jobs/:id/3d`, Results became `/jobs/:id/mri`, and the Agent Panel lives on those two pages. `/learn` has no panel yet. Sections §0, §3.3 and §4 below are updated where it matters; older rows that mention Explore mean `/3d`.
 
 ## 0. 🔄 What the frontend already gives us (read before the plan)
 
@@ -137,19 +162,19 @@ Claude API tool names may only use letters, digits, `_` and `-`, so v1's `viewer
 
 Every request carries `page` and `availableTools`. The Router never offers a tool the page can't apply. Today:
 
-| Tool | `/learn` (main) | `/jobs/:id/explore` (PR #50) |
+| Tool | `/learn` | `/jobs/:id/3d` 🧱 (was Explore) |
 |---|---|---|
 | `zoom_view`, `rotate_view`, `spin_view`, `reset_view`, `undo` | ✅ after P1 | ✅ after P1 (same camera module) |
-| `set_mode` solid / xray | ✅ | ⏳ needs Explore mode tabs (Milestone D) |
-| `set_opacity` | ✅ cortex | ⏳ `CaseCanvas` ignores `brainOpacity` |
-| `set_explode` | ✅ | ⏳ `CaseCanvas` ignores `explodeAmount` |
-| `toggle_visibility` | ✅ structures, groups, L / R | ⏳ `CaseCanvas` ignores `hidden` and `layers` (marked `shortcut:` in the code) |
+| `set_mode` solid / xray | ✅ | ✅ 🧱 (#87) |
+| `set_opacity` | ✅ cortex | ✅ 🧱 brain (#87) |
+| `set_explode` | ✅ | ✅ 🧱 `CaseCanvas` applies it (#87) |
+| `toggle_visibility` | ✅ structures, groups, L / R | ✅ 🧱 hemispheres and tumor layers (#87) |
 | `isolate`, `focus_region` | ✅ | `tumor` only ✅ (`focusTumor`) |
 | `explain_structure` (MCP) | ✅ | — (no atlas on Explore) |
 | `explain_finding`, `get_tumor_metrics`, `get_report` (MCP) | — (answers "this is the template atlas, not a patient scan") | ✅ |
 | `search`, `summarize`, `export_document` (MCP) | ✅ | ✅ |
 
-⏳ rows turn ✅ as Ben's Explore controls land. The agent picks them up with no agent change: the page's tool list is the switch.
+🧱 v7: Ben's #87 turned the ⏳ rows ✅, so #71 only needs `agent/tools.ts` to list them. The agent picks them up with no agent change: the page's tool list is the switch.
 
 ## 4. 🆕 The Agent Panel (Figma frame 04, nodes `46:*`)
 
@@ -168,8 +193,10 @@ The Figma frame already designs the chat and voice UI. Mapping each part to code
 | Voice Input Bar: mic, live transcript, waveform, "Hold Space or open palm to talk" | `VoiceInputBar` + `usePushToTalk` | Web Speech API interim results; a text box is always there (SPEC §8.3 fallback) |
 | Toast "Tumor placed on the 3D brain … **Undo**" (top of the frame) | `ActionToast` | shown after an agent or voice change, with the `undo` action |
 
+🧱 **v7: the panel exists.** Ben built it UI-only as `components/agent/AgentPanel` (#86, props `messages`, `status`, `script`, `onSend`, `onRun`, `onMic`, `onConfirm`, `onDismiss`). The agent work plugs into those props instead of building the `agent/*` components above. Still to add when #67 is wired: a `thinking` status, a pending state on tool rows, `sources` + note for web answers (D9), confirm ids for accepting agent notes (D10), agent chips as a prop (asked on #86).
+
 **Where the panel goes (D5):**
-- **Explore:** the right column, as in Figma.
+- **`/mri` and `/jobs/:id/3d`** 🧱: left on `/mri`, right on `/3d` (Ben's W1). This replaces "Explore, right column".
 - **`/learn`:** the right column already holds the structure info panel. **Decided (D5):** right column tabs **Info | Agent**. `explain_structure` switches to Info.
 
 The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: "Voice off").
@@ -365,13 +392,13 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | # | Phase | Owner | Done when (acceptance) |
 |---|---|---|---|
 | P0 | Decisions D1–D10; SPEC D8 amendment (D1 text in §10) | lead + Tom | Decision Log lines merged |
-| P0b 🧭 | Model certainty in `report.json` (#52, contract v1.2) | codex1 | **in progress**; acceptance in #52 |
-| **P1** | Pure `reduce` + `cameraCommands` + new actions (zoom, rotate, spin, undo) + `actionLog` + `tools.ts` + `parseIntent` + `resolveTarget` + Agent Panel with a text box, on `/learn` | codex1 (logic) + claude2 (panel), Ben reviews | On `/learn`, typing each of these changes the view and shows a ✓ row with ms: "zoom to 150%", "left view", "spin", "x-ray", "cortex 20%", "explode 50%", "isolate the left hippocampus", "hide the cortex", "undo", "reset". Existing dispatch tests still pass; new tests for every parser phrase and every tool's `toActions`. **No Convex, no LLM** |
-| P2 | Push-to-talk + voice chip + suggestion chips + Script tab | claude2 | Same 10 phrases by voice in Chrome; mic denied → `Voice off`, text still works |
+| P0b 🧭 | Model certainty in `report.json` (#52, contract v1.2) | codex1 | ✅ 🧱 merged (#55) |
+| **P1** | Pure `reduce` + `cameraCommands` + new actions (zoom, rotate, spin, undo) + `actionLog` + `tools.ts` + `parseIntent` + `resolveTarget` + Agent Panel with a text box, on `/learn` | 🧱 Ben (#64, #65; panel = #86) | On `/learn`, typing each of these changes the view and shows a ✓ row with ms: "zoom to 150%", "left view", "spin", "x-ray", "cortex 20%", "explode 50%", "isolate the left hippocampus", "hide the cortex", "undo", "reset". Existing dispatch tests still pass; new tests for every parser phrase and every tool's `toActions`. **No Convex, no LLM** |
+| P2 | Push-to-talk + voice chip + suggestion chips + Script tab | 🧱 Ben (#66) | Same 10 phrases by voice in Chrome; mic denied → `Voice off`, text still works |
 | P3 | Convex client in the frontend + `agentRuns` + `agent.ask` / `run` + Router + Navigator (viewer tools only) | codex2 | The viewer half of the Figma request works end to end; 40-phrase eval ≥ 90% correct tool calls; with no key: "Assistant unavailable", fast path still works |
-| P4 🔀 | **`neuro-mcp`** on Convex `/mcp`: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search` + Anatomy tutor wired to it (D7) | codex1 (server) + claude-old (agent) | MCP Inspector lists the tools; "how big is the tumor?" on `sample` answers the report's exact cm³; on `/learn` it says there is no patient report; Claude Desktop gets the same answers; banned-wording test passes |
+| P4 🔀 | **`neuro-mcp`** on Convex `/mcp`: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search` + Anatomy tutor wired to it (D7) | 🧱 server ✅ (#104, #106); tutor + Guard: claude-old (#69) | MCP Inspector lists the tools; "how big is the tumor?" on `sample` answers the report's exact cm³; on `/learn` it says there is no patient report; Claude Desktop gets the same answers; banned-wording test passes |
 | P5 🔀 | Optional: viewer tools for Claude Desktop through pairing (§8.3) | codex1 | Claude Desktop turns the brain on `/learn` after pairing |
-| P6 | Explore parity: wire `CaseCanvas` to opacity, hidden, layers, explode (with or after Milestone D) | Ben | the ⏳ rows in §3.3 turn ✅ with no agent change |
+| P6 | Explore parity: wire `CaseCanvas` to opacity, hidden, layers, explode (with or after Milestone D) | 🧱 ✅ Ben (#87); #71 = tool list only | the ⏳ rows in §3.3 turn ✅ with no agent change |
 | P7 | Scribe: MCP `summarize` + `export_document` (+ auto-export), annotations via MCP (#54; `structure` / `tumor` anchors) | claude2 | exports download from the panel and from Claude Desktop; same numbers as the chat; pins sit within 2 mm |
 | P8 | Multi-viewer sync (M6), hardening, demo script twice | lead | two tabs follow one presenter; demo runs twice with the LLM off and on |
 
@@ -444,3 +471,9 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
   - D-references in the text updated to the new numbers. Earlier change-log entries keep the old numbers.
 
 **v6 (2026-10-24), Tom: D7 = A, D9 = B; resolve each decision:** one issue per decision (#75–#84), one commit each on the isolated branch `agents/decisions`. SPEC D8 amended (D1). Every affected build issue is updated.
+
+**v7 (2026-10-24), after the MCP work landed:**
+- 🧱 §0.1 new: built vs missing, owners, what Tom still provides.
+- 🧱 Pages: Explore → `/jobs/:id/3d`, Results → `/jobs/:id/mri` (Ben's W1). §3.3 ⏳ rows are ✅ after #87.
+- 🧱 §4: the panel is Ben's `components/agent/AgentPanel` (UI only); agents plug into its props. D5's `/learn` Info | Agent tabs wait until `/learn` gets the panel.
+- 🧱 §11: P1 and P2 are Ben's (#64–#66); P0b and the P4 server are done.
