@@ -3,7 +3,7 @@ import css from './FlowStepper.module.css';
 const STEPS = [
   { n: 1 as const, label: 'Upload MRI' },
   { n: 2 as const, label: 'Segment & review' },
-  { n: 3 as const, label: 'Explore in 3D' },
+  { n: 3 as const, label: 'MRI workspace' },
 ];
 
 export function FlowStepper({ step }: { step: 1 | 2 | 3 }) {
