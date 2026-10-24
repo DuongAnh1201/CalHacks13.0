@@ -82,12 +82,58 @@ uv run backend/atlas/build_atlas.py           (PEP 723 inline deps: nibabel, num
 
 ## 5. UX
 
-### 5.1 Layout (`/learn`)
+### 5.0 Figma is the UI source of truth
 
-- **Top nav:** NeuroVision · Explore · MRI Workspace · **Learning Mode** (active) · Help. **Footer:** "Educational visualization — not for diagnosis or surgical planning."
-- **Left card: structure tree.** Search box, then the groups. Each row has a colour dot, the name, and an eye toggle. Clicking a row = clicking the mesh.
-- **Center: 3D canvas.** A floating status pill on top shows mode + explode %. A bottom toolbar holds `Solid | X-Ray` with an opacity slider, the Explode slider, L / R hemisphere toggles, Isolate, and Reset.
-- **Right card: info panel.** Name, side, group chip, volume (cm³), description, key functions, "when damaged" note, neighbour chips (click to jump), and an "Educational · unreviewed" tag. Empty state: "Click any structure to learn about it."
+Every screen is built from the Figma file `NeuroVision` (`rHjTVYYISZzHWvWNeSKaVE`, page node `43:2`). Workflow for each component: call `get_design_context` on its node, adapt the React+Tailwind reference into our stack, and check the result against a Figma screenshot. Behaviour still follows the SPEC where Figma conflicts (AE7). That means:
+- no diagnosis or "confidence %" cards
+- no "Hide Healthy" label; it becomes "Hide cortex"
+- no JPG/DICOM "accepted" cards
+
+**Frames**
+
+| Figma frame | Node | Used for |
+|-------------|------|----------|
+| 01 · Upload MRI | `43:3` | `/` stub layout |
+| 02 · Upload MRI — Processing | `44:99` | `/jobs/:id/processing` stub layout |
+| 03 · MRI Workspace + Agent | `43:767` | `/jobs/:id/results` stub layout |
+| 04 · Tumor Placed in 3D Brain | `43:1149` | **`/learn` layout** and `/jobs/:id/explore` stub |
+| Header (TopNavBar) | `43:1406` | Shared `TopNavBar` |
+| Footer | `43:1387` | Shared `Footer` |
+
+Stubs (A3) use the shared header and footer plus each frame's page skeleton. The full Upload, Processing and Results screens are spec #2.
+
+**Styling:** plain CSS with CSS custom properties in `src/styles/tokens.css`, plus one CSS module per component. No Tailwind (the Figma hint says not to add it unprompted). Fonts are self-hosted via `@fontsource` (Manrope, Cousine) so the venue needs no network. Icons are the Figma-exported SVGs, downloaded into `src/assets/figma/` (the MCP asset URLs expire after 7 days). No hand-drawn icons.
+
+**Tokens** (from `get_design_context` on `43:1149`; the file defines no Figma variables, so these are raw values)
+
+| Token | Value | Figma use |
+|-------|-------|-----------|
+| `--nv-primary` | `#1F5673` | Brand, active nav, primary buttons, slider fill |
+| `--nv-primary-soft` | `#E8EFF7` / `#E3EEF4` | Chips, toggles, selected rows |
+| `--nv-text` | `#151C22` | Headings |
+| `--nv-text-2` | `#41484D` | Body |
+| `--nv-text-3` | `#71787E` | Labels, meta |
+| `--nv-border` | `rgba(193,199,206,0.3)` | Card borders |
+| `--nv-surface` | `rgba(255,255,255,0.85)` + `backdrop-blur 6–9px` | Glass cards, header, footer |
+| `--nv-surface-warm` | `rgba(251,249,245,0.86)` | Floating pills |
+| `--nv-canvas-bg` | radial gradient `#FBF9F5 → #F4EFEB (75%) → #EBE3DB` | 3D canvas background |
+| `--nv-success` | `#38684F` / `#2E6B47` on `#E2F1E6` | Status dots, "Listening" / confirm banners |
+| `--nv-accent-warm` | `#982713` | Warning / focus accent (tumor colours stay in `layers.ts`) |
+| `--nv-muted-bg` | `#F3F5F7` | Inputs, inactive tabs |
+| Radius | 8px controls · 12px header · 16–18px cards · 9999px pills | |
+| Shadow | `0 1px 2px rgba(0,0,0,.05)` default; `0 12px 32px -4px rgba(30,37,43,.06)` cards | |
+| Type | Manrope 500/600/700; 10–11px labels, 13–14px body, 16–18px titles; Cousine for numbers/code | |
+
+### 5.1 Layout (`/learn`), mapped onto frame 04
+
+- **Header `43:1406`:** NeuroVision · Explore · MRI Workspace · **Learning Mode** (active) · Help. The Webcam / Sensitivity chips are shown disabled ("Gestures off") until E1.
+- **Footer `43:1387`:** "Educational visualization — not for diagnosis or surgical planning." plus the link row.
+- **Left Aside (frame 04 left card) = structure tree.** Same card, heading and toggle-button styles as "Spatial HUD toggles". It holds the search box, the groups, and per row a colour dot, the name and an eye toggle. Clicking a row = clicking the mesh. The "Educational Neuroanatomy Notes" card style holds the atlas credit (CerebrA, CC0).
+- **Center = "3D Exploded Volumetric Brain Canvas"** on `--nv-canvas-bg`.
+  - Top: the "Active Gesture Status Banner" pill shows mode + explode %.
+  - Bottom: the "Structures" chip bar becomes the toolbar: `Solid | X-Ray` (Mode Tabs style) with an opacity slider, L / R hemisphere chips, Isolate, Reset.
+  - The Explode slider uses the "Tactile Explode Slider" component (step ticks 0/25/50/75/100%).
+- **Right Aside (frame 04 Neuro Agent card position) = info panel.** Same card shell. It shows the name (Heading 2 style), side and group chips (context-chip style), volume in Cousine, description, key functions, the "when damaged" note, neighbour chips (Suggestion Chips style, click to jump), and an "Educational · unreviewed" tag. Empty state: "Click any structure to learn about it."
 
 ### 5.2 Pointer
 
