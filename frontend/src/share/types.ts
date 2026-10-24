@@ -31,3 +31,6 @@ export type ViewerCommand =
   | { type: 'setLayerVisible'; layer: Layer; visible: boolean }
   | { type: 'setCameraTarget'; target: 'brain' | 'tumor' }
   | { type: 'resetView' };
+
+/** Mirror of convex/messages.ts PublicMessage. */
+export interface ChatMessage { messageId: string; role: 'user' | 'assistant'; author: 'human' | 'agent'; authorName: string; text: string; createdAt: number }

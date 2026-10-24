@@ -10,6 +10,7 @@ import { initCase } from '../actions/dispatch';
 import { AgentPanel } from '../components/agent/AgentPanel';
 import { demoMessages } from '../components/agent/demo';
 import type { AgentMessage } from '../components/agent/types';
+import { SessionChat } from '../share/SessionChat';
 import { useMprShare } from '../share/useMprShare';
 import { useShareSync } from '../share/useShareSync';
 import { MprPanel } from '../viewer/MprPanel';
@@ -123,6 +124,7 @@ export default function MriWorkspace() {
             <AgentPanel messages={messages} status="offline"
               onConfirm={() => navigate(`/jobs/${id}/3d`)}
               onDismiss={() => setMessages((m) => m.filter((x) => x.kind !== 'confirm'))} />
+            <SessionChat />
           </div>
           <MprPanel jobId={id} onCrosshair={share.onCrosshair} onMaskVisible={share.onMaskVisible} remote={share.remote} />
           <div className={css.right}>
