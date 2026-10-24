@@ -1,4 +1,6 @@
 .bar {
+  position: relative;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -39,3 +41,7 @@
   letter-spacing: 0.33px;
   line-height: 16px;
 }
+
+.shareWrap { position: relative; display: flex; align-items: center; gap: 8px; }
+.share:disabled { opacity: 0.55; }
+.notice, .error { margin: 0; font-size: 12px; color: var(--nv-primary); }

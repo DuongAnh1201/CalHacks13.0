@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Brain3D from './routes/Brain3D';
 import Home from './routes/Home';
+import Join from './routes/Join';
 import Learn from './routes/Learn';
 import { legacyRoutes } from './routes/legacy';
 import MriWorkspace from './routes/MriWorkspace';
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
   ...legacyRoutes,
   { path: '/learn', element: <Learn /> },
   { path: '/learn/:wsId', element: <Learn /> },
+  { path: '/join/:code', element: <Join /> },
 ]);
 
 export default function App() {

@@ -56,6 +56,8 @@ import { sliceIndexFromCursor, type Plane } from "./lib/transform";
 import {
   applyCommand,
   defaultSharedView,
+  DEFAULT_SCENE,
+  type Scene,
   viewsEqual,
   vViewerCommand,
   type SharedView,
@@ -80,6 +82,7 @@ export type SharedViewDto = {
   plane: Plane;
   cursorRasMm: number[];
   tumorVisible: boolean;
+  scene: Scene;
   viewVersion: number;
   /** Slice index in the CURRENT plane — the number a "slice 77 of 155" label shows. */
   sliceIndex: number;
@@ -130,6 +133,7 @@ function toSharedViewDto(scan: Doc<"scans">, session: Doc<"sessions">): SharedVi
     plane: session.plane,
     cursorRasMm: session.cursorRasMm,
     tumorVisible: session.tumorVisible,
+    scene: session.scene ?? DEFAULT_SCENE,
     viewVersion: session.viewVersion,
     sliceIndex: indices[session.plane],
     sliceCount: counts[session.plane],
@@ -159,6 +163,7 @@ function sharedViewOf(session: Doc<"sessions">): SharedView {
     plane: session.plane,
     cursorRasMm: [session.cursorRasMm[0], session.cursorRasMm[1], session.cursorRasMm[2]],
     tumorVisible: session.tumorVisible,
+    scene: session.scene ?? DEFAULT_SCENE,
   };
 }
 
@@ -212,6 +217,7 @@ export const create = mutation({
       plane: view.plane,
       cursorRasMm: view.cursorRasMm,
       tumorVisible: view.tumorVisible,
+      scene: view.scene,
       viewVersion: 1,
       status: "active",
       createdAt: now,
@@ -454,6 +460,7 @@ export const updateView = mutation({
       plane: next.plane,
       cursorRasMm: next.cursorRasMm,
       tumorVisible: next.tumorVisible,
+      scene: next.scene,
       viewVersion,
       updatedAt: Date.now(),
     });
