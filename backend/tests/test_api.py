@@ -134,6 +134,12 @@ def test_cleanup_and_seed(client):
     assert (api.JOBS / "sample-2" / "value").read_text() == "seed"
 
 
+def test_ping(client):
+    response = client.get("/ping")
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
+
+
 def test_health(client):
     assert client.get("/health").json() == {"ok": True, "model": "brats_mri_segmentation", "version": "0.5.4"}
 
