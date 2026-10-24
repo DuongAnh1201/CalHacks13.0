@@ -19,21 +19,16 @@ Walkthrough: `learn_walkthrough.gif`.
 | 11 | Tree search "hippo" filters; eye toggle hides mesh | PASS (also matches Parahippocampal: substring match) | 17, 18, 19 |
 | 12 | Reset: Solid, explode 0, opacity 30%, nothing hidden, camera home | PASS | 20-reset.jpg |
 | 13 | Routes `/`, `/jobs/x/processing`, `/results`, `/explore` render; `/` shows "Backend offline — start docker compose up" | PASS | 21–24 |
-| 14 | Layout vs `docs/figma/04-explore.png` | **FAIL** (cosmetic): see below | 27-final-layout.jpg |
+| 14 | Layout vs `docs/figma/04-explore.png` | PASS after fix `2e8d188` (was FAIL: flat header/footer) | 27 (before), 28-reverify-floating-header.jpg |
 | 15 | Orbit at explode 100% in X-Ray ≥ 50 fps | PASS. 75 fps rAF over 2.4 s (180 synthetic pointer moves). | 25-xray-explode100-fps75.jpg |
 | 16 | Failure path: rename `public/atlas/structures.json` → "Atlas failed to load" + Retry; restore + Retry recovers | PASS. File restored; `git status` clean apart from this dir. | 26-atlas-failed-retry.jpg |
 
-## FAIL
+## Re-verify (HEAD e3d3435, vitest 34 pass, tsc ok)
 
-**14. Header and footer are flat full-width bars; Figma has floating rounded cards with an outer margin.**
-`frontend/src/components/TopNavBar.module.css:1-12` (`.bar`: `border-bottom`, no margin or radius) and `frontend/src/components/Footer.module.css` (same pattern). Owner: fe. Screenshot: 27-final-layout.jpg vs `docs/figma/04-explore.png`.
-Note: 04-explore is the MRI Explore screen, not Learn. Side columns, canvas gradient, pill, slider and toolbar match its card language. Figma extras not applicable to Learn: "Spatial v3.4" badge, webcam/sensitivity controls.
+- 14: header 12px card, footer 8px card, 24px inset (`2e8d188`). PASS.
+- Explode 100% now refits camera, whole brain visible (`e3d3435`). PASS, 29-reverify-explode100-fits.jpg.
+- Reset clears tree search (typed "hippo", Reset, box empty). PASS, 30-reverify-reset-clears-search.jpg.
+- Double-click isolate leaves no stale tooltip. PASS, 31-reverify-isolate-no-tooltip.jpg.
+- Still open (unfixed, not scored): toolbar and explode slider stay interactive while the atlas failed to load (26-atlas-failed-retry.jpg).
 
-## Observations (not scored)
-
-- At explode 100% the exploded brain overflows the canvas (frontal and cerebellum clipped); the camera does not refit. 14-explode-100.jpg, 25-…jpg.
-- When the atlas fails to load, the toolbar and explode slider stay interactive and the side panels are empty. 26-atlas-failed-retry.jpg.
-- Reset does not clear the tree search text ("hippo" stays). 20-reset.jpg.
-- Hover tooltip can linger at the old position after a double-click isolate. 07-isolate-dblclick.jpg.
-
-Totals: 15 PASS / 1 FAIL.
+Totals: 16 PASS / 0 FAIL.
