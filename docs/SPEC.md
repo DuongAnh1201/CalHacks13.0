@@ -44,7 +44,7 @@ NeuroVision takes a brain MRI (4 standard sequences), segments the tumor with a 
 | D5 | **Renderer = one Three.js scene via React Three Fiber.** Brain + tumor live in it. 2D slices = NiiVue panel beside it. | One camera, one transform. |
 | D6 | **Exploded mode = left/right hemispheres**, split by the backend into `brain_left` / `brain_right` nodes. Named atlas structures are P2. | An atlas would need registration. |
 | D7 | **Stack:** frontend = Vite + React + TS, R3F + drei, Zustand, NiiVue, MediaPipe Tasks Vision. Backend = Tom's FastAPI + MONAI + PyTorch (CPU) in Docker, with jobs on a mounted volume. | Matches the backend Tom is building. |
-| D8 | **Jarvis = deterministic.** Speech → rule-based parser → typed `Action` → dispatcher. `explainFinding` = template over the report. LLM intent fallback is P1 (text only). RAG medical answers are P2. | Works offline, can't invent a diagnosis. |
+| D8 | **Jarvis = deterministic first, agents second.** Speech or text → rule-based parser → tool call → dispatcher; this path works offline and is always on. No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools through the dispatcher, knowledge tools through the `neuro-mcp` server. `explainFinding` stays a template over the report; numbers only from the report; no diagnosis, prognosis or "healthy". The agents serve text and voice. No free-form medical RAG. Plan: `docs/MultiAgents_brief.md`. | Same safety (offline first, tools only, can't invent a diagnosis), and it handles requests the parser can't. |
 | D9 | **Uploaded imagery never leaves our backend.** No imagery goes to a third-party model service. | Data policy. |
 | D10 | **Feature freeze at hour 29.** After that, only P0 bugs get fixed. | Rehearsal and submission buffer. |
 | D11 | **`model.glb` has exactly five named nodes:** `brain_left`, `brain_right`, `edema`, `core`, `enhancing` (details in the contract §1). The frontend finds meshes by name. | One file, one loader, one contract. |
@@ -266,7 +266,7 @@ Gestures emit `Action`s through `dispatch(…, 'gesture')`.
 
 ### 8.3 Jarvis
 
-**Flow:** push-to-talk → Web Speech API transcript (or the text box) → `parseIntent(text): Action | null` → `dispatch`.
+**Flow:** push-to-talk → Web Speech API transcript (or the text box) → `parseIntent(text)` → match: tool calls → `dispatch`. No match → Convex agent (D8) → viewer tools → `dispatch`, knowledge tools → `neuro-mcp`.
 
 **Must parse** (these are tested):
 - "show the tumor"
@@ -338,7 +338,7 @@ Milestones on GitHub = Checkpoints A–H. Lanes: **ML/Backend (Tom)**, **Viewer*
 | 3–8 | **B** Job flows to viewer | Seeded `jobs/sample` serves the five-node `model.glb`; `/explore` shows brain + tumor layers | Inference not working by h8 → switch to the expert-mask fallback (D4). Networking h6–7 (one integrator on call) |
 | 8–14 | **C** Same target in 2D and 3D | Linked slices with overlay, X-Ray, alignment check passes | Alignment fails → no new modes until fixed |
 | 14–20 | **D** Four modes by pointer | Exploded + Cutaway + layer toggles + keyboard map | Food/rest rotation; networking h18–19 |
-| 20–26 | **E** Judge can run the script | Gestures, Jarvis, error states | LLM / RAG frozen unless validated |
+| 20–26 | **E** Judge can run the script | Gestures, Jarvis, error states | Agents frozen at h29 unless the eval passes |
 | 26–31 | **F** Reliable twice | Hardening, Wi-Fi-off run, backup recording | **Feature freeze h29** |
 | 31–34 | **G** Timed pitch | Script, slides, Devpost, credits | Networking h31–32 (rotate) |
 | 34–36 | **H** Submitted | Submission with ≥ 1 h buffer | — |
@@ -368,3 +368,4 @@ Append-only. Format: `date · hour · decision · why · PR`.
 - 2026-10-24 · h4 · W1: Explore tab removed; `/jobs/:id/results` → `/jobs/:id/mri` (MRI workspace, frame 03), `/jobs/:id/explore` → `/jobs/:id/3d` (3D page, frame 04); old paths redirect · user request, spec `docs/superpowers/specs/2026-10-24-w1-mri-workspace-design.md` · #88
 - 2026-10-24 · h4 · Home `/` becomes a workspace dashboard (New → MRI Workspace goes to `/upload`, New → Learning Mode creates `/learn/:wsId`); list kept in localStorage until W2 moves it to Convex · user request (Figma-style file browser) · #88
 - 2026-10-24 · h? · Backend contract v1.2: add per-region segmentation certainty (mean sigmoid probability inside cleaned WT/TC/ET masks, two decimals; null for empty regions or expert segmentations) · Tom approved #52 so the assistant can explain model certainty of the outline; not calibrated, not a probability of disease · #52
+- 2026-10-24 · h? · D8 amended: Jarvis = deterministic parser first, Claude agents second (tools only: viewer via dispatch, knowledge via `neuro-mcp`); no diagnosis, no free-form medical RAG · Tom scoped the multi-agent system; the offline path and the safety rules stay · #75
