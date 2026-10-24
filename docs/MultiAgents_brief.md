@@ -273,7 +273,7 @@ What the model does and doesn't give us:
 ## 7. 🔀 Export, and auto-export after a phase (MCP)
 
 - **On request:** "export this as PDF" → Scribe → MCP `export_document`:
-  - the server builds Markdown from real data, plus a PDF from the same Markdown (a small Markdown → PDF step on the server, chosen in P7);
+  - the server builds Markdown from real data; PDF comes later in P7 from the same Markdown (library chosen then) (D8, decided);
   - the file goes into **Convex file storage**;
   - the tool returns a download link, shown in the panel as a file card.
 
@@ -343,7 +343,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D5 ✅ #79 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
 | D6 ✅ #80 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
 | D7 ✅ #81 | How the in-app agent calls MCP | **A (Tom):** the Convex agent action is the MCP client of `neuro-mcp`, so every call is logged and rate limited. The Claude API MCP connector is not used |
-| D8 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
+| D8 ✅ #82 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
 | D9 ✅ #83 | General-education questions (§6.1 kind 2) | **B (Tom):** general knowledge + the Claude API server-side web search tool, with cited sources, labelled "General information, not from this scan" |
 | D10 | Do agent-authored notes need a human Accept? | Yes: agent rows start `suggested`; exports include only `accepted` unless asked |
 
