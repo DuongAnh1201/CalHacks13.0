@@ -288,4 +288,12 @@ export default defineSchema({
     .index("by_token", ["token"])
     // Participant list for a room.
     .index("by_session", ["sessionId"]),
+
+  // MCP fixed-window counters. Only SHA-256 token hashes are stored.
+  mcpRateLimits: defineTable({
+    tokenHash: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_token_hash", ["tokenHash"]),
+
 });
