@@ -1,18 +1,35 @@
-# CI on every PR and push to main; deploys only from main.
+# CI on every push (any branch) and every PR; deploys only from main.
 #
 #   convex / frontend / backend   checks (run in parallel)
-#   deploy-convex                 Convex functions + built frontend -> https://<deployment>.convex.site
-#   backend-image                 FastAPI model image -> GHCR, pulled by RunPod
+#   deploy-convex                 Convex functions + built frontend -> SITE_URL, then smoke test
+#   backend-image                 FastAPI model image -> GHCR (only when backend/ changed)
+#   deploy-runpod                 resets the RunPod pod onto that image, then smoke test
 #
 # Repo settings this needs (Settings -> Secrets and variables -> Actions):
 #   secret   CONVEX_DEPLOY_KEY   Convex dashboard -> neurovision -> Production -> Settings -> Deploy keys
-#   variable VITE_API_URL        public URL of the RunPod model service, baked into the frontend build
+#   variable VITE_API_URL        https://<RUNPOD_POD_ID>-8000.proxy.runpod.net, baked into the frontend build
+#   secret   RUNPOD_API_KEY      RunPod console -> Settings -> API Keys (read/write)
+#   variable RUNPOD_POD_ID       pod serving the model; deploy-runpod is skipped while unset
+# The pod itself needs ALLOWED_ORIGINS=<SITE_URL> in its env, or the browser's calls fail CORS.
+#
+# Rollback: `git revert` the bad commit on main (or re-run an older main run of this workflow).
 name: CI
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: ['**']
+  workflow_dispatch: # manual redeploy of main; always rebuilds and rolls the RunPod image
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions: { contents: read }
+
+env:
+  # Production Convex deployment the deploy key targets; public, not a secret.
+  SITE_URL: https://laudable-salmon-957.convex.site
 
 jobs:
   convex:
@@ -24,6 +41,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
 
   frontend:
     runs-on: ubuntu-latest
@@ -37,6 +55,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
 
   backend:
     runs-on: ubuntu-latest
@@ -50,7 +69,7 @@ jobs:
       - run: uv run pytest -q
 
   deploy-convex:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: [convex, frontend, backend]
     runs-on: ubuntu-latest
     concurrency: { group: deploy-convex, cancel-in-progress: false }
@@ -58,6 +77,8 @@ jobs:
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       VITE_API_URL: ${{ vars.VITE_API_URL }}
     steps:
+      # Without it the shipped frontend calls no model service at all.
+      - run: test -n "$VITE_API_URL" || { echo "::error::Repo variable VITE_API_URL is not set"; exit 1; }
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
@@ -67,15 +88,32 @@ jobs:
       - run: npm run deploy
       # Idempotent: patches the sample scan row if it already exists.
       - run: npx convex run seed:seedSampleScan --prod
+      - run: curl -sSf --retry 5 --retry-all-errors -o /dev/null "$SITE_URL"
 
-  backend-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend]
+  changes:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions: { contents: read, packages: write }
+    outputs:
+      backend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend == 'true' }}
     steps:
       - uses: actions/checkout@v4
-      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_ENV"
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with: { filters: 'backend: [backend/**]' }
+
+  backend-image:
+    if: needs.changes.outputs.backend == 'true'
+    needs: [backend, changes]
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: name
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_ENV"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
@@ -88,3 +126,27 @@ jobs:
           tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-runpod:
+    if: vars.RUNPOD_POD_ID != ''
+    needs: [backend-image]
+    runs-on: ubuntu-latest
+    concurrency: { group: deploy-runpod, cancel-in-progress: false }
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      IMAGE: ${{ needs.backend-image.outputs.image }}
+      API: https://${{ vars.RUNPOD_POD_ID }}-8000.proxy.runpod.net
+    steps:
+      - uses: actions/checkout@v4
+      # Changing imageName resets the pod: same ID and proxy URL, container disk (finished jobs) wiped.
+      - run: |
+          curl -sS --fail-with-body -X PATCH "https://rest.runpod.io/v1/pods/${{ vars.RUNPOD_POD_ID }}" \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
+            -d "{\"imageName\": \"$IMAGE\"}"
+      # shortcut: assumes the old container is gone 60 s after the PATCH; compare a build SHA from /health once the API reports one.
+      - run: |
+          sleep 60
+          for _ in $(seq 60); do curl -sf -m 10 -o /dev/null "$API/ping" && exit 0; sleep 10; done
+          echo "::error::$API/ping not healthy 10 min after the reset"; exit 1
+      # Health + CORS for the deployed site; no upload, the demo case is not in the repo.
+      - run: SKIP_UPLOAD=1 ORIGIN="$SITE_URL" backend/scripts/runpod_check.sh "$API"

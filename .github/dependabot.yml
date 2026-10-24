@@ -1,0 +1,15 @@
+# Weekly, one grouped PR per ecosystem so CI checks every bump before merge.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories: [/, /frontend]
+    schedule: { interval: weekly }
+    groups: { npm: { patterns: ['*'] } }
+  - package-ecosystem: uv
+    directory: /backend
+    schedule: { interval: weekly }
+    groups: { uv: { patterns: ['*'] } }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups: { actions: { patterns: ['*'] } }
