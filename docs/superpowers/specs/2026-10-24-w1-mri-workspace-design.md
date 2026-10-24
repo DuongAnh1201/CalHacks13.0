@@ -108,11 +108,11 @@ New milestone **W1 · MRI workspace**:
 
 | Issue | Scope | Depends on |
 |---|---|---|
-| W1-1 Nav + routes + SPEC | section 1 | — |
-| W1-2 MRI workspace shell (frame 03) | section 2 minus the slice views | W1-1 |
+| #88 W1-1 Nav + routes + SPEC | section 1 | — |
+| #85 W1-2 MRI workspace shell (frame 03) | section 2 minus the slice views | W1-1 |
 | #11 NiiVue slice panel (rescoped) | section 2 center views + tool strip | W1-1 |
-| W1-3 Neuro Agent panel + `parseIntent` | section 4 | — |
-| W1-4 3D page (frame 04) | section 3 | W1-1, #12, #15 |
+| #86 W1-3 Neuro Agent panel + `parseIntent` | section 4 | — |
+| #87 W1-4 3D page (frame 04) | section 3 | W1-1, #12, #15 |
 | #12 X-Ray, #15 Exploded | moved into W1 | |
 
-Edits: #19 comment (parser moves to W1-3, #19 keeps push-to-talk); #71 retitled "3D page parity"; #13 and #22 "Explore" → "3D page"; #65 comment (panel component shared). Issues #53–#74 owned by Tom and Sage are not edited in W1.
+Done 2026-10-24: milestone #9 created; #11, #12, #15 moved in; #11 rescoped; #22 wording fixed (#13 had none); comments on #19, #65, #71 (#71 not retitled: AG epic, owned by Tom). Issues #53–#74 are not edited in W1.
