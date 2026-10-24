@@ -1,0 +1,90 @@
+# CI on every PR and push to main; deploys only from main.
+#
+#   convex / frontend / backend   checks (run in parallel)
+#   deploy-convex                 Convex functions + built frontend -> https://<deployment>.convex.site
+#   backend-image                 FastAPI model image -> GHCR, pulled by RunPod
+#
+# Repo settings this needs (Settings -> Secrets and variables -> Actions):
+#   secret   CONVEX_DEPLOY_KEY   Convex dashboard -> neurovision -> Production -> Settings -> Deploy keys
+#   variable VITE_API_URL        public URL of the RunPod model service, baked into the frontend build
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  convex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: frontend }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: backend }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { enable-cache: true, cache-dependency-glob: backend/uv.lock }
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  deploy-convex:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [convex, frontend, backend]
+    runs-on: ubuntu-latest
+    concurrency: { group: deploy-convex, cancel-in-progress: false }
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
+      - run: npm ci
+      - run: npm ci --prefix frontend
+      # Builds the frontend with the prod VITE_CONVEX_URL, runs `convex deploy`, uploads dist.
+      - run: npm run deploy
+      # Idempotent: patches the sample scan row if it already exists.
+      - run: npx convex run seed:seedSampleScan --prod
+
+  backend-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend]
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
+      # RunPod hosts are x86_64; docker-compose.yml's arm64 pin is for local Apple Silicon only.
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
