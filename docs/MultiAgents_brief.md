@@ -339,7 +339,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D1 ✅ #75 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
 | D2 ✅ #76 | LLM model and API key | `claude-opus-5-5`, effort `low`, for every agent; Haiku for the Router only if latency or cost needs it later. Key: Convex env var `ANTHROPIC_API_KEY` (Tom provides it before #67) |
 | D3 ✅ #77 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
-| D4 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
+| D4 ✅ #78 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
 | D5 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
 | D6 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
 | D7 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
@@ -358,6 +358,8 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 - Frontend ownership / PR #50 order (old D10).
 
 ## 11. 🔄 Build phases (each = one GitHub issue, merged only by Tom)
+
+**D4 (decided):** P0–P4 ship before the h29 freeze, plus the human/agent tables and functions they need (#56, #53/#54, #57/#58). P5 and later are stretch. Tracking: #74.
 
 | # | Phase | Owner | Done when (acceptance) |
 |---|---|---|---|
