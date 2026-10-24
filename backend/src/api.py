@@ -153,7 +153,24 @@ def validate(paths):
             reject("LOW_DYNAMIC_RANGE", "Scan intensities resemble a converted screenshot; upload raw MRI NIfTI sequences")
 
 
-@app.post("/jobs", status_code=201)
+@app.post("/jobs", status_code=201, openapi_extra={
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "required": list(SEQUENCES),
+                    "additionalProperties": False,
+                    "properties": {
+                        name: {"type": "string", "format": "binary"}
+                        for name in SEQUENCES
+                    },
+                }
+            }
+        },
+    }
+})
 async def create_job(request: Request):
     JOBS.mkdir(parents=True, exist_ok=True)
     job_dir = Path(tempfile.mkdtemp(prefix="job-", dir=JOBS))

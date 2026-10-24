@@ -154,3 +154,16 @@ def test_uncompressed_input(client, tmp_path):
 def test_cors(client):
     response = client.options("/jobs", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST"})
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_openapi_upload_fields(client):
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    body = response.json()["paths"]["/jobs"]["post"]["requestBody"]
+    assert body["required"] is True
+    schema = body["content"]["multipart/form-data"]["schema"]
+    assert set(schema["required"]) == set(api.SEQUENCES)
+    assert schema["additionalProperties"] is False
+    assert schema["properties"] == {
+        name: {"type": "string", "format": "binary"} for name in api.SEQUENCES
+    }
