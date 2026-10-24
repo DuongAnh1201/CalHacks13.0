@@ -29,6 +29,6 @@ Walkthrough: `learn_walkthrough.gif`.
 - Explode 100% now refits camera, whole brain visible (`e3d3435`). PASS, 29-reverify-explode100-fits.jpg.
 - Reset clears tree search (typed "hippo", Reset, box empty). PASS, 30-reverify-reset-clears-search.jpg.
 - Double-click isolate leaves no stale tooltip. PASS, 31-reverify-isolate-no-tooltip.jpg.
-- Still open (unfixed, not scored): toolbar and explode slider stay interactive while the atlas failed to load (26-atlas-failed-retry.jpg).
+- Failed load hides toolbar and explode slider; Retry after restoring the file brings them back (`562a33c`, vitest 34, tsc, build ok). PASS, 32-reverify-failed-load-no-controls.jpg, 33-reverify-retry-controls-return.jpg.
 
 Totals: 16 PASS / 0 FAIL.
