@@ -72,7 +72,7 @@ Everything else is optional. Tumor, voice, webcam and diagnosis visuals are out 
 
 ## Frames 01–03 (exported 2026-10-24)
 
-Same rules as frame 04. Refs: `01-upload.ref.tsx` (`43:3`), `02-processing.ref.tsx` (`44:99`), `03-workspace.ref.tsx` (`43:767`). **`03-workspace.ref.tsx` is truncated at 100 KB** (MCP token limit): it stops inside the right column's "ACTION CONTROL DECK", so `77060 79880 76bfc 49072` and the repeated header/footer icons have no use site in the file. Use `03-workspace.png` for everything below line ~900. `8ad8d.png`, `6a58f.png` and `304b1.png` are JPEG data (MRI slice mock-ups, out of scope).
+Same rules as frame 04. Refs: `01-upload.ref.tsx` (`43:3`), `02-processing.ref.tsx` (`44:99`), `03-workspace.ref.tsx` (`43:767`). **`03-workspace.ref.tsx` is truncated at 100 KB**; the missing right column is exported whole in `03-workspace-right.ref.tsx` (node `43:1002`, uses `1dae3 77060 79880 76bfc 49072`). Symbols: `symbol-format-card.ref.tsx` (`44:39`), `symbol-tool-call.ref.tsx` (`45:30`). The truncated file (MCP token limit) stops inside the right column's "ACTION CONTROL DECK", so `77060 79880 76bfc 49072` and the repeated header/footer icons have no use site in the file. Use `03-workspace.png` for everything below line ~900. `8ad8d.png`, `6a58f.png` and `304b1.png` are JPEG data (MRI slice mock-ups, out of scope).
 
 Header/footer icons (`3ad0c 42112 5f73c 030d1 52b59`) repeat in every frame; the existing `TopNavBar`/`Footer` already cover them.
 

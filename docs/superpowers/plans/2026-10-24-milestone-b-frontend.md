@@ -54,7 +54,8 @@
 | T7 CaseCanvas | ai | T6 | `viewer/CaseCanvas*` |
 | T8 Explore route | ai | T5 (`routes/summary.ts`), T7 | `routes/Explore*`, delete `components/StubPage*` |
 | T9 Review each task | qa | each task | none |
-| T10 Browser verification | qa | T2–T8 | `docs/qa/2026-10-24-milestone-b/` |
+| T11 Figma alignment | fe (01–03, header/footer), ai (04, /learn) | own feature tasks PASS | CSS modules + screenshots |
+| T10 Browser verification | qa | T2–T8, T11 | `docs/qa/2026-10-24-milestone-b/` |
 
 fe and ai may start before T1 lands by coding against the T1 interfaces below; run tests only after be reports T1 done.
 
@@ -282,6 +283,7 @@ export async function createJob(files: Record<Sequence, File>): Promise<string> 
 6. "Start" primary button, disabled until all 4 slots are filled and while uploading ("Uploading…"). On success → `/jobs/${jobId}/processing`. On `ApiError` show `e.message` in the alert box and **keep the files**. On network failure show "Backend offline — start docker compose up".
 7. Educational notice card (replaces Figma "Stays on this device"): title "Educational visualization", body "Not clinically validated. Not for diagnosis or surgical planning."
 8. Keep `<BackendBanner />` at the top of the column.
+9. Two format cards under the dropzone, built from the Figma **Format Card** symbol (`docs/figma/symbol-format-card.ref.tsx`, node `44:39`) as one `FormatCard` component inside `routes/Upload.tsx` (not exported): "NIfTI volume" (badge "3D", extensions `.nii  .nii.gz`, text "Full 3D volume. The tumor is placed on the 3D brain.") and "Images & screenshots" (badge "Not accepted", warm badge `--nv-accent-warm` on `#ffdad3`, extensions `.jpg  .png  .heic`, text "2D pictures don't contain 3D scan data.").
 
 - [ ] **Step 1:** Write `FlowStepper` + CSS module per the mapping. Write `FlowPage` (TopNavBar + main column with `FlowStepper`, h1, lede, children + Footer).
 - [ ] **Step 2:** Write the Upload page. Skeleton (fill the JSX per the content list above):
@@ -483,6 +485,7 @@ export const cm3 = (v: number) => `${v.toFixed(1)} cm³`;
   - Load: `getReport(id)`. `ApiError` 409 → `<Navigate to={`/jobs/${id}/processing`} replace />`. 404 → "Unknown job." + "Use sample case". Network error → "Backend offline — start docker compose up" + Retry. Loading → "Loading results…".
   - **Left card "Scan"** (frame 03 "Patient Dataset"): Job id (mono), Sequences (`input.sequences` → `SEQUENCE_LABEL`, joined " · "), Matrix (`shape.join(' × ')`), Voxel spacing (`spacingMm` mm), Model (`model.arch` + `v${model.version}`). No patient name, no fake fields.
   - **Centre** `<section aria-label="Slices">`: the slot for SlicePanel (C1). Card with title "Slices", text "Linked axial / sagittal / coronal views arrive with ticket C1.", and `<Legend available={{ edema: r.tumorDetected, core: r.tumorDetected, enhancing: r.volumesCm3.enhancing > 0 }} />`.
+  - Right column visuals: `docs/figma/03-workspace-right.ref.tsx` (node `43:1002`, complete export). Keep its card/metric-tile styling; replace every invented value with real report data or drop it. Drop "Glioblastoma Multiforme", "Confidence", "Anatomical Location", "Adjacent to Hippocampus", "Loss", the "Simulated Clinical Data" chip, the progress bar, both secondary buttons and the palm-gesture line. Chip "Prototype Placement" becomes "Educational". Dice badge shows `expertDice.whole` (2 decimals) only when present. "Approximate Dimensions" tile is real: `(bboxMm.max − bboxMm.min) / 10` cm, formatted `3.2 × 2.8 × 2.4 cm` (x × y × z = left-right × front-back × up-down), only when `bboxMm` exists.
   - **Right card** (frame 03 "AI Volumetric Analysis"): `<div data-slot="source-badge" />` (C4 fills it), h2 `headline(r)`. If tumor: rows Whole tumor / Tumor core / Enhancing with `cm3`, Side `sideLabel`, Lesions `lesionCount`. If `expertDice`: row "Model vs expert label (Dice)" `whole 0.89 · core 0.96 · enhancing 0.88` (2 decimals). Limitations list:
     - "Educational visualization; not clinically validated."
     - "Shown where the model segmented it, in the scan's own coordinates."
@@ -696,6 +699,26 @@ For each "Tn ready at <hash>" message:
 - [ ] `npm test`, `npx tsc -b`, `npm run lint`, `npm run build` pass at that commit or later.
 - [ ] Diff against this plan's task: interfaces match exactly; Global Constraints hold (no Tailwind classes, no `lib/`, no inline SVG, no keyboard shortcuts, no banned word, SPEC-over-Figma content rules).
 - [ ] Reply to the owner: `PASS Tn` or `FAIL Tn: <file:line> <problem>` (one line per problem). Send each PASS/FAIL to `lead` too.
+
+### Task 11: Figma alignment pass over every screen (fe, ai)
+
+User request: the whole Figma page `43:2` ("NeuroVision Flow — Upload → Workspace → 3D", <https://www.figma.com/design/rHjTVYYISZzHWvWNeSKaVE/NeuroVision?node-id=43-2>) is the visual source for the app. After your feature tasks pass review, match your screens to it.
+
+**Page contents:** frames `43:3` 01 Upload, `44:99` 02 Processing, `43:767` 03 Results (MRI Workspace), `43:1149` 04 Explore (tumor in 3D); symbols `44:39` Format Card, `45:30` Tool Call (agent panel, out of scope). Every frame shares the Header (`43:345` / `43:1109` / `43:1406`) and Footer (`43:329` / `43:1093` / `43:1387`).
+
+**Sources, in order:** (1) Figma MCP `get_design_context(fileKey "rHjTVYYISZzHWvWNeSKaVE", nodeId <child node>)` if your agent has the Figma MCP. Call it on a section, not a whole frame (whole frames truncate at 100 KB). (2) Otherwise the frozen exports in `docs/figma/*.ref.tsx` + `docs/figma/0N-*.png`; `docs/figma/ASSETS.md` maps every icon. Never paste Tailwind; convert to the CSS module. Never redraw an icon.
+
+| Owner | Screens |
+|---|---|
+| fe | Upload (01), Processing (02), Results (03), shared `TopNavBar` + `Footer` |
+| ai | Explore (04) stage + right panel, `/learn` (also frame 04 layout) |
+
+Per screen:
+- [ ] Open the running page and the frame PNG side by side at 1568 px wide. List every difference in spacing, size, font weight, colour, radius, border, shadow and icon.
+- [ ] Fix each in the CSS module, reusing `--nv-*` tokens (add a token only when a Figma value repeats in 2+ places). Run `impact` before editing any shared component (`TopNavBar`, `Footer`, `Legend`, `BackendBanner`).
+- [ ] SPEC/contract content rules stay above Figma (Global Constraints). Out-of-scope Figma panels (agent, voice, webcam, MPR slices) are **not** cloned; leave the slot or omit.
+- [ ] Screenshot after the fix into `docs/qa/2026-10-24-milestone-b/figma-<screen>.jpg`, then tsc, test, lint, build.
+- [ ] Commit `style(<screen>): match Figma frame <id>` with only your CSS/TSX files and screenshots. `hc send qa "T11 <screen> ready at <hash>"`. qa compares against the frame PNG and replies PASS/FAIL.
 
 ### Task 10: Browser verification (qa)
 
