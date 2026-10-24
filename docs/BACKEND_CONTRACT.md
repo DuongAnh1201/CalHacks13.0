@@ -9,6 +9,25 @@ Tom's pipeline (MONAI `brats_mri_segmentation` SegResNet → masks → meshes �
 
 Each `- [ ]` item is something the backend needs to do or confirm. Tick it in the PR that delivers it.
 
+## ⚠️ Action required first: restructure `model.glb`
+
+The current output is one `model.glb` with brain + edema + core + enhancing layers. It must be refined into **exactly these five named nodes**:
+
+```
+model.glb
+├─ brain_left    ← brain mask, x_RAS < brain midline   (closed mesh)
+├─ brain_right   ← brain mask, x_RAS ≥ brain midline   (closed mesh)
+├─ edema         ← surface of whole tumor (WT)          (outer shell)
+├─ core          ← surface of tumor core (TC)
+└─ enhancing     ← surface of enhancing tumor (ET)      (omit if no ET)
+```
+
+- [ ] Five nodes with these exact names. RAS mm, input affine, identity node transforms (details in §1).
+- [ ] Brain split at the midline **before** marching cubes, so each half is closed.
+- [ ] The sample job's `model.glb` is regenerated in this format **by checkpoint B (hour 8)**. The viewer lane builds against it from then on.
+
+**If inference isn't working by hour 8:** run `mask_to_mesh.py` on the demo case's **expert mask** to produce the same five-node `model.glb`. The frontend doesn't change at all, and the badge switches to "Expert segmentation (dataset label)". We do **not** fall back to 2D input.
+
 ---
 
 ## 1. The GLB is the contract
