@@ -1,6 +1,6 @@
 # Presence + 3D cursors (case /3d and Learn) — design
 
-Date: 2026-10-24 · Status: approved by user, awaiting spec review · Sub-project 1 of the NeuroVision collaborative-workspace brief
+Date: 2026-10-24 · Status: approved by user; revised while planning (see §1.1–1.3 notes) · Sub-project 1 of the NeuroVision collaborative-workspace brief
 
 ## Goal
 
@@ -54,7 +54,7 @@ All new fields are optional, so existing rows stay valid.
   - `hiddenStructures` holds ≤ 256 entries.
   - `setStructureVisible` adds or removes one id, with no duplicates.
 - Commands by subject:
-  - Atlas rooms accept only `setPage("learn")`, `setExplosion`, `setStructure`, `setStructureVisible`, `setIsolate`.
+  - Atlas rooms accept only `setPage("learn")`, `setMode`, `setOpacity`, `setExplosion`, `setHemisphereVisible`, `setStructure`, `setStructureVisible`, `setIsolate`. (Revised in planning: the Learn toolbar has X-Ray, opacity and L/R controls, so these must sync too.)
   - Case rooms reject the three structure commands and `setPage("learn")`.
   - Both reject with `INVALID_ARGUMENT`.
 - `sessions.end` also deletes the room's `cursors` rows.
@@ -63,9 +63,9 @@ All new fields are optional, so existing rows stay valid.
 
 - Root `package.json` adds `@convex-dev/presence`. `convex/convex.config.ts` adds `app.use(presence)` next to static hosting.
 - New `convex/presence.ts`, with `presence = new Presence(components.presence)`:
-  - `heartbeat({ token, clientId, interval })`:
-    - Calls `requireParticipant(token)` and refuses ended sessions.
-    - Then calls `presence.heartbeat(ctx, sessionId, participantId, clientId, interval)` and returns `{ roomToken, sessionToken }`.
+  - `heartbeat({ sessionId, participantToken, clientId, interval })` (revised in planning: same auth pair as every session function):
+    - Calls `requireSessionMember`, which refuses ended sessions.
+    - Then calls `presence.heartbeat(ctx, sessionId, participantId, `${participantId}:${clientId}`, interval)` and returns `{ roomToken, sessionToken }`.
     - `roomId` and `userId` are always server-derived.
   - `list({ roomToken })`. No per-user reads, so all subscribers share one cached query (component README).
   - `disconnect({ sessionToken })` is unauthenticated, because the component requires that (it is called from `sendBeacon`).
@@ -76,19 +76,19 @@ All new fields are optional, so existing rows stay valid.
 cursors: defineTable({
   sessionId: v.id("sessions"),
   participantId: v.id("sessionParticipants"),
-  node: v.string(),            // 1–128 chars
-  localMm: v.union(vVec3, v.null()),
+  // revised in planning: one nullable object instead of node + nullable localMm
+  cursor: v.union(v.null(), v.object({ node: v.string() /* 1–128 chars */, localMm: vVec3 })),
   updatedAt: v.number(),
 })
   .index("by_session", ["sessionId"])
   .index("by_participant", ["participantId"]),
 ```
 
-- `cursors.move({ token, node, localMm })`:
-  - Calls `requireParticipant`, then upserts the caller's own row only.
-  - `localMm` must be exactly 3 finite numbers, or `null`.
+- `cursors.move({ sessionId, participantToken, cursor })`:
+  - Calls `requireSessionMember`, then upserts the caller's own row only.
+  - `cursor.localMm` must be exactly 3 finite numbers; `cursor: null` = off the model.
   - Refused when the session has ended.
-- `cursors.list({ token })` returns the session's rows minus the caller's, as `{ participantId, displayName, node, localMm }`.
+- `cursors.list({ sessionId, participantToken })` returns the session's rows minus the caller's, as `{ participantId, displayName, cursor }`.
 - Everyone in the room (host + viewers) may send cursors. The existing `NOT_PRESENTER` gate on the shared view is unchanged.
 
 ## 2. Frontend
@@ -97,7 +97,7 @@ cursors: defineTable({
 
 | File | Job |
 |---|---|
-| `presence.ts` | `startPresence(token): stop`. Heartbeat every 10 s via `convex.mutation(api.presence.heartbeat)`, with `clientId = crypto.randomUUID()` per tab. Then `onUpdate(api.presence.list, { roomToken })` writes `useShare.online: Set<participantId>`. On `pagehide` it `sendBeacon`s `{ path: "presence:disconnect", args: { sessionToken } }` to `${VITE_CONVEX_URL}/api/mutation`, matching the stock hook. When the page goes hidden it disconnects, and when it becomes visible again it re-heartbeats. `store.ts` starts it when a session is active and stops it on end or leave. |
+| `presence.ts` | `startPresence(client, auth, convexUrl, onOnline): stop`. Heartbeat every 10 s via `convex.mutation(api.presence.heartbeat)`, with `clientId = crypto.randomUUID()` per tab. Then `onUpdate(api.presence.list, { roomToken })` writes `useShare.online: Set<participantId>`. On `pagehide` it `sendBeacon`s `{ path: "presence:disconnect", args: { sessionToken } }` to `${VITE_CONVEX_URL}/api/mutation`, matching the stock hook. When the page goes hidden it disconnects, and when it becomes visible again it re-heartbeats. `store.ts` starts it when a session is active and stops it on end or leave. |
 | `cursorSync.ts` | Pure. `cursorSender(send, ms = 100)` is a trailing throttle: it sends only when `{node, localMm}` changed, and sends a single `null` after the pointer leaves. `colorOf(participantId)` picks a stable colour from a fixed 8-colour palette. |
 | `RemoteCursors.tsx` | R3F child, mounted in `CaseCanvas` and `AtlasCanvas` when a session is active. Subscribes to `cursors.list`. Per row it calls `scene.getObjectByName(node)` → `localToWorld(localMm)` and lerps toward the target in `useFrame` (~120 ms ease). It draws a small sphere plus a drei `<Html>` name chip in `colorOf`. A row is hidden when its node is unresolved, its owner is not in `online`, or `localMm` is `null`. |
 | `FacePile.tsx` | In `TopNavBar`: up to 4 initials avatars plus "+N", online participants only. |
