@@ -329,6 +329,7 @@ export default defineSchema({
     runId: v.optional(v.id("agentRuns")), // agentRuns arrives with P3 (#67).
     toolSteps: v.optional(v.array(vToolStep)),
   })
+    .index("by_job_time", ["jobId", "createdAt"])
     .index("by_session_time", ["sessionId", "createdAt"])
     .index("by_client_time", ["clientId", "createdAt"])
     .searchIndex("search_text", {

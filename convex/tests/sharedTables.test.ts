@@ -70,6 +70,8 @@ describe("shared tables", () => {
       await ctx.db.insert("messages", { ...minimalRows.messages(), jobId: "other", clientId: "browser-2" });
       await ctx.db.insert("sessionSummaries", { ...minimalRows.sessionSummaries(), clientId: "browser-1" });
       expect(await ctx.db.query("annotations").withIndex("by_job", (q) => q.eq("jobId", "sample")).collect()).toHaveLength(1);
+      const jobMessages = await ctx.db.query("messages").withIndex("by_job_time", (q) => q.eq("jobId", "sample")).collect();
+      expect(jobMessages.map((row) => row.createdAt)).toEqual([10, 20]);
       const messages = await ctx.db.query("messages").withIndex("by_client_time", (q) => q.eq("clientId", "browser-1")).collect();
       expect(messages.map((row) => row.createdAt)).toEqual([10, 20]);
       const found = await ctx.db.query("messages").withSearchIndex("search_text", (q) => q.search("text", "tumor").eq("jobId", "sample").eq("clientId", "browser-1")).collect();

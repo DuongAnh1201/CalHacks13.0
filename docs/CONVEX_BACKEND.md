@@ -538,7 +538,7 @@ Human UI/REST functions (Sage) and agent/MCP functions use the same records.
 | Table | Fields beyond attribution | Indexes |
 |---|---|---|
 | `annotations` | `jobId`, `sessionId?`, `text`, `anchor`, `status` | `by_job(jobId)`, `by_session(sessionId)` |
-| `messages` | `jobId`, `sessionId?`, `clientId?`, `role`, `text`, `runId?`, `toolSteps?` | `by_session_time(sessionId, createdAt)`, `by_client_time(clientId, createdAt)`, `search_text` on text, filtered by job/session/client |
+| `messages` | `jobId`, `sessionId?`, `clientId?`, `role`, `text`, `runId?`, `toolSteps?` | `by_job_time(jobId, createdAt)`, `by_session_time(sessionId, createdAt)`, `by_client_time(clientId, createdAt)`, `search_text` on text, filtered by job/session/client |
 | `sessionSummaries` | `jobId`, `sessionId?`, `clientId?`, `text`, `coversUpTo`, `version` | `by_session(sessionId)`, `by_client(clientId)` |
 | `exports` | `jobId`, `sessionId?`, `format`, `trigger`, `reason?`, `fileId`, `version`, `sections` | `by_job(jobId)`, `by_session(sessionId)` |
 
