@@ -37,6 +37,8 @@ def test_artifact_contract(tmp_path, masks):
     assert set(np.unique(seg.get_fdata())) == {0, 1, 2, 3}
     np.testing.assert_array_equal(seg.affine, affine)
     assert report["volumesCm3"]["whole"] == pytest.approx(24)
+    assert report["volumesCm3"]["core"] == 5.18
+    assert report["centroidMm"] == [-19.0, 43.5, 58.0]
     assert report["bboxMm"] == {"min": [-28., 30., 40.], "max": [-10., 57., 76.]}
     assert report["side"] == "right"
     assert report["lesionCount"] == 1

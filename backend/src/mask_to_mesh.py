@@ -37,9 +37,22 @@ def to_mesh(binary, affine, rgba, smooth_iters=0, step_size=1, max_faces=None):
         trimesh.smoothing.filter_taubin(mesh, iterations=smooth_iters)
 
     if max_faces is not None and len(mesh.faces) > max_faces:
+        original = mesh
         mesh = mesh.simplify_quadric_decimation(face_count=max_faces)
+        # Collapsed voxel-grid triangles can leave duplicate/degenerate faces.
+        # Weld their vertices and remove those faces before checking closure.
+        mesh.process(validate=True)
+        if not mesh.is_watertight:
+            # A small Taubin pass avoids coplanar collapse without shrinking.
+            mesh = original.copy()
+            trimesh.smoothing.filter_taubin(mesh, iterations=2)
+            mesh = mesh.simplify_quadric_decimation(face_count=max_faces)
+            mesh.process(validate=True)
         if len(mesh.faces) > max_faces:
             raise ValueError("Mesh exceeds triangle budget after decimation")
+
+    if not mesh.is_watertight:
+        raise ValueError("Mesh is not a closed shell")
 
     # 7. Color
     mesh.visual.face_colors = rgba

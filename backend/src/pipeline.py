@@ -46,8 +46,8 @@ def spatial_summary(points):
     if not len(points):
         return {"centroidMm": None, "bboxMm": None}
     return {
-        "centroidMm": points.mean(axis=0).tolist(),
-        "bboxMm": {"min": points.min(axis=0).tolist(), "max": points.max(axis=0).tolist()},
+        "centroidMm": points.mean(axis=0).round(1).tolist(),
+        "bboxMm": {"min": points.min(axis=0).round(1).tolist(), "max": points.max(axis=0).round(1).tolist()},
     }
 
 
@@ -98,7 +98,7 @@ def build_report(brain, wt, tc, et, affine, zooms, job_id, source="model"):
         "segmentationSource": source, "tumorDetected": bool(wt.any()), "side": side,
         "lesionCount": int(np.count_nonzero(sizes >= MIN_VOXELS)),
         **spatial_summary(points),
-        "volumesCm3": {name: float(mask.sum()) * voxel_cm3 for name, mask in
+        "volumesCm3": {name: round(float(mask.sum()) * voxel_cm3, 2) for name, mask in
                        (("whole", wt), ("core", tc), ("enhancing", et))},
         "brain": spatial_summary(brain_points),
         "input": {"shape": list(brain.shape), "spacingMm": [float(z) for z in zooms],
