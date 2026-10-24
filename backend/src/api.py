@@ -87,9 +87,10 @@ def _work(job_id: str):
 
 def initialize_jobs():
     JOBS.mkdir(parents=True, exist_ok=True)
-    for folder in JOBS.iterdir():
-        if folder.is_dir() and not folder.name.startswith("sample"):
-            shutil.rmtree(folder)
+    if os.getenv("KEEP_JOBS") != "1":  # dev: compose watch restarts on every edit
+        for folder in JOBS.iterdir():
+            if folder.is_dir() and not folder.name.startswith("sample"):
+                shutil.rmtree(folder)
     if SEED.exists():
         for folder in SEED.iterdir():
             if folder.is_dir() and not (JOBS / folder.name).exists():

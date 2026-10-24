@@ -167,3 +167,26 @@ def test_openapi_upload_fields(client):
     assert schema["properties"] == {
         name: {"type": "string", "format": "binary"} for name in api.SEQUENCES
     }
+
+
+@pytest.mark.parametrize("keep_jobs,preserved", [("1", True), (None, False), ("0", False)])
+def test_initialize_jobs_keep_jobs(tmp_path, monkeypatch, keep_jobs, preserved):
+    monkeypatch.setattr(api, "JOBS", tmp_path / "jobs")
+    monkeypatch.setattr(api, "SEED", tmp_path / "seed")
+    if keep_jobs is None:
+        monkeypatch.delenv("KEEP_JOBS", raising=False)
+    else:
+        monkeypatch.setenv("KEEP_JOBS", keep_jobs)
+    job = api.JOBS / "job-x"
+    job.mkdir(parents=True)
+    (job / "report.json").write_text('{"jobId":"job-x"}')
+    seed = api.SEED / "sample-new"
+    seed.mkdir(parents=True)
+    (seed / "value").write_text("seed")
+
+    api.initialize_jobs()
+
+    assert job.exists() is preserved
+    if preserved:
+        assert (job / "report.json").read_text() == '{"jobId":"job-x"}'
+    assert (api.JOBS / "sample-new" / "value").read_text() == "seed"
