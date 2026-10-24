@@ -33,7 +33,7 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
   });
   await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));
   const client=new Client({name:'desktop-blackbox-test',version:'1'});
-  const transport=new StdioClientTransport({command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,MCP_URL:`http://127.0.0.1:${http.address().port}/mcp`},stderr:'pipe'});
+  const transport=new StdioClientTransport({command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`},stderr:'pipe'});
   let stderr='';
   transport.stderr?.on('data',chunk=>stderr+=chunk);
   try {
@@ -52,9 +52,11 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
     assert.deepEqual(JSON.parse(report.contents[0].text),sample);
     assert.doesNotMatch(stderr,new RegExp(token));
     if (process.env.MCP_INSPECTOR_CHECK === '1') {
+      const inspectorConfig = join(dir, 'inspector.json');
+      await writeFile(inspectorConfig, JSON.stringify({mcpServers:{'neuro-test':{command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`,MCP_TOKEN:token}}}}));
       const run = promisify(execFile);
       const inspect = async (method, extra = []) => {
-        const {stdout} = await run('npx', ['--yes','@modelcontextprotocol/inspector@2.5.0','--cli',process.execPath,resolve('mcp/stdio.mjs'),'--method',method,'--format','json',...extra], {env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,MCP_URL:`http://127.0.0.1:${http.address().port}/mcp`},timeout:60000});
+        const {stdout} = await run('npx', ['--yes','@modelcontextprotocol/inspector@2.5.0','--cli','--config',inspectorConfig,'--server','neuro-test','--method',method,'--format','json',...extra], {env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`},timeout:60000});
         const parsed=JSON.parse(stdout);
         return parsed.result ?? parsed;
       };

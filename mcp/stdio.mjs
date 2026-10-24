@@ -7,9 +7,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 async function main() {
-  if (!process.env.MCP_URL || !process.env.MCP_TOKEN) throw new Error('Set MCP_URL and MCP_TOKEN in the local client environment.');
-  const url = new URL(process.env.MCP_URL);
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(url.hostname))) throw new Error('MCP_URL must use HTTPS (HTTP allowed only for local testing).');
+  if (!process.env.NEURO_MCP_URL || !process.env.MCP_TOKEN) throw new Error('Set NEURO_MCP_URL and MCP_TOKEN in the local client environment.');
+  const url = new URL(process.env.NEURO_MCP_URL);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(url.hostname))) throw new Error('NEURO_MCP_URL must use HTTPS (HTTP allowed only for local testing).');
   const remote = new Client({ name:'neuro-mcp-stdio', version:'0.1.0' });
   await remote.connect(new StreamableHTTPClientTransport(url, { requestInit:{ headers:{ Authorization:`Bearer ${process.env.MCP_TOKEN}` } } }));
   const server = new Server({ name:'neuro-mcp',version:'0.1.0' }, { capabilities:{tools:{},resources:{}} });
@@ -25,4 +25,4 @@ async function main() {
   process.stdin.on('end',()=>void close());
   await server.connect(new StdioServerTransport());
 }
-main().catch(()=>{ console.error('neuro-mcp could not connect. Check MCP_URL, MCP_TOKEN and server availability.'); process.exitCode=1; });
+main().catch(()=>{ console.error('neuro-mcp could not connect. Check NEURO_MCP_URL, MCP_TOKEN and server availability.'); process.exitCode=1; });

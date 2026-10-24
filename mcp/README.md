@@ -1,6 +1,8 @@
 # neuro-mcp
 
-The Convex HTTP endpoint `https://<deployment>.convex.site/mcp` serves one stateless MCP server/transport per request. It uses the SDK's Web Standards Streamable HTTP transport in JSON-response mode; there is no separate production server and no Node runtime in the HTTP action. GET/DELETE return 405 after authentication because there are no sessions or persistent SSE streams.
+The Convex HTTP endpoint `https://<deployment>.convex.site/api/mcp` serves one stateless MCP server/transport per request. The router stays at `/mcp`; main's `httpPrefix: "/api"` mounts it under `/api/mcp`, ahead of the SPA at `/`. Before #97 the URL was `https://<deployment>.convex.site/mcp`; use `/api/mcp` from #97 onward. The proxy takes the complete `NEURO_MCP_URL` and never hard-codes a deployment URL.
+
+It uses the SDK's Web Standards Streamable HTTP transport in JSON-response mode; there is no separate production server and no Node runtime in the HTTP action. GET/DELETE return 405 after authentication because there are no sessions or persistent SSE streams.
 
 ## Configuration
 
@@ -39,7 +41,7 @@ Add a local Desktop MCP configuration (replace paths and configure your token lo
       "command": "node",
       "args": ["/absolute/path/to/CalHacks13.0/mcp/stdio.mjs"],
       "env": {
-        "MCP_URL": "https://<deployment>.convex.site/mcp",
+        "NEURO_MCP_URL": "https://<deployment>.convex.site/api/mcp",
         "MCP_TOKEN": "<configure locally>"
       }
     }
@@ -78,11 +80,13 @@ MCP_INSPECTOR_CHECK=1 npm run test:mcp-stdio
 
 The edge tests execute actual SDK transport requests and `convex-test` HTTP routes, strict schemas, sample/sample-2 exact metrics and certainty, atlas/no-report/no-tumor cases, guarded wording, token auth, hash-only durable quotas and trusted author names. The stdio black-box test spawns the actual proxy against the same handler and compares file values. The optional Inspector test uses Inspector 2.5.0 to list tools/resources/templates and call sample metrics through the proxy; it uses an injected test token and an ephemeral local HTTP listener.
 
-For a deployed endpoint, set MCP_URL/MCP_TOKEN in your local client environment and run:
+For a deployed endpoint, save the Desktop-style MCP configuration above locally and use it with Inspector (Inspector does not automatically forward arbitrary parent environment variables):
 
 ```sh
-npx --yes @modelcontextprotocol/inspector@2.5.0 --cli node mcp/stdio.mjs --method tools/list --format json
-npx --yes @modelcontextprotocol/inspector@2.5.0 --cli node mcp/stdio.mjs --method resources/list --format json
+npx --yes @modelcontextprotocol/inspector@2.5.0 --cli --config /path/to/local-mcp-config.json --server neuro-mcp --method tools/list --format json
+npx --yes @modelcontextprotocol/inspector@2.5.0 --cli --config /path/to/local-mcp-config.json --server neuro-mcp --method resources/list --format json
 ```
 
-Live Convex deployment and the Desktop GUI require deployment/client credentials and remain manual checks; the automated tests establish runtime compatibility and proxy behavior without setting a production token.
+An actual isolated anonymous `convex dev` deployment was also tested after #97, with a populated SPA fixture: `/learn` served HTML while `/api/mcp` returned authenticated MCP responses, bad tokens returned 401, and the real stdio proxy returned exact sample metrics and certainty. Cloud deployment and the Desktop GUI remain manual checks; no production MCP token was set.
+
+References: [SDK Web Standards transport](https://github.com/modelcontextprotocol/typescript-sdk/blob/v1.x/src/server/webStandardStreamableHttp.ts), [Convex HTTP actions](https://docs.convex.dev/functions/http-actions).
