@@ -218,3 +218,27 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+.env.local
+
+# ---------------------------------------------------------------------------
+# Node / Convex backend
+# ---------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Convex writes the local/anonymous deployment name and URL here.
+# .env.local is already ignored above (added by `npx convex dev`).
+.env.*.local
+
+# NOT ignored on purpose: convex/_generated/
+# Convex generates it, but it must be committed — nothing typechecks without it
+# and teammates have no Convex credentials to regenerate it with.
+# See docs/CONVEX_BACKEND.md.
+
+# The Python `lib/` rule near the top of this file (a build-artifact directory
+# for setuptools) also matches `convex/lib/`, which is real source code.
+# Un-ignore it explicitly.
+!convex/lib/
+!convex/lib/**
