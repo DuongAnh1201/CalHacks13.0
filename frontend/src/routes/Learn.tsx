@@ -53,7 +53,7 @@ export default function Learn() {
 
   return (
     <div className={css.page}>
-      <TopNavBar active="learn" />
+      <TopNavBar />
       <main className={css.grid}>
         {atlas ? <StructureTree atlas={atlas} colors={colors} missing={missingSet} /> : <aside className={css.side} />}
         <section className={css.stage} aria-label="3D brain">

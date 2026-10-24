@@ -72,7 +72,7 @@ export default function MriWorkspace() {
 
   return (
     <div className={css.page}>
-      <TopNavBar active="workspace" />
+      <TopNavBar />
       {phase === 'loading' && <main className={css.status}><p>Loading results…</p></main>}
       {phase === 'unknown' && (
         <main className={css.status}>

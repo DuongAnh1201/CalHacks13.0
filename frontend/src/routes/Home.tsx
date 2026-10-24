@@ -26,7 +26,7 @@ export default function Home() {
 
   return (
     <div className={css.page}>
-      <TopNavBar active={null} />
+      <TopNavBar />
       <div className={css.body}>
         <aside className={css.side}>
           <button className={css.new} popoverTarget="nv-new-menu">New workspace</button>

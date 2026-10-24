@@ -83,7 +83,7 @@ export default function Brain3D() {
 
   return (
     <div className={css.page}>
-      <TopNavBar active="workspace" />
+      <TopNavBar />
       <main className={css.grid}>
         <aside className={css.left} aria-label="Case">
           {report && (
@@ -124,6 +124,11 @@ export default function Brain3D() {
                 )}
                 {!report.tumorDetected && <p className={css.note}>No tumor detected in this scan</p>}
               </section>
+              <article className={`${css.card} ${css.gesture}`}>
+                <p className={css.kicker}>Gesture control</p>
+                <p className={css.webcam}>Webcam off</p>
+                <p className={css.note}>Hand gestures arrive with issue #18.</p>
+              </article>
               <Link className={css.back} to={`/jobs/${id}/mri`}>Analyze Cross-Sections</Link>
             </>
           )}
@@ -178,11 +183,6 @@ export default function Brain3D() {
         </section>
 
         <aside className={css.right} aria-label="Assistants">
-          <article className={css.card}>
-            <p className={css.kicker}>Gesture control</p>
-            <p className={css.webcam}>Webcam off</p>
-            <p className={css.note}>Hand gestures arrive with issue #18.</p>
-          </article>
           {report && <div className={css.agent}><AgentPanel messages={demoMessages(report, '3d')} status="offline" /></div>}
         </aside>
       </main>
