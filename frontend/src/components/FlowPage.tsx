@@ -6,9 +6,9 @@ import css from './FlowPage.module.css';
 
 export function FlowPage({ step, title, lede, children }: { step: 1 | 2 | 3; title: string; lede: string; children: ReactNode }) {
   return (
-    <div className={css.page}>
+    <div className={step === 2 ? `${css.page} ${css.fill}` : css.page}>
       <TopNavBar active="workspace" />
-      <main className={css.column}>
+      <main className={step === 2 ? `${css.column} ${css.centered}` : css.column}>
         <FlowStepper step={step} />
         <header className={css.heading}>
           <h1>{title}</h1>
