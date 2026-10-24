@@ -9,6 +9,7 @@
  */
 
 import type * as exportDoc from "../exportDoc.js";
+import type * as annotations from "../annotations.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -42,6 +43,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   exportDoc: typeof exportDoc;
+  annotations: typeof annotations;
   exportRecords: typeof exportRecords;
   http: typeof http;
   "lib/auth": typeof lib_auth;
