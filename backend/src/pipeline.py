@@ -106,7 +106,7 @@ def build_report(brain, wt, tc, et, affine, zooms, job_id, source="model"):
     }
 
 
-def build_outputs(job_dir, brain, wt, tc, et, affine, zooms, source="model"):
+def build_outputs(job_dir, brain, wt, tc, et, affine, zooms, source="model", probs=None):
     """Build the same artifacts for model predictions or expert segmentations."""
     job_dir = Path(job_dir)
     brain = clean_brain(brain)
@@ -116,6 +116,15 @@ def build_outputs(job_dir, brain, wt, tc, et, affine, zooms, source="model"):
     save_label_map(wt, tc, et, affine, job_dir / "seg.nii.gz")
     build_glb(brain, wt, tc, et, affine, job_dir / "model.glb")
     report = build_report(brain, wt, tc, et, affine, zooms, job_dir.name, source)
+    report["certainty"] = None
+    if source == "model" and probs is not None:
+        # Output channels are TC, WT, ET; average only inside the final cleaned regions.
+        report["certainty"] = {
+            name: round(float(prob[mask].mean()), 2) if mask.any() else None
+            for name, prob, mask in (("whole", probs[1], wt),
+                                     ("core", probs[0], tc),
+                                     ("enhancing", probs[2], et))
+        }
     (job_dir / "report.json").write_text(json.dumps(report, indent=2))
     return report
 

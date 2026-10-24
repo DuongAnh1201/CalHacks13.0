@@ -43,7 +43,8 @@ def test_artifact_contract(tmp_path, masks):
     assert report["side"] == "right"
     assert report["lesionCount"] == 1
     assert report["segmentationSource"] == "expert"
-    assert set(report) == {"jobId", "coordinateFrame", "model", "segmentationSource", "tumorDetected", "side", "lesionCount", "centroidMm", "bboxMm", "volumesCm3", "brain", "input"}
+    assert report["certainty"] is None
+    assert set(report) == {"jobId", "coordinateFrame", "model", "segmentationSource", "certainty", "tumorDetected", "side", "lesionCount", "centroidMm", "bboxMm", "volumesCm3", "brain", "input"}
     assert json.loads((tmp_path / "report.json").read_text()) == report
 
 
@@ -97,12 +98,14 @@ def test_run_stage_callbacks(tmp_path, masks, monkeypatch):
     def fake_predict(paths):
         assert stages == ["inferring"]
         assert [path.name for path in paths] == ["t1c.nii.gz", "t1.nii.gz", "t2.nii.gz", "flair.nii.gz"]
-        return dict(zip(("brain", "wt", "tc", "et"), masks), affine=np.eye(4), zooms=(1, 1, 1))
+        return dict(zip(("brain", "wt", "tc", "et"), masks), affine=np.eye(4), zooms=(1, 1, 1),
+                    probs=np.stack([np.full(masks[0].shape, value) for value in (0.7, 0.8, 0.9)]))
 
     monkeypatch.setitem(sys.modules, "src.predict", types.SimpleNamespace(predict=fake_predict))
     report = pipeline.run(tmp_path, on_stage=stages.append)
     assert stages == ["inferring", "meshing"]
     assert report["jobId"] == tmp_path.name
+    assert report["certainty"] == {"whole": 0.8, "core": 0.7, "enhancing": 0.9}
 
 
 def test_decimation_budget(masks):

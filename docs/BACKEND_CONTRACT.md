@@ -1,6 +1,6 @@
 # Backend ↔ Frontend Contract (Tom's AI backend)
 
-**Status: SIGNED OFF v1.1 (2026-10-24) by Tom, backend owner (`lane:ml-backend`). Changes go through a PR plus a heads-up to the viewer and app owners.**
+**Status: SIGNED OFF v1.2 (2026-10-24) by Tom, backend owner (`lane:ml-backend`). Changes go through a PR plus a heads-up to the viewer and app owners.**
 
 Tom's pipeline (MONAI `brats_mri_segmentation` SegResNet → masks → meshes → FastAPI jobs) is the backend. The frontend builds against **exactly** what this file specifies.
 
@@ -116,6 +116,7 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
   "coordinateFrame": "RAS_mm",
   "model": { "name": "brats_mri_segmentation", "arch": "SegResNet", "version": "x.y.z" },
   "segmentationSource": "model | expert",
+  "certainty": { "whole": 0.94, "core": 0.97, "enhancing": 0.92 },
   "tumorDetected": true,
   "side": "left | right | bilateral | null",
   "lesionCount": 1,
@@ -131,6 +132,7 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
 - [ ] `side` is computed against the **brain midline** (same x as the §1.1 split). `bilateral` = **at least 20% of WT voxels on each side** of the midline; otherwise the side holding the majority. `+x` = patient **Right**.
 - [ ] `lesionCount` = connected components of WT with **≥ 100 voxels** (0.1 cm³ at 1 mm isotropic), so stray specks don't count.
 - [ ] `segmentationSource` is `"model"` for SegResNet output and `"expert"` for the expert-mask fallback. The UI badge reads only this field.
+- `"certainty": { "whole": 0.0–1.0 | null, "core": 0.0–1.0 | null, "enhancing": 0.0–1.0 | null } | null`: mean model probability inside each cleaned segmented region, rounded to two decimals. An empty region has a `null` value; expert segmentations have `"certainty": null`. Not calibrated. Describes the outline, not the tissue.
 - [ ] `brain` block is included. The frontend uses it for centering, camera framing and clamping the cut plane.
 
 ## 3. `seg.nii.gz` label values
@@ -158,6 +160,7 @@ NiiVue needs one integer label map, not three overlapping channels.
 
 ## 5. Wording rules (the UI follows these, and the API text should too)
 
+- "Model certainty of the outline, not a diagnosis or a probability of disease."
 - "No tumor detected", never "healthy".
 - "Shown where the model segmented it, in the scan's own coordinates." Avoid claiming it "matches real anatomy": the shared affine guarantees brain ↔ tumor alignment, not that the segmentation is correct.
 - "Educational visualization; not clinically validated."

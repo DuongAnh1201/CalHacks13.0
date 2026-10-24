@@ -19,7 +19,7 @@ def get_net(weights="weights/model.pt"):
     return _net
 
 def predict(paths):
-    """paths: [t1c, t1, t2, flair] → (tc, wt, et) bool arrays, affine, voxel size"""
+    """paths: [t1c, t1, t2, flair] → masks, TC/WT/ET probabilities, affine, voxel size"""
     names = tuple(Path(p).name.split(".")[0].lower() for p in paths)
     assert names == SEQUENCE_ORDER, f"paths must be in order {SEQUENCE_ORDER}, got {names}"
     imgs = [nib.load(p) for p in paths]
@@ -38,7 +38,8 @@ def predict(paths):
         logits = sliding_window_inference(torch.from_numpy(x)[None], roi_size=(240, 240, 160),
                                           sw_batch_size=1, predictor=get_net(), overlap=0.5)
     assert logits.shape[1] == 3, "expected 3 output channels (TC, WT, ET)"
-    m = (torch.sigmoid(logits)[0] > 0.5).numpy()
+    probs = torch.sigmoid(logits)[0].numpy()
+    m = probs > 0.5
     brain = x[3] != 0                                               # FLAIR non-zero = brain (skull-stripped input)
-    return {"tc": m[0], "wt": m[1], "et": m[2], "brain": brain,
+    return {"tc": m[0], "wt": m[1], "et": m[2], "brain": brain, "probs": probs,
             "affine": ref.affine, "zooms": ref.header.get_zooms()[:3]}
