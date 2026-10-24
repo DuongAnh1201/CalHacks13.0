@@ -4,13 +4,13 @@ Branch `w2/share`. Convex local :3210 (fresh database, sample seeded), Vite :517
 Host and guest were two separate Chrome tabs with sessionStorage cleared first (no Duplicate tab).
 Slice labels are listed axial, sagittal, coronal.
 
-**Result: 5/6 checks pass. Check 1 fails visually. Negative checks pass.**
+**Result: 6/6 checks pass (check 1 re-run against ba61e54 passes). Negative checks pass.**
 
 ## Checks
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Share shows link, code and "Host (host)" | **Fail (visual)**. Content is correct, but the popover renders behind the AI Volumetric Analysis panel. | `1-share-popover-occluded.png` |
+| 1 | Share shows link, code and "Host (host)" | **Pass** after ba61e54 (initial run on 3ed4771 failed visually: popover behind the analysis panel). Re-run below. | `1-share-popover-fixed.jpg` (fixed), `1-share-popover-occluded.png` (before) |
 | 2 | Guest joins, "Following Host", host roster shows guest | Pass. Roster reads "Host (host)", "Guest · following". | `2-guest-following.jpg` |
 | 3 | Host click moves guest crosshair in all 3 views, labels match | Pass. Host and guest both 78/155, 55/240, 186/240. | `3-host-after-click.jpg`, `3-guest-after-host-click.jpg` |
 | 4 | Guest click shows "Not following Host", host move does not move guest, Follow snaps back | Pass, no auto flip. Guest 78/155, 161/240, 143/240 stayed put while host moved to 78/155, 205/240, 143/240. Follow snapped guest to 205/240, 143/240. | `4-guest-not-following.jpg`, `4-guest-unmoved-after-host-move.jpg`, `4-guest-after-follow.jpg` |
@@ -18,7 +18,15 @@ Slice labels are listed axial, sagittal, coronal.
 | 6 | New session, guest reload keeps "Following Host", no second roster entry | Pass. Roster: "Host (host)", "Guest · following". | `6-guest-after-reload.jpg` |
 
 ### Check 1 detail
-The popover sits at z-index 20 inside the header's stacking context. `elementFromPoint` on the invite field returns the analysis panel's kicker, so the popover is visible only as a sliver. A person cannot click Copy link or End session. I drove End session through the DOM for check 5.
+Before (3ed4771): popover at z-index 20 inside a static header, so the analysis panel painted over it; `elementFromPoint` on the invite field returned the panel's kicker.
+
+Re-run against ba61e54 (header `position: relative`, `z-index: 30`, confirmed via computed style), `/jobs/sample/mri`, fresh sessionStorage, real mouse clicks only:
+- Popover sits above the AI Volumetric Analysis panel, which shows through the popover's translucent background only as faint text.
+- `elementFromPoint` at the centre of the invite field returns the popover's INPUT, at Copy link and End session returns the popover's BUTTONs (`inPop` true for all three).
+- Real click on Copy link: button label changes to "Copied". Clipboard contents not read (the read hung on a permission prompt).
+- Real click on Share closes the popover, a second click reopens it.
+- Real click on End session closes the popover and clears the session from sessionStorage.
+- Real click on the NeuroVision nav link navigates to `/`.
 
 ## Negative checks
 
