@@ -145,3 +145,24 @@ describe('Convex HTTP auth and durable rate limiting', () => {
     expect((await t.mutation(consume,{tokenHash:hash})).allowed).toBe(true);
   });
 });
+
+
+it('sets writer identity only from authenticated service context, never tool args', async () => {
+  const captured: import('../mcp/types').McpDependencies[] = [];
+  const module: import('../mcp/types').ToolModule = (_server, deps) => { captured.push(deps); };
+  const options = { token, modules: [module], rateCheck: async () => ({ allowed: true, retryAfter: 0 }) };
+  await handleMcp(request('tools/list'), options);
+  expect(captured[0].caller.agentName).toBe('Claude Desktop');
+  expect(captured[0].caller.authorName).toBe('Claude Desktop');
+  const scribe = request('tools/list');
+  scribe.headers.set('X-Neuro-Agent-Run', JSON.stringify({ agentName: 'Scribe', runId: 'trusted-run' }));
+  await handleMcp(scribe, options);
+  expect(captured[1].caller).toEqual({kind:'service',tokenHash:await tokenHash(token),agentName:'Scribe',authorName:'Scribe',agentRunId:'trusted-run'});
+  const invalid = request('tools/list');
+  invalid.headers.set('X-Neuro-Agent-Run', JSON.stringify({agentName:'User-supplied author',runId:'run'}));
+  expect((await handleMcp(invalid,options)).status).toBe(400);
+  invalid.headers.set('authorization','Bearer wrong');
+  expect((await handleMcp(invalid,options)).status).toBe(401);
+  expect(captured).toHaveLength(2);
+  expect((await rpc('tools/call',{name:'get_report',arguments:{job_id:'sample',authorName:'Scribe'}})).result.isError).toBe(true);
+});
