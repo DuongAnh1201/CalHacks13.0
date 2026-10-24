@@ -415,6 +415,8 @@ type ViewerCommand =
   | { type: "resetView" };
 ```
 
+W2 Phase B also shares `scene` through `setPage`, `setMode`, `setOpacity`, `setExplosion`, `setHemisphereVisible`, `setLayerVisible`, `setCameraTarget`, plus `setCursor` for all three slice indices.
+
 Pointer, keyboard, gesture and voice must all funnel into this. When Phase 4
 adds `/jarvis next slice`, the parser's only job is to produce one of these — it
 gets no privileges of its own.

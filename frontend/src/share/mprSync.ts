@@ -18,7 +18,6 @@ export const fracsOf = (idx: SliceIndices, dimsRAS: ArrayLike<number>): [number,
 
 export const sameIndices = (a: SliceIndices, b: SliceIndices) => AXES.every((x) => a[x] === b[x]);
 
-/** Phase A: Sage's setSlice acts on the current plane, so each changed axis sends its plane first, every time. */
-export function commandsFor(prev: SliceIndices, next: SliceIndices): ViewerCommand[] {
-  return AXES.filter((a) => prev[a] !== next[a]).flatMap((a): ViewerCommand[] => [{ type: 'setPlane', plane: a }, { type: 'setSlice', index: next[a] }]);
-}
+/** What an active host must send so the session's mask flag matches its overlay; null when nothing to send. */
+export const maskCommand = (mask: boolean | null, activeHost: boolean, sessionVisible: boolean): ViewerCommand | null =>
+  activeHost && mask !== null && mask !== sessionVisible ? { type: 'setTumorVisible', visible: mask } : null;

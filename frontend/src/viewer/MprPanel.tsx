@@ -108,7 +108,7 @@ function SliceView({ jobId, view, onNv, onCross }: { jobId: string; view: View; 
   );
 }
 
-export function MprPanel({ jobId, onCrosshair, remote }: { jobId: string; onCrosshair?: (idx: SliceIndices) => void; remote?: SliceIndices | null }) {
+export function MprPanel({ jobId, onCrosshair, onMaskVisible, remote }: { jobId: string; onCrosshair?: (idx: SliceIndices) => void; onMaskVisible?: (visible: boolean) => void; remote?: { indices: SliceIndices; tumorVisible: boolean } | null }) {
   const [nvs, setNvs] = useState<Partial<Record<Axis, Niivue>>>({});
   const onNv = useCallback((axis: Axis, nv: Niivue | null) => setNvs((m) => {
     const next = { ...m };
@@ -122,19 +122,27 @@ export function MprPanel({ jobId, onCrosshair, remote }: { jobId: string; onCros
 
   // Following a host: move every view to the shared indices. createOnLocationChange refreshes the slice labels;
   // the echo it sends to onCrosshair equals `remote`, and useMprShare ignores it.
+  // Keyed on the indices only, so a mask-only change does not move the crosshair.
+  const remoteIdx = remote?.indices;
   useEffect(() => {
-    if (!remote) return;
+    if (!remoteIdx) return;
     for (const nv of Object.values(nvs)) {
-      nv.scene.crosshairPos = fracsOf(remote, nv.volumes[0].dimsRAS!);
+      nv.scene.crosshairPos = fracsOf(remoteIdx, nv.volumes[0].dimsRAS!);
       nv.createOnLocationChange();
       nv.drawScene();
     }
-  }, [nvs, remote]);
+  }, [nvs, remoteIdx]);
 
   const [preset, setPreset] = useState<Preset>('Brain');
   const [gamma, setGamma] = useState(1);
   const [mask, setMask] = useState(60);
   const [caliper, setCaliper] = useState(false);
+
+  const maskRef = useRef(onMaskVisible);
+  useEffect(() => { maskRef.current = onMaskVisible; });
+  const maskOn = mask > 0;
+  useEffect(() => { maskRef.current?.(maskOn); }, [maskOn]); // fires on mount too, so a new session learns the host's overlay state
+  const hideMask = !!remote && !remote.tumorVisible;
 
   // One crosshair across the three views (#11).
   useEffect(() => {
@@ -149,11 +157,11 @@ export function MprPanel({ jobId, onCrosshair, remote }: { jobId: string; onCros
       const v = nv.volumes[0];
       [v.cal_min, v.cal_max] = windowFor(preset, v.robust_min ?? v.cal_min ?? 0, v.robust_max ?? v.cal_max ?? 1);
       nv.setGamma(gamma);
-      nv.setOpacity(1, mask / 100);
+      nv.setOpacity(1, hideMask ? 0 : mask / 100);
       nv.opts.dragMode = caliper ? DRAG_MODE.measurement : DRAG_MODE.contrast;
       nv.updateGLVolume();
     }
-  }, [nvs, preset, gamma, mask, caliper]);
+  }, [nvs, preset, gamma, mask, caliper, hideMask]);
 
   const locked = Object.keys(nvs).length === 3;
   return (

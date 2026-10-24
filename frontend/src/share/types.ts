@@ -1,4 +1,6 @@
-import type { Axis } from '../actions/types';
+import type { Axis, Hemi, Mode } from '../actions/types';
+import type { Layer } from '../viewer/layers';
+import type { Scene } from './sceneSync';
 
 /** 0-based voxel index per plane, the same numbers as Convex `view.sliceIndices`. */
 export type SliceIndices = Record<Axis, number>;
@@ -9,7 +11,7 @@ export interface Participant { participantId: string; displayName: string; role:
 export interface SessionState {
   sessionId: string;
   status: 'active' | 'ended';
-  view: { plane: Axis; tumorVisible: boolean; viewVersion: number; sliceIndices: SliceIndices };
+  view: { plane: Axis; tumorVisible: boolean; viewVersion: number; sliceIndices: SliceIndices; scene: Scene };
   me: Participant;
   participants: Participant[];
   isPresenter: boolean;
@@ -20,4 +22,12 @@ export type ViewerCommand =
   | { type: 'setPlane'; plane: Axis }
   | { type: 'setSlice'; index: number }
   | { type: 'setTumorVisible'; visible: boolean }
+  | { type: 'setCursor'; sliceIndices: SliceIndices }
+  | { type: 'setPage'; page: 'mri' | '3d' }
+  | { type: 'setMode'; mode: Mode }
+  | { type: 'setOpacity'; value: number }
+  | { type: 'setExplosion'; value: number }
+  | { type: 'setHemisphereVisible'; side: Hemi; visible: boolean }
+  | { type: 'setLayerVisible'; layer: Layer; visible: boolean }
+  | { type: 'setCameraTarget'; target: 'brain' | 'tumor' }
   | { type: 'resetView' };

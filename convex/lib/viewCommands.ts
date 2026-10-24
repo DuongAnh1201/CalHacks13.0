@@ -62,6 +62,35 @@ import {
 // The command type
 // ---------------------------------------------------------------------------
 
+/** The /3d page state a following guest mirrors (W2 Phase B). Mirrors frontend initialState(). */
+export type Scene = {
+  page: "mri" | "3d";
+  mode: "whole" | "xray" | "exploded" | "cutaway";
+  brainOpacity: number;
+  explodeAmount: number;
+  hidden: { left: boolean; right: boolean };
+  layers: { edema: boolean; core: boolean; enhancing: boolean };
+  cameraTarget: "brain" | "tumor";
+};
+
+export const DEFAULT_SCENE: Scene = {
+  page: "mri", mode: "whole", brainOpacity: 0.3, explodeAmount: 0,
+  hidden: { left: false, right: false }, layers: { edema: true, core: true, enhancing: true }, cameraTarget: "brain",
+};
+
+const vPage = v.union(v.literal("mri"), v.literal("3d"));
+const vMode = v.union(v.literal("whole"), v.literal("xray"), v.literal("exploded"), v.literal("cutaway"));
+const vSide = v.union(v.literal("left"), v.literal("right"));
+const vLayer = v.union(v.literal("edema"), v.literal("core"), v.literal("enhancing"));
+const vTarget = v.union(v.literal("brain"), v.literal("tumor"));
+
+export const vScene = v.object({
+  page: vPage, mode: vMode, brainOpacity: v.number(), explodeAmount: v.number(),
+  hidden: v.object({ left: v.boolean(), right: v.boolean() }),
+  layers: v.object({ edema: v.boolean(), core: v.boolean(), enhancing: v.boolean() }),
+  cameraTarget: vTarget,
+});
+
 /**
  * Exactly the commands from BACKEND_CONTEXT §7.
  *
@@ -82,6 +111,14 @@ export type ViewerCommand =
   | { type: "stepSlice"; delta: number }
   /** Maps to SPEC §7.2 `tumorRevealed`. */
   | { type: "setTumorVisible"; visible: boolean }
+  | { type: "setCursor"; sliceIndices: { axial: number; coronal: number; sagittal: number } }
+  | { type: "setPage"; page: "mri" | "3d" }
+  | { type: "setMode"; mode: "whole" | "xray" | "exploded" | "cutaway" }
+  | { type: "setOpacity"; value: number }
+  | { type: "setExplosion"; value: number }
+  | { type: "setHemisphereVisible"; side: "left" | "right"; visible: boolean }
+  | { type: "setLayerVisible"; layer: "edema" | "core" | "enhancing"; visible: boolean }
+  | { type: "setCameraTarget"; target: "brain" | "tumor" }
   /** Maps to SPEC §7.3 `resetView`. */
   | { type: "resetView" };
 
@@ -105,6 +142,14 @@ export const vViewerCommand = v.union(
   v.object({ type: v.literal("setSlice"), index: v.number() }),
   v.object({ type: v.literal("stepSlice"), delta: v.number() }),
   v.object({ type: v.literal("setTumorVisible"), visible: v.boolean() }),
+  v.object({ type: v.literal("setCursor"), sliceIndices: v.object({ axial: v.number(), coronal: v.number(), sagittal: v.number() }) }),
+  v.object({ type: v.literal("setPage"), page: vPage }),
+  v.object({ type: v.literal("setMode"), mode: vMode }),
+  v.object({ type: v.literal("setOpacity"), value: v.number() }),
+  v.object({ type: v.literal("setExplosion"), value: v.number() }),
+  v.object({ type: v.literal("setHemisphereVisible"), side: vSide, visible: v.boolean() }),
+  v.object({ type: v.literal("setLayerVisible"), layer: vLayer, visible: v.boolean() }),
+  v.object({ type: v.literal("setCameraTarget"), target: vTarget }),
   v.object({ type: v.literal("resetView") }),
 );
 
@@ -134,6 +179,7 @@ export type SharedView = {
   plane: Plane;
   cursorRasMm: Vec3;
   tumorVisible: boolean;
+  scene: Scene;
 };
 
 /**
@@ -171,12 +217,29 @@ export function defaultSharedView(scan: ScanForView): SharedView {
   // Round-trip through the affine so the cursor is in RAS mm like every other
   // coordinate in the system, then clamp in case of a half-voxel overshoot.
   const centreMm = clampToBoxMm(voxelToRasMm(scan, centreVoxel), extent);
-  return { plane: "axial", cursorRasMm: centreMm, tumorVisible: false };
+  return { plane: "axial", cursorRasMm: centreMm, tumorVisible: false, scene: { ...DEFAULT_SCENE, hidden: { ...DEFAULT_SCENE.hidden }, layers: { ...DEFAULT_SCENE.layers } } };
 }
 
 // ---------------------------------------------------------------------------
 // The reducer
 // ---------------------------------------------------------------------------
+
+const PLANES = ["axial", "coronal", "sagittal"] as const;
+
+/** Shared by every "show the tumor" command. The messages are fixed by SPEC §7.3 / BACKEND_CONTRACT §5. */
+function requireTumor(scan: ScanForView): void {
+  if (scan.tumor === undefined) {
+    throw appError("INVALID_ARGUMENT", "This case has no segmentation yet, so there is nothing to highlight.");
+  }
+  // Wording fixed by SPEC §7.3 and BACKEND_CONTRACT §5. "No tumor
+  // detected", never "healthy" — the UI shows this string verbatim.
+  if (!scan.tumor.detected) throw appError("INVALID_ARGUMENT", "No tumor detected in this scan.");
+}
+
+function unit(value: number, what: string): number {
+  if (!Number.isFinite(value)) throw appError("INVALID_ARGUMENT", `${what} must be a number, got ${value}.`);
+  return Math.min(Math.max(value, 0), 1);
+}
 
 /**
  * Applies one command to the shared view and returns the next view.
@@ -261,21 +324,39 @@ export function applyCommand(
     case "setTumorVisible": {
       // Turning the tumor OFF is always allowed, even with no tumor: it is the
       // safe direction and refusing it would make `resetView` inconsistent.
-      if (command.visible) {
-        if (scan.tumor === undefined) {
-          throw appError(
-            "INVALID_ARGUMENT",
-            "This case has no segmentation yet, so there is nothing to highlight.",
-          );
-        }
-        if (!scan.tumor.detected) {
-          // Wording fixed by SPEC §7.3 and BACKEND_CONTRACT §5. "No tumor
-          // detected", never "healthy" — the UI shows this string verbatim.
-          throw appError("INVALID_ARGUMENT", "No tumor detected in this scan.");
-        }
-      }
+      if (command.visible) requireTumor(scan);
       return { ...view, tumorVisible: command.visible, cursorRasMm: cursor };
     }
+
+    case "setCursor": {
+      // shortcut: per-plane moves in sequence are exact for axis-aligned affines (the fixture); revisit for oblique scans after M4.
+      let next = cursor;
+      for (const plane of PLANES) {
+        const index = command.sliceIndices[plane];
+        if (!Number.isInteger(index)) throw appError("INVALID_ARGUMENT", `Slice index must be a whole number, got ${index}.`);
+        const clamped = Math.min(Math.max(index, 0), sliceCount(scan, plane) - 1);
+        const moved = cursorForSliceIndex(scan, plane, clamped, next);
+        if (moved === null) throw appError("BAD_SCAN_GEOMETRY", "This scan's geometry does not support slice indexing.");
+        next = moved;
+      }
+      return { ...view, cursorRasMm: clampToBoxMm(next, extent) };
+    }
+    case "setPage":
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, page: command.page } };
+    case "setMode":
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, mode: command.mode } };
+    case "setOpacity":
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, brainOpacity: unit(command.value, "Opacity") } };
+    case "setExplosion":
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, explodeAmount: unit(command.value, "Explosion") } };
+    case "setHemisphereVisible":
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, hidden: { ...view.scene.hidden, [command.side]: !command.visible } } };
+    case "setLayerVisible":
+      if (command.visible) requireTumor(scan); // hiding is the safe direction, like setTumorVisible
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, layers: { ...view.scene.layers, [command.layer]: command.visible } } };
+    case "setCameraTarget":
+      if (command.target === "tumor") requireTumor(scan);
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, cameraTarget: command.target } };
 
     case "resetView": {
       return defaultSharedView(scan);
@@ -301,6 +382,10 @@ export function applyCommand(
 export function viewsEqual(a: SharedView, b: SharedView): boolean {
   if (a.plane !== b.plane) return false;
   if (a.tumorVisible !== b.tumorVisible) return false;
+  const sa = a.scene, sb = b.scene;
+  if (sa.page !== sb.page || sa.mode !== sb.mode || sa.brainOpacity !== sb.brainOpacity || sa.explodeAmount !== sb.explodeAmount || sa.cameraTarget !== sb.cameraTarget) return false;
+  if (sa.hidden.left !== sb.hidden.left || sa.hidden.right !== sb.hidden.right) return false;
+  if (sa.layers.edema !== sb.layers.edema || sa.layers.core !== sb.layers.core || sa.layers.enhancing !== sb.layers.enhancing) return false;
   for (let i = 0; i < 3; i++) {
     if (Math.abs(a.cursorRasMm[i] - b.cursorRasMm[i]) > 1e-9) return false;
   }
