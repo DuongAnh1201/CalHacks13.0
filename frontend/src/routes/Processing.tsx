@@ -43,7 +43,7 @@ export default function Processing() {
         if (!live) return;
         setJob(next);
         setProblem(null);
-        if (next.status === 'done') { navigate(`/jobs/${id}/results`, { replace: true }); return; }
+        if (next.status === 'done') { navigate(`/jobs/${id}/mri`, { replace: true }); return; }
         if (next.status === 'failed') return;
         timer = window.setTimeout(() => { void tick(); }, 1000);
       } catch (e) {
@@ -86,7 +86,7 @@ export default function Processing() {
         {job?.status === 'failed' && (
           <div className={css.alert} role="alert">
             <p>{job.error?.message ?? 'Segmentation failed.'}</p>
-            <Link className={css.ghost} to="/">Retry</Link>
+            <Link className={css.ghost} to="/upload">Retry</Link>
             <Link className={css.ghost} to="/jobs/sample/processing">Use sample case</Link>
           </div>
         )}

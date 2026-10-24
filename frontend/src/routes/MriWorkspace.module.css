@@ -7,13 +7,16 @@
 
 .grid {
   flex: 1;
-  min-height: 0;
+  min-height: calc(100vh - var(--nv-header-h) - var(--nv-footer-h) - 32px);
   display: grid;
-  grid-template-columns: 350px 1fr 340px;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 3fr);
   gap: 16px;
   padding: 16px 24px;
-  align-items: start;
+  align-items: stretch;
 }
+
+.left { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.left > section { flex: 1; min-height: 0; }
 
 .right { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
@@ -28,12 +31,14 @@
 
 .cardTitle, .headline { margin: 0 0 12px; color: var(--nv-text); font-size: 16px; font-weight: 700; line-height: 24px; }
 .headline { font-size: 22px; margin: 12px 0; }
-.note { margin: 0; color: var(--nv-text-3); font-size: 14px; }
+.cardHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; padding-bottom: 13px; border-bottom: 1px solid var(--nv-border); }
+.cardHead .cardTitle { margin: 0; }
+.badge { padding: 3px 8px; border-radius: 4px; background: var(--nv-success-bg); color: var(--nv-success); font-size: 10px; font-weight: 600; white-space: nowrap; }
 
 .fields, .metrics { margin: 0; display: flex; flex-direction: column; gap: 12px; }
 .fields div, .tile { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
 .fields dt, .tile dt { color: var(--nv-text-3); font-size: 12px; font-weight: 600; }
-.fields dd, .tile dd { margin: 0; color: var(--nv-text); font-weight: 700; text-align: right; }
+.fields dd, .tile dd { min-width: 0; overflow-wrap: anywhere; font-size: 13px; margin: 0; color: var(--nv-text); font-weight: 700; text-align: right; }
 .mono { font-family: var(--nv-mono); font-weight: 400; }
 
 .tile {
@@ -45,7 +50,7 @@
 
 .axis { margin: 0; width: 100%; color: var(--nv-text-3); font-size: 10px; font-weight: 500; letter-spacing: 0.4px; }
 
-.reportHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.reportHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .kicker { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--nv-text); font-size: 16px; font-weight: 700; line-height: 24px; }
 .dot { width: 10px; height: 10px; border-radius: var(--nv-radius-pill); background: var(--nv-success); flex: none; }
 .dice { padding: 2px 8px; border-radius: 4px; background: #baeecf; color: #1f4f38; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; }
@@ -88,7 +93,13 @@
   text-decoration: none;
 }
 
-.cta img { display: block; }
+.cta img { display: block; flex-shrink: 0; }
+.cta { text-align: center; }
+.ctaRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.ctaRow .ghost { flex: 1; justify-content: center; gap: 4px; padding: 11px 8px; font-size: 11px; text-align: center; }
+.ghost img { flex-shrink: 0; }
+.ghost:disabled { opacity: .5; cursor: not-allowed; }
+.page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 3px; }
 
 .status { flex: 1; display: grid; place-content: center; padding: 24px; }
 .status > p { margin: 0; color: var(--nv-text-3); }
@@ -122,5 +133,7 @@
 }
 
 @media (max-width: 1100px) {
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .grid > section { order: -2; }
+  .right { order: -1; }
 }

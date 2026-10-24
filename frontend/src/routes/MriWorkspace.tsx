@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
-import { ApiError, getReport } from '../api/client';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { ApiError, getReport, segUrl } from '../api/client';
 import type { Report } from '../api/types';
 import { SAMPLES, SEQUENCE_LABEL, SEQUENCES, type Sequence } from '../api/upload';
-import arrowIcon from '../assets/figma/b1141.svg';
+import arrowIcon from '../assets/figma/77060.svg';
+import exportIcon from '../assets/figma/79880.svg';
+import thresholdIcon from '../assets/figma/76bfc.svg';
+import { initCase } from '../actions/dispatch';
+import { AgentPanel } from '../components/agent/AgentPanel';
+import { demoMessages } from '../components/agent/demo';
+import type { AgentMessage } from '../components/agent/types';
+import { MprPanel } from '../viewer/MprPanel';
 import { Footer } from '../components/Footer';
 import { Legend } from '../components/Legend';
 import { TopNavBar } from '../components/TopNavBar';
-import css from './Results.module.css';
+import css from './MriWorkspace.module.css';
 import { cm3, headline, sideLabel } from './summary';
 
 type Phase = 'loading' | 'ready' | 'redirect' | 'unknown' | 'offline' | 'api';
@@ -23,8 +30,10 @@ function dimensions(r: Report) {
   return `${parts[0]} × ${parts[1]} × ${parts[2]} cm`;
 }
 
-export default function Results() {
+export default function MriWorkspace() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [report, setReport] = useState<Report | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [apiMessage, setApiMessage] = useState('');
@@ -42,6 +51,8 @@ export default function Results() {
     const ac = new AbortController();
     getReport(id, ac.signal).then((r) => {
       if (ac.signal.aborted) return;
+      initCase({ jobId: id, hasTumor: r.tumorDetected, structureIds: new Set(), bboxMm: r.brain.bboxMm });
+      setMessages(demoMessages(r, 'mri'));
       setReport(r);
       setPhase('ready');
     }).catch((e: unknown) => {
@@ -61,7 +72,7 @@ export default function Results() {
 
   return (
     <div className={css.page}>
-      <TopNavBar active="workspace" />
+      <TopNavBar />
       {phase === 'loading' && <main className={css.status}><p>Loading results…</p></main>}
       {phase === 'unknown' && (
         <main className={css.status}>
@@ -89,21 +100,26 @@ export default function Results() {
       )}
       {report && phase === 'ready' && (
         <main className={css.grid}>
-          <article className={css.card}>
-            <h2 className={css.cardTitle}>Scan</h2>
-            <dl className={css.fields}>
-              <div><dt>Job id</dt><dd className={css.mono}>{report.jobId}</dd></div>
-              <div><dt>Sequences</dt><dd>{sequenceLine(report.input.sequences)}</dd></div>
-              <div><dt>Matrix</dt><dd>{report.input.shape.join(' × ')}</dd></div>
-              <div><dt>Voxel spacing</dt><dd>{report.input.spacingMm.join(' × ')} mm</dd></div>
-              <div><dt>Model</dt><dd>{report.model.arch} v{report.model.version}</dd></div>
-            </dl>
-          </article>
-          <section className={css.card} aria-label="Slices">
-            <h2 className={css.cardTitle}>Slices</h2>
-            <p className={css.note}>Linked axial / sagittal / coronal views arrive with ticket C1.</p>
-            <Legend available={{ edema: report.tumorDetected, core: report.tumorDetected, enhancing: report.volumesCm3.enhancing > 0 }} />
-          </section>
+          <div className={css.left}>
+            <article className={css.card} aria-label="Patient dataset">
+              <header className={css.cardHead}>
+                <h2 className={css.cardTitle}>Patient Dataset</h2>
+                <span className={css.badge}>Verified NIfTI</span>
+              </header>
+              <dl className={css.fields}>
+                <div><dt>Subject</dt><dd className={css.mono}>{sample ? SAMPLES.find((s) => s.id === id)!.title : report.jobId}</dd></div>
+                <div><dt>Shown</dt><dd>FLAIR</dd></div>
+                <div><dt>Sequences</dt><dd>{sequenceLine(report.input.sequences)}</dd></div>
+                <div><dt>Matrix</dt><dd>{report.input.shape.join(' × ')}</dd></div>
+                <div><dt>Voxel spacing</dt><dd>{report.input.spacingMm.join(' × ')} mm</dd></div>
+                <div><dt>Model</dt><dd>{report.model.arch} v{report.model.version}</dd></div>
+              </dl>
+            </article>
+            <AgentPanel messages={messages} status="offline"
+              onConfirm={() => navigate(`/jobs/${id}/3d`)}
+              onDismiss={() => setMessages((m) => m.filter((x) => x.kind !== 'confirm'))} />
+          </div>
+          <MprPanel jobId={id} />
           <div className={css.right}>
             <article className={css.card}>
               <div data-slot="source-badge" />
@@ -135,6 +151,7 @@ export default function Results() {
                   )}
                 </dl>
               )}
+              <Legend available={{ edema: report.tumorDetected, core: report.tumorDetected, enhancing: report.volumesCm3.enhancing > 0 }} />
               <ul className={css.limits}>
                 <li>Educational visualization; not clinically validated.</li>
                 <li>Shown where the model segmented it, in the scan's own coordinates.</li>
@@ -144,10 +161,18 @@ export default function Results() {
             </article>
             <article className={css.ctaCard}>
               <p className={css.ctaKicker}>Spatial pipeline action</p>
-              <Link className={css.cta} to={`/jobs/${id}/explore`}>
-                Place in 3D
+              <Link className={css.cta} to={`/jobs/${id}/3d`}>
+                Place Tumor in 3D Interactive Brain
                 <img src={arrowIcon} alt="" width={16} height={16} />
               </Link>
+              <div className={css.ctaRow}>
+                <a className={css.ghost} href={segUrl(id)} download={`${id}-seg.nii.gz`}>
+                  <img src={exportIcon} alt="" width={12} height={12} />Export NIfTI Mask
+                </a>
+                <button className={css.ghost} type="button" disabled title="Not available: the model has no threshold setting">
+                  <img src={thresholdIcon} alt="" width={12} height={12} />Adjust Threshold
+                </button>
+              </div>
             </article>
           </div>
         </main>

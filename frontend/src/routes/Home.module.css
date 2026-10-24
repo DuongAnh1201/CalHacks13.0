@@ -1,0 +1,152 @@
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--nv-flow-bg);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  padding: 16px 24px;
+  flex: 1;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.new,
+.cta {
+  border: 0;
+  background: var(--nv-primary);
+  color: #fff;
+  border-radius: var(--nv-radius-pill);
+  padding: 10px 16px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+}
+
+.cta { align-self: flex-start; }
+
+.menu {
+  position: fixed;
+  inset: auto;
+  top: calc(var(--nv-header-h) + 72px);
+  left: 24px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--nv-border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--nv-shadow);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.item:hover { background: var(--nv-surface-warm); }
+
+.item small {
+  display: block;
+  color: var(--nv-text-2);
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.filter[aria-pressed="true"] {
+  background: var(--nv-primary-soft);
+  color: var(--nv-primary);
+  font-weight: 600;
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--nv-text);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ghost {
+  border: 1px solid var(--nv-border);
+  background: #fff;
+  color: var(--nv-primary);
+  border-radius: var(--nv-radius-pill);
+  padding: 10px 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card {
+  display: block;
+  border: 1px solid var(--nv-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.thumb { aspect-ratio: 16 / 9; }
+
+.mri { background: var(--nv-canvas-bg); }
+
+.learn { background: var(--nv-surface-warm); }
+
+.meta { padding: 12px 14px; }
+
+.name {
+  margin: 0;
+  font-weight: 700;
+  color: var(--nv-text);
+}
+
+.when {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--nv-text-2);
+}
+
+@media (max-width: 720px) {
+  .body { grid-template-columns: 1fr; }
+}

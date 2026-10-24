@@ -2,10 +2,12 @@ import { CameraControls, useGLTF } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { useShallow } from 'zustand/react/shallow';
 import { modelUrl } from '../api/client';
 import type { Report } from '../api/types';
 import { viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
+import { applyView } from './applyView';
 import type { Layer } from './layers';
 import { buildCaseScene } from './loadCase';
 import { rasToScene, type Vec3 } from './transform';
@@ -42,14 +44,12 @@ function CaseScene({ jobId, report, onLayers }: Props) {
   const { scene } = useGLTF(modelUrl(jobId));
   const controls = useRef<CameraControls>(null);
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
-  const revealed = useViewer((s) => s.tumorRevealed);
+  const view = useViewer(useShallow((s) => ({ tumorRevealed: s.tumorRevealed, layers: s.layers, mode: s.mode, brainOpacity: s.brainOpacity, hidden: s.hidden, explodeAmount: s.explodeAmount })));
   const target = useViewer((s) => s.cameraTarget);
 
   useEffect(() => onLayers(Object.fromEntries(Object.keys(cs.tumor).map((k) => [k, true]))), [cs, onLayers]);
 
-  // Whole Brain: hemispheres opaque, tumor shown only once revealed.
-  // shortcut: st.layers ignored, wire it when the layer toggles ticket lands
-  useLayoutEffect(() => { for (const m of Object.values(cs.tumor)) m.visible = revealed; }, [cs, revealed]);
+  useLayoutEffect(() => applyView(cs, view), [cs, view]);
 
   // Home pose + Reset.
   useEffect(() => {
@@ -62,6 +62,7 @@ function CaseScene({ jobId, report, onLayers }: Props) {
     return () => viewEvents.removeEventListener('reset', onReset);
   }, []);
 
+  // shortcut: frames the unexploded tumor position, add the hemisphere offset if focus-while-exploded looks wrong
   // focusTumor: frame the tumor's bounding sphere; the two logs prove the mesh and the camera agree (issue #10).
   useEffect(() => {
     const c = controls.current, centroid = report.centroidMm;

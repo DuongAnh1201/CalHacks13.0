@@ -7,6 +7,7 @@ import uploadIcon from '../assets/figma/47363.svg';
 import flaskIcon from '../assets/figma/d5c9a.svg';
 import checkIcon from '../assets/figma/f8d34.svg';
 import { BackendBanner } from '../components/BackendBanner';
+import { saveWorkspace } from '../home/workspaces';
 import { FlowPage } from '../components/FlowPage';
 import css from './Upload.module.css';
 
@@ -52,7 +53,11 @@ export default function Upload() {
 
   async function start() {
     setBusy(true); setError(null);
-    try { navigate(`/jobs/${await createJob(slots as Record<Sequence, File>)}/processing`); }
+    try {
+      const jobId = await createJob(slots as Record<Sequence, File>);
+      saveWorkspace({ id: jobId, kind: 'mri', name: slots.flair!.name.replace(/\.nii(\.gz)?$/, ''), openedAt: Date.now() });
+      navigate(`/jobs/${jobId}/processing`);
+    }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Backend offline — start docker compose up'); }
     finally { setBusy(false); }
   }
@@ -71,7 +76,7 @@ export default function Upload() {
                 <p className={css.cardTitle}>{s.title}</p>
                 <p className={css.cardDetail}>{s.detail}</p>
               </div>
-              <Link className={css.ghost} to={`/jobs/${s.id}/processing`}>Use sample</Link>
+              <Link className={css.ghost} to={`/jobs/${s.id}/processing`} onClick={() => saveWorkspace({ id: s.id, kind: 'mri', name: s.title, openedAt: Date.now() })}>Use sample</Link>
             </li>
           ))}
         </ul>
@@ -111,7 +116,7 @@ export default function Upload() {
         {error && (
           <div className={css.alert} role="alert">
             <p>{error}</p>
-            <Link className={css.ghost} to="/jobs/sample/processing">Use sample case</Link>
+            <Link className={css.ghost} to="/jobs/sample/processing" onClick={() => saveWorkspace({ id: 'sample', kind: 'mri', name: 'Sample case A', openedAt: Date.now() })}>Use sample case</Link>
           </div>
         )}
         <button className={css.primary} type="button" disabled={!ready || busy} onClick={start}>{busy ? 'Uploading…' : 'Start'}</button>

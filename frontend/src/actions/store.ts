@@ -12,7 +12,7 @@ export function initialState(jobId: string): ViewerState {
     explodeAmount: 0,
     cut: { axis: 'axial', offsetMm: 0, enabled: false },
     hidden: { left: false, right: false },
-    layers: { edema: false, core: false, enhancing: false },
+    layers: { edema: true, core: true, enhancing: true },
     cameraTarget: 'brain',
     selectedStructure: null,
     isolate: false,

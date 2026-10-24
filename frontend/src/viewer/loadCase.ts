@@ -13,7 +13,7 @@ export class MissingNodeError extends Error {
 }
 
 export interface CaseScene {
-  world: THREE.Group; hemiLeft: THREE.Group; hemiRight: THREE.Group; tumorCenter: THREE.Group; cursorMarker: THREE.Group;
+  world: THREE.Group; hemiLeft: THREE.Group; hemiRight: THREE.Group; brainLeft: THREE.Mesh; brainRight: THREE.Mesh; tumorCenter: THREE.Group; cursorMarker: THREE.Group;
   tumor: Partial<Record<Layer, THREE.Mesh>>;
 }
 
@@ -53,5 +53,5 @@ export function buildCaseScene(gltfScene: THREE.Object3D, report: Report): CaseS
       tumor[l.layer] = m;
     }
   }
-  return { world, hemiLeft, hemiRight, tumorCenter, cursorMarker, tumor };
+  return { world, hemiLeft, hemiRight, brainLeft: left!, brainRight: right!, tumorCenter, cursorMarker, tumor };
 }
