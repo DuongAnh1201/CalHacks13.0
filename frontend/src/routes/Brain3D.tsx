@@ -1,14 +1,23 @@
 import { useGLTF } from '@react-three/drei';
 import { Component, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import { dispatch, initCase } from '../actions/dispatch';
+import { useViewer } from '../actions/store';
 import type { DispatchResult } from '../actions/types';
 import { ApiError, getReport, modelUrl } from '../api/client';
 import type { Report } from '../api/types';
+import checkIcon from '../assets/figma/7e35a.svg';
+import hideIcon from '../assets/figma/73f19.svg';
+import focusIcon from '../assets/figma/82e7a.svg';
+import intersectIcon from '../assets/figma/e71a8.svg';
+import { AgentPanel } from '../components/agent/AgentPanel';
+import { demoMessages } from '../components/agent/demo';
 import { Footer } from '../components/Footer';
-import { Legend } from '../components/Legend';
 import { TopNavBar } from '../components/TopNavBar';
-import type { Layer } from '../viewer/layers';
+import { ExplodeSlider } from '../learn/ExplodeSlider';
+import { StatusPill } from '../learn/StatusPill';
+import { LAYERS, type Layer } from '../viewer/layers';
 import { CaseCanvas } from '../viewer/CaseCanvas';
 import { cm3, headline, sideLabel } from './summary';
 import css from './Brain3D.module.css';
@@ -43,9 +52,10 @@ export default function Brain3D() {
   const [attempt, setAttempt] = useState(0);
   const key = `${id}:${attempt}`;
   const [res, setRes] = useState<{ key: string; result: Result } | null>(null);
-  const [layers, setLayers] = useState<Partial<Record<Layer, boolean>>>({});
+  const [available, setAvailable] = useState<Partial<Record<Layer, boolean>>>({});
   const [failedId, setFailedId] = useState<string | null>(null); // the 3D model for this job failed to load
   const [message, setMessage] = useState<DispatchResult | null>(null);
+  const { mode, brainOpacity, hidden, layers, tumorRevealed } = useViewer(useShallow((s) => ({ mode: s.mode, brainOpacity: s.brainOpacity, hidden: s.hidden, layers: s.layers, tumorRevealed: s.tumorRevealed })));
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -53,6 +63,7 @@ export default function Brain3D() {
     getReport(id, ctl.signal).then((report) => {
       if (ctl.signal.aborted) return;
       initCase({ jobId: id, hasTumor: report.tumorDetected, structureIds: new Set(), bboxMm: report.brain.bboxMm });
+      if (report.tumorDetected) dispatch({ type: 'focusTumor' }, 'pointer'); // "Place in 3D" lands with the tumor placed
       done({ kind: 'ready', report });
     }).catch((e: unknown) => {
       if (!(e instanceof ApiError)) done({ kind: 'offline' });
@@ -74,6 +85,50 @@ export default function Brain3D() {
     <div className={css.page}>
       <TopNavBar active="workspace" />
       <main className={css.grid}>
+        <aside className={css.left} aria-label="Case">
+          {report && (
+            <>
+              <article className={css.card}>
+                <p className={css.kicker}>Pathology</p>
+                <h2 className={css.headline}>{headline(report)}</h2>
+                <dl className={css.rows}>
+                  <dt>Side</dt><dd>{sideLabel(report.side)}</dd>
+                  {report.tumorDetected && <><dt>Whole tumor</dt><dd>{cm3(report.volumesCm3.whole)}</dd>
+                    <dt>Tumor core</dt><dd>{cm3(report.volumesCm3.core)}</dd>
+                    <dt>Enhancing</dt><dd>{cm3(report.volumesCm3.enhancing)}</dd>
+                    <dt>Lesions</dt><dd>{report.lesionCount}</dd></>}
+                </dl>
+              </article>
+              <section className={css.card} aria-label="Spatial controls">
+                <p className={css.kicker}>Spatial toggles</p>
+                <div className={css.toggles}>
+                  <button type="button" className={css.toggle} aria-pressed={mode === 'xray'} disabled={modelFailed}
+                    onClick={() => act({ type: 'setMode', mode: mode === 'xray' ? 'whole' : 'xray' })}>
+                    Brain Opacity <span className={css.mono}>{mode === 'xray' ? Math.round(brainOpacity * 100) : 100}</span>
+                  </button>
+                  <button type="button" className={css.toggle} disabled title="Needs Cutaway (#16)">
+                    Slices Intersect <img src={intersectIcon} alt="" width={13} height={13} />
+                  </button>
+                  <button type="button" className={css.toggle} aria-pressed={hidden.left && hidden.right} disabled={modelFailed}
+                    onClick={() => { const show = hidden.left && hidden.right; act({ type: 'setHemisphereVisible', side: 'left', visible: show }); act({ type: 'setHemisphereVisible', side: 'right', visible: show }); }}>
+                    Hide Brain <img src={hideIcon} alt="" width={15} height={13} />
+                  </button>
+                  <button type="button" className={`${css.toggle} ${css.accent}`} disabled={!report.tumorDetected || modelFailed}
+                    title={report.tumorDetected ? undefined : 'No tumor detected in this scan'} onClick={() => act({ type: 'focusTumor' })}>
+                    Focus Tumor <img src={focusIcon} alt="" width={12} height={12} />
+                  </button>
+                </div>
+                {mode === 'xray' && (
+                  <input className={css.slider} type="range" min={0} max={100} value={Math.round(brainOpacity * 100)} aria-label="Brain opacity"
+                    onChange={(e) => act({ type: 'setOpacity', value: Number(e.target.value) / 100 })} />
+                )}
+                {!report.tumorDetected && <p className={css.note}>No tumor detected in this scan</p>}
+              </section>
+              <Link className={css.back} to={`/jobs/${id}/mri`}>Analyze Cross-Sections</Link>
+            </>
+          )}
+        </aside>
+
         <section className={css.stage} aria-label="3D brain">
           {!result && <p className={css.loading}>Loading results…</p>}
           {result?.kind === 'unknown' && (
@@ -92,32 +147,43 @@ export default function Brain3D() {
             <>
               <LoadBoundary key={id} id={id} onFail={(f) => setFailedId(f ? id : null)}>
                 <Suspense fallback={<p className={css.loading}>Loading 3D brain…</p>}>
-                  <CaseCanvas jobId={id} report={report} onLayers={setLayers} />
+                  <CaseCanvas jobId={id} report={report} onLayers={setAvailable} />
                 </Suspense>
               </LoadBoundary>
-              <div className={css.bottom}>
-                <p className={css.status} role="status">{message?.message}</p>
-                <div className={css.bar}>
-                  <button className={`${css.chip} ${css.tumor}`} disabled={!report.tumorDetected || modelFailed} title={report.tumorDetected ? undefined : 'No tumor detected in this scan'}
-                    onClick={() => act({ type: 'focusTumor' })}>Show tumor</button>
-                  <button className={css.chip} disabled={modelFailed} onClick={() => act({ type: 'resetView' })}>Reset view</button>
-                </div>
-              </div>
+              {!modelFailed && (
+                <>
+                  <div className={css.pill}><StatusPill /></div>
+                  {report.tumorDetected && tumorRevealed && (
+                    <div className={css.toast} role="status">
+                      <img src={checkIcon} alt="" width={14} height={14} />
+                      Tumor placed on the 3D brain · {sideLabel(report.side)} · {cm3(report.volumesCm3.whole)}
+                      <button type="button" className={css.undo} onClick={() => act({ type: 'resetView' })}>Undo</button>
+                    </div>
+                  )}
+                  <div className={css.explode}><ExplodeSlider /></div>
+                  <div className={css.structures} role="group" aria-label="Tumor layers">
+                    {LAYERS.map((l) => (
+                      <button key={l.layer} type="button" className={css.layer} aria-pressed={!!layers[l.layer] && !!available[l.layer]}
+                        disabled={!available[l.layer]} title={available[l.layer] ? undefined : report.tumorDetected ? 'Not in this case' : 'No tumor detected in this scan'}
+                        onClick={() => act({ type: 'setLayerVisible', layer: l.layer, visible: !layers[l.layer] })}>
+                        <span className={css.swatch} style={{ background: l.color }} />{l.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {message && !message.ok && <p className={css.status} role="status">{message.message}</p>}
             </>
           )}
         </section>
-        <aside className={css.side} aria-label="Case summary">
-          {report && (
-            <>
-              <h2>{headline(report)}</h2>
-              <dl className={css.rows}>
-                <dt>Side</dt><dd>{sideLabel(report.side)}</dd>
-                {report.tumorDetected && <><dt>Whole tumor</dt><dd>{cm3(report.volumesCm3.whole)}</dd></>}
-              </dl>
-              {!modelFailed && <Legend available={layers} />}
-              <Link className={css.back} to={`/jobs/${id}/mri`}>Analyze Cross-Sections</Link>
-            </>
-          )}
+
+        <aside className={css.right} aria-label="Assistants">
+          <article className={css.card}>
+            <p className={css.kicker}>Gesture control</p>
+            <p className={css.webcam}>Webcam off</p>
+            <p className={css.note}>Hand gestures arrive with issue #18.</p>
+          </article>
+          {report && <div className={css.agent}><AgentPanel messages={demoMessages(report, '3d')} status="offline" /></div>}
         </aside>
       </main>
       <Footer />

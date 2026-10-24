@@ -21,9 +21,9 @@
 .tab[aria-selected='true'] { background: #fff; color: var(--nv-primary); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
 
 .log { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; overflow: auto; }
-.system { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fbf9f5; border: 1px solid #c1c7ce; border-radius: 8px; font-size: 11px; font-weight: 500; }
+.system { display: block; padding: 8px 10px; background: #fbf9f5; border: 1px solid #c1c7ce; border-radius: 8px; font-size: 11px; font-weight: 500; }
 .system b { color: var(--nv-success-2); font-weight: 700; }
-.system img { flex-shrink: 0; }
+.system img { vertical-align: middle; margin-right: 8px; }
 .user { display: flex; flex-direction: column; gap: 4px; width: 280px; max-width: 100%; margin-left: auto; padding: 10px 12px; background: var(--nv-primary); color: #fff; border-radius: 10px; font-size: 12px; font-weight: 600; }
 .user .meta { display: inline-flex; align-items: center; gap: 6px; color: #cfe0eb; font-size: 10px; font-weight: 600; }
 .agent { display: flex; flex-direction: column; gap: 8px; font-size: 12px; font-weight: 500; }
