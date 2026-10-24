@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { annotationFor, authorFor, type ResolvedCaller } from "../lib/author";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
+import { internal } from "../_generated/api";
 
 const human: ResolvedCaller = { kind: "human", displayName: "Guest judge", source: "ui" };
 const agent: ResolvedCaller = { kind: "agent", name: "Navigator", source: "agent" };
@@ -17,7 +18,7 @@ const minimalRows = {
 async function exportRow(t: ReturnType<typeof convexTest>) {
   const fileId = await t.run((ctx) => ctx.storage.store(new Blob(["# Review"], { type: "text/markdown" })));
   return { jobId: "sample", format: "md" as const, trigger: "manual" as const,
-    fileId, version: 1, sections: ["report", "annotations"], ...authorFor(human) };
+    status: "ready" as const, fileId, version: 1, sections: ["report", "annotations"], ...authorFor(human) };
 }
 
 describe("shared tables", () => {
@@ -45,6 +46,31 @@ describe("shared tables", () => {
     const row = await exportRow(t);
     const saved = await t.run(async (ctx) => ctx.db.get(await ctx.db.insert("exports", row)));
     expect(saved).toMatchObject(row);
+  });
+
+  it("creates pending exports without a file and rejects ready without fileId", async () => {
+    const t = convexTest({ schema });
+    const exportId = await t.run((ctx) => ctx.db.insert("exports", {
+      jobId: "sample", format: "md", trigger: "manual", status: "pending",
+      version: 1, sections: ["report"], ...authorFor(human),
+    }));
+    await expect(t.mutation(internal.exportRecords.setState, { exportId, status: "ready" })).rejects.toThrow(/fileId/);
+    expect((await t.run((ctx) => ctx.db.get(exportId)))?.status).toBe("pending");
+    const fileId = await t.run((ctx) => ctx.storage.store(new Blob(["# Review"])));
+    await t.mutation(internal.exportRecords.setState, { exportId, status: "ready", fileId });
+    expect(await t.run((ctx) => ctx.db.get(exportId))).toMatchObject({ status: "ready", fileId });
+  });
+
+  it("records failed exports with an error and no file", async () => {
+    const t = convexTest({ schema });
+    const exportId = await t.run((ctx) => ctx.db.insert("exports", {
+      jobId: "sample", format: "md", trigger: "manual", status: "pending",
+      version: 1, sections: ["report"], ...authorFor(agent),
+    }));
+    await t.mutation(internal.exportRecords.setState, { exportId, status: "failed", error: "Report unavailable" });
+    const row = await t.run((ctx) => ctx.db.get(exportId));
+    expect(row).toMatchObject({ status: "failed", error: "Report unavailable" });
+    expect(row?.fileId).toBeUndefined();
   });
 
   it("rejects exports without author", async () => {

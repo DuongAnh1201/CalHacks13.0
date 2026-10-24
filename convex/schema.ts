@@ -356,7 +356,9 @@ export default defineSchema({
     format: v.union(v.literal("md"), v.literal("pdf")),
     trigger: v.union(v.literal("manual"), v.literal("auto")),
     reason: v.optional(v.union(v.literal("job_done"), v.literal("left_explore"), v.literal("checkpoint"))),
-    fileId: v.id("_storage"),
+    status: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    fileId: v.optional(v.id("_storage")),
+    error: v.optional(v.string()),
     version: v.number(),
     sections: v.array(v.string()),
   })

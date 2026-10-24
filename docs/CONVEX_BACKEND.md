@@ -540,7 +540,7 @@ Human UI/REST functions (Sage) and agent/MCP functions use the same records.
 | `annotations` | `jobId`, `sessionId?`, `text`, `anchor`, `status` | `by_job(jobId)`, `by_session(sessionId)` |
 | `messages` | `jobId`, `sessionId?`, `clientId?`, `role`, `text`, `runId?`, `toolSteps?` | `by_job_time(jobId, createdAt)`, `by_session_time(sessionId, createdAt)`, `by_client_time(clientId, createdAt)`, `search_text` on text, filtered by job/session/client |
 | `sessionSummaries` | `jobId`, `sessionId?`, `clientId?`, `text`, `coversUpTo`, `version` | `by_session(sessionId)`, `by_client(clientId)` |
-| `exports` | `jobId`, `sessionId?`, `format`, `trigger`, `reason?`, `fileId`, `version`, `sections` | `by_job(jobId)`, `by_session(sessionId)` |
+| `exports` | `jobId`, `sessionId?`, `format`, `trigger`, `reason?`, `status`, `fileId?`, `error?`, `version`, `sections` | `by_job(jobId)`, `by_session(sessionId)` |
 
 Every row requires the flat `vAuthor` fields from `convex/lib/author.ts`:
 `author: "human" | "agent"`, `authorName: string`,
@@ -582,3 +582,10 @@ Checks: `npm run typecheck` and `npm test`. `convex-test` inserts each minimal
 record, rejects each table without author, exercises the indexes/search, and
 verifies the agent annotation helper path starts suggested. Deploying the schema
 uses the same `npx convex dev` flow as §5; no deployment credentials belong in git.
+
+Export lifecycle: new rows start `pending` with no file. The shared internal
+mutation `exportRecords.setState` rejects `ready` without `fileId`; `failed`
+requires a safe error message and has no file. `ready` rows have a storage file
+and no error. Builders use this mutation to publish completion; UI callers can
+render progress from `status` rather than infer it from `fileId`. Completed rows
+are immutable: request a new version for a new export.
