@@ -67,7 +67,7 @@ export default function Learn() {
             </LoadBoundary>
           )}
           <div className={css.top}><StatusPill /></div>
-          <div className={css.bottom}><ExplodeSlider /><LearnToolbar /></div>
+          {atlas && <div className={css.bottom}><ExplodeSlider /><LearnToolbar /></div>}
         </section>
         {atlas ? <InfoPanel atlas={atlas} colors={colors} /> : <aside className={css.side} />}
       </main>
