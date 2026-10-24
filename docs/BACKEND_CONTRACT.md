@@ -1,6 +1,6 @@
 # Backend ↔ Frontend Contract (Tom's AI backend)
 
-**Status: APPROVED v1.0 (2026-10-23) — Tom to sign off in the contract sign-off issue. Owner: Tom (`lane:ml-backend`).**
+**Status: SIGNED OFF v1.1 (2026-10-24) by Tom, backend owner (`lane:ml-backend`). Changes go through a PR plus a heads-up to the viewer and app owners.**
 
 Tom's pipeline (MONAI `brats_mri_segmentation` SegResNet → masks → meshes → FastAPI jobs) is the backend. The frontend builds against **exactly** what this file specifies.
 
