@@ -234,9 +234,10 @@ makes "only your own flag" structurally true rather than merely checked.
 `sessionParticipants` is durable membership: "these people are members of this
 room and hold these permissions." It survives a refresh and a closed laptop.
 
-Presence — "these people have a tab open right now" — is Phase 3 and **is not
-built**. Rendering this roster as green "online" dots would be a lie. The
-`lastSeenAt` column is the seed of that future work and is untouched.
+Presence — "these people have a tab open right now" — is Phase 3 and lives in
+`convex/presence.ts` (§12), in the Presence component's own tables. The roster
+is still membership only; color a roster entry "online" only from
+`presence.list`. The `lastSeenAt` column is unused.
 
 ---
 
@@ -767,3 +768,66 @@ machine. Two physical devices is the Phase 6 check.
 - **Per-session annotation cap** counts dismissed and agent rows too.
 - **Ended sessions**: chat and annotations stay in the tables but are no longer
   readable through these functions (`SESSION_ENDED`), matching `sessions.get`.
+
+## 12. Phase 3 — presence
+
+Online status via the official Presence component (`@convex-dev/presence`
+0.4.0), wrapped with session auth in `convex/presence.ts`. Membership
+(`sessionParticipants`) is unchanged; presence is a separate answer to a
+separate question (§3.7).
+
+### 12.1 Why the component, not a hand-rolled heartbeat
+
+A `lastSeenAt` write on the participant row would re-run `sessions.get`, which
+reads the roster, for every client on every heartbeat. The component keeps
+presence in its own tables and only notifies subscribers when someone comes
+online or drops off. It also handles tab close (`sendBeacon`) and hidden tabs.
+
+### 12.2 Frontend usage
+
+```ts
+import usePresence from "@convex-dev/presence/react";
+
+// roomId = our sessionId; "userId" = the participant TOKEN (see below).
+const online = usePresence(api.presence, sessionId, participantToken);
+// online: { userId: participantId, online: boolean, lastDisconnected }[]
+// Join to the roster from sessions.get on participantId.
+```
+
+The frontend needs `@convex-dev/presence` in `frontend/package.json`.
+
+The hook has a fixed `(roomId, userId)` signature and no other place to put a
+credential, so the token goes in as `userId`. `presence.heartbeat` resolves it
+on the server and registers the participant under their public
+`participantId`. The token never reaches the component's tables or `list`
+output: it is also replaced inside the hook's per-tab id before storage.
+Because `list` reports participant ids, the hook's "me first" sort does not
+apply; use `me.participantId` from `sessions.get`.
+
+### 12.3 Rules
+
+| Function | Authorization |
+|---|---|
+| `presence.heartbeat` | Valid token, member of `roomId`, session active; `interval` within 2 000–60 000 ms |
+| `presence.list` | `roomToken`, an unguessable capability returned only by `heartbeat` |
+| `presence.disconnect` | `sessionToken`, an unguessable per-tab capability; no other check is possible from `sendBeacon` |
+
+- A tab that stops beating goes offline after 2.5x its interval (25 s at the
+  default 10 s). The interval bound is what stops a client claiming hours.
+- `sessions.end` does not touch presence. Heartbeats to an ended session are
+  refused (`SESSION_ENDED`), so its members drop offline within one timeout.
+  Guests already learn of the end from `sessions.get`.
+- The authorization matrix (§11.3) covers functions that take
+  `participantToken`. `presence.heartbeat` takes its token as `userId`, so its
+  checks live in `convex/tests/presence.test.ts` instead.
+
+### 12.4 Tests
+
+`convex/tests/presence.test.ts` runs the real component in-process
+(`@convex-dev/presence/test`): two participants online by participant id with
+no token in the output; membership without presence; graceful disconnect; a
+silent tab expiring after 2.5x its interval while the other stays online; bad,
+cross-room and malformed room ids; ended session; interval bounds.
+
+Not yet checked in a browser. The two-tab check and the QR join flow are the
+next increment.

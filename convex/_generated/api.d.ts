@@ -30,6 +30,7 @@ import type * as mcp_rateLimit from "../mcp/rateLimit.js";
 import type * as mcp_server from "../mcp/server.js";
 import type * as mcp_types from "../mcp/types.js";
 import type * as messages from "../messages.js";
+import type * as presence from "../presence.js";
 import type * as scans from "../scans.js";
 import type * as seed from "../seed.js";
 import type * as sessionParticipants from "../sessionParticipants.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   "mcp/server": typeof mcp_server;
   "mcp/types": typeof mcp_types;
   messages: typeof messages;
+  presence: typeof presence;
   scans: typeof scans;
   seed: typeof seed;
   sessionParticipants: typeof sessionParticipants;
@@ -98,4 +100,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
+  presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
 };
