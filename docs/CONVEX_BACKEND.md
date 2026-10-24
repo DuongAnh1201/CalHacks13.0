@@ -589,3 +589,71 @@ requires a safe error message and has no file. `ready` rows have a storage file
 and no error. Builders use this mutation to publish completion; UI callers can
 render progress from `status` rather than infer it from `fileId`. Completed rows
 are immutable: request a new version for a new export.
+
+## 10. Shared Markdown exports and MCP (#62)
+
+`internal.exportDoc.build({ exportId })` is the single deterministic builder for
+human-button reservations (#61) and MCP exports. A request authorizes its scope,
+creates a new `pending` row with the next per-job version, and invokes the builder.
+The builder reads only requested sections, stores a UTF-8 Markdown Blob, and calls
+`internal.exportRecords.setState` to publish `ready` with `fileId`. Failures leave
+`failed` with a safe message and no file; an uncommitted uploaded file is deleted.
+Rebuilding a ready row returns its existing URL instead of overwriting it.
+
+The human mutation should authenticate its participant, create a `pending` export
+with `authorFor(resolvedHumanCaller)`, and schedule
+`internal.exportDoc.build({ exportId })`. The builder does not invent a second
+human or agent formatting path. The MCP adapter calls the internal
+`exportDoc.request` action, which checks the participant capability before
+reserving a row with server-resolved agent attribution and `trigger: manual`.
+The internal `agentName` argument is supplied by the MCP transport context only;
+it is not in the public tool input schema.
+
+Sections: `case`, `report`, `annotations`, `summary`, `conversation`, `tool_steps`.
+The document always includes `Educational visualization; not clinically validated`.
+The case is labelled `Atlas (template brain, not a patient)` for `atlas`/`learn`.
+Report metrics come only from `report.json`: volumes, side, lesions, outline
+certainty and expert outline agreement (Dice), with no percentage conversions or
+scan-table substitutes. Missing report/empty certainty is stated explicitly.
+Built-in `sample`/`sample-2` reports come from the checked-in JSON; other cases use
+server-only `IMAGING_API_URL` when configured (the same setting as MCP knowledge
+reads). Requests cannot supply a URL; fetched case ids and report fields are
+validated. Seed fallback applies only when no imaging URL is configured.
+
+Private sections require **both `session_id` and `participant_token`**. The server
+checks membership and that the session's scan matches `job_id`. A valid MCP
+service token alone grants neither session membership nor access to any chat,
+summary, or annotation. Reads filter by both job and session; unrelated sessions
+and standalone client rows are excluded. Atlas/report-only exports need no
+participant capability and perform no private-table reads. Acquiring a participant
+token from Desktop is pairing (#70), outside this task.
+
+Annotations default to accepted only. Add `suggested_annotations` to `sections`
+only when explicitly asked: it includes accepted plus suggested notes, never
+dismissed ones. Every note, message, summary and tool step shows Human/AI and the
+server-stamped display label; summaries use the latest appended row. User text,
+labels and tool arguments are escaped/quoted as data, never instructions. The
+builder redacts the contract's banned words and credential-like tool argument
+fields (tokens/authorization/secrets) before writing the file; raw chat records
+are unchanged.
+
+`convex/mcp/exportTools.ts` exports `registerExportTools(server, deps)`, matching
+#68's module registration pattern. `deps` needs its authenticated service caller
+and ActionCtx; `caller.authorName`, if present, is server-resolved (`Claude Desktop`
+for a per-user token, specialist name for the app). The current env-token fallback
+is `Scribe`. The tool accepts `job_id`, `format`, `sections`, optional `session_id`
+and `participant_token`, and returns `{ exportId, url, version }`. It defaults to
+case/report sections. PDF is explicitly rejected; auto-export triggers are deferred.
+Until #68 lands, import the module into that server and pass it through its
+`createServer(deps, [registerExportTools])` extension list; this standalone module
+does not add a second HTTP server or bypass #68's authentication/rate limit.
+
+Validation: full Convex typecheck/tests, including actual SDK Client tool listing
+and calls over an in-memory transport, exact metrics from both seeds, human/MCP
+builder equivalence, session isolation, suggested-note selection, failure states,
+idempotent ready builds, and banned-word filtering across every free-text section.
+
+Local smoke: applied this builder to an isolated anonymous deployment, invoked
+`exportDoc:request` for sample case/report sections, and fetched the returned
+storage URL with curl while `convex dev` was running. HTTP 200 served Markdown
+with the exact seed volumes and certainty plus the required notice.
