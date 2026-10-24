@@ -211,3 +211,31 @@ it.each(["/learn", "/mri", "/3d"] as const)(
     ).toBe(page.slice(1));
   },
 );
+
+it("does not persist late model output after cancellation in flight", async () => {
+  vi.stubEnv("ANTHROPIC_API_KEY", "fake-injected-key");
+  let release!: (value: ClaudeResponse) => void;
+  let markEntered!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    markEntered = resolve;
+  });
+  vi.spyOn(anthropic, "createClaudeClient").mockReturnValue({
+    complete: async () => {
+      markEntered();
+      return new Promise<ClaudeResponse>((resolve) => {
+        release = resolve;
+      });
+    },
+  });
+  const t = convexTest(schema);
+  const runId = await t.mutation(refs.ask, args);
+  const pending = t.action(refs.run, { runId });
+  await entered;
+  await t.mutation(refs.cancel, { runId, clientId: args.clientId });
+  release(tool("zoom_view", { action: "in" }));
+  await pending;
+  const row = await t.query(refs.get, { runId, clientId: args.clientId });
+  expect(row.status).toBe("cancelled");
+  expect(row.reply).toBe("Cancelled.");
+  expect(row.steps).toEqual([]);
+});

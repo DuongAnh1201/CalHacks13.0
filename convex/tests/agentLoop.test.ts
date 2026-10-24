@@ -351,3 +351,24 @@ it("does not offer 3D-only tools on MRI", async () => {
     "zoom_view",
   ]);
 });
+
+it("keeps patient context out of general web requests", async () => {
+  const f = fake(text("General information, not from this scan."));
+  const t = fixture(f.client);
+  await runLoop(
+    {
+      ...t.input,
+      page: "3d",
+      jobId: "sample",
+      text: "What is edema?",
+      snapshot: { volume: 136.28 },
+      history: [{ role: "assistant", text: "Patient volume 136.28" }],
+    },
+    t.deps,
+  );
+  const envelope = JSON.parse(f.requests[0].messages[0].content as string);
+  expect(envelope.context.jobId).toBeNull();
+  expect(envelope.untrusted_request.snapshot).toBeNull();
+  expect(envelope.untrusted_request.history).toEqual([]);
+  expect(JSON.stringify(f.requests[0])).not.toContain("136.28");
+});

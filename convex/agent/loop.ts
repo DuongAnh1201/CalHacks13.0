@@ -60,10 +60,15 @@ export interface LoopDeps {
 export function safeReply(reply: string) {
   return checkReply(reply).ok ? reply : MEDICAL_REFUSAL;
 }
-const chips = ["zoom in", "reset view", "explain the hippocampus"];
+const chips: Record<Page, readonly string[]> = {
+  learn: ["zoom in", "reset view", "explain the hippocampus"],
+  mri: ["zoom in", "reset view", "how big is the tumor?"],
+  "3d": ["zoom in", "reset view", "show the tumor"],
+};
 /** Conservative server-side gate: only explicit general questions get web tools. */
 function generalEducation(text: string) {
   return (
+    !/\b\d+(?:[.,]\d+)?\b/.test(text) &&
     /^(what (is|are)|explain|tell me about)\b/i.test(text.trim()) &&
     /\b(glioblastoma|glioma|edema|tumou?r core|enhancing tumou?r|segmentation|flair|t1|t2|mri)\b/i.test(
       text,
@@ -108,7 +113,7 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
     return { reply: MEDICAL_REFUSAL, agent: "Router", error: null };
   if (hint === "offtopic")
     return {
-      reply: safeReply(offTopicReply(chips)),
+      reply: safeReply(offTopicReply(chips[input.page])),
       agent: "Router",
       error: null,
     };
@@ -175,10 +180,13 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
         content: JSON.stringify({
           untrusted_request: {
             text: input.text,
-            history: input.history ?? [],
-            snapshot: input.snapshot ?? null,
+            history: webAllowed ? [] : (input.history ?? []),
+            snapshot: webAllowed ? null : (input.snapshot ?? null),
           },
-          context: { page: input.page, jobId: input.jobId ?? null },
+          context: {
+            page: input.page,
+            jobId: webAllowed ? null : (input.jobId ?? null),
+          },
         }),
       },
     ];

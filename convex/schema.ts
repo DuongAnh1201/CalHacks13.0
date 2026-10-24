@@ -386,14 +386,29 @@ export default defineSchema({
   }).index("by_token_hash", ["tokenHash"]),
 
   agentRuns: defineTable({
-    clientId:v.string(), sessionId:v.optional(v.id("sessions")), jobId:v.optional(v.string()),
-    text:v.string(), source:v.union(v.literal("chat"),v.literal("voice"),v.literal("text")),
-    page:v.union(v.literal("learn"),v.literal("mri"),v.literal("3d")),
-    status:v.union(v.literal("queued"),v.literal("running"),v.literal("done"),v.literal("failed"),v.literal("cancelled")),
-    steps:v.array(vAgentStep), reply:v.string(), agent:v.string(), error:v.union(v.string(),v.null()), createdAt:v.number(),
-    spendDay:v.optional(v.string()), availableTools:v.array(v.string()), snapshot:v.optional(v.any()), history:v.optional(vHistory),
-  }).index("by_client",["clientId"]),
+    clientId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    jobId: v.optional(v.string()),
+    text: v.string(),
+    source: v.union(v.literal("chat"), v.literal("voice"), v.literal("text")),
+    page: v.union(v.literal("learn"), v.literal("mri"), v.literal("3d")),
+    status: v.union(v.literal("queued"), v.literal("running"), v.literal("done"), v.literal("failed"), v.literal("cancelled")),
+    steps: v.array(vAgentStep),
+    reply: v.string(),
+    agent: v.string(),
+    error: v.union(v.string(), v.null()),
+    createdAt: v.number(),
+    // Internal request context and conservative daily reservation marker.
+    spendDay: v.optional(v.string()),
+    availableTools: v.array(v.string()),
+    snapshot: v.optional(v.any()),
+    history: v.optional(vHistory),
+  }).index("by_client", ["clientId"]),
+
   // Conservative daily reservations, shared across clients; no key means no spend.
-  agentDailyUsage: defineTable({day:v.string(),count:v.number()}).index("by_day",["day"]),
+  agentDailyUsage: defineTable({
+    day: v.string(),
+    count: v.number(),
+  }).index("by_day", ["day"]),
 
 });

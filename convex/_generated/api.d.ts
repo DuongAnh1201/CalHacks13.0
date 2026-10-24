@@ -10,6 +10,8 @@
 
 import type * as agent from "../agent.js";
 import type * as agent_anthropic from "../agent/anthropic.js";
+import type * as agent_eval_cases from "../agent/eval/cases.js";
+import type * as agent_eval_score from "../agent/eval/score.js";
 import type * as agent_evalRunner from "../agent/evalRunner.js";
 import type * as agent_guard from "../agent/guard.js";
 import type * as agent_loop from "../agent/loop.js";
@@ -52,6 +54,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   "agent/anthropic": typeof agent_anthropic;
+  "agent/eval/cases": typeof agent_eval_cases;
+  "agent/eval/score": typeof agent_eval_score;
   "agent/evalRunner": typeof agent_evalRunner;
   "agent/guard": typeof agent_guard;
   "agent/loop": typeof agent_loop;
