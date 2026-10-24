@@ -44,3 +44,24 @@ Host and guest were two separate Chrome tabs with sessionStorage cleared first (
 - Opacity: guest's Brain Opacity readout matched the host (40 on landing), no mismatch.
 - Intermittent (also in Phase A): the first Share click after `location.href` navigation did nothing because the page was scrolled about 420 px and the header was off-screen. Retry at scrollY 0 worked.
 - Console: `read_console_messages` with `onlyErrors` returned no errors on either tab, but tracking only starts at the first call, which I made at the end of the run. Errors earlier in the run were not captured.
+
+## Re-check 2fa1bec (2026-10-24)
+
+Branch `w2/share-b` HEAD `2fa1bec`. Two fresh tabs, sessionStorage cleared, no Duplicate tab, real clicks and drags only. Console tracking started on both tabs before the first action. Screenshots are `RC-*.jpg`.
+
+**Result: 5/5 pass. One unexplained guest reload seen once (see Notes).**
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Host on `/jobs/sample/mri` at default mask 60, then Share, guest joins and follows: overlay shows without the host touching the mask | **PASS**. Guest "Following Host", mask 60, overlay on axial and coronal at once. Sagittal at 121/240 shows none, and the host's sagittal at the same slice shows none (no tumor there). After one host click on the tumor (guest 78/155, 168/240, 119/240) all 3 guest views show the overlay. | `RC-1-guest-following-overlay.jpg`, `RC-1-host-popover-before-join.jpg`, `RC-1-host-after-tumor-click.jpg`, `RC-1-guest-all3-overlay.jpg` |
+| 2 | Guest reload while following: overlay still shows | **PASS**. Still "Following Host", slider 60, overlay in all 3 views. | `RC-2-guest-after-reload.jpg` |
+| 3 | Guest Stop following, host moves, Follow: overlay shows after snap | **PASS**. Not following: overlay shown. After Follow the guest snapped to the host slices (122/240, 192/240) with the overlay on axial and coronal. | `RC-3-guest-not-following.jpg`, `RC-3-guest-after-follow-snap.jpg`, `RC-3-host-after-follow.jpg` |
+| 4 | Host mask 0 hides guest overlay, back above 0 shows it | **PASS**. Host 0: guest overlay hidden, guest slider stays 60. Host 23: overlay back, guest slider 60 (no page reload on this repeat, `timeOrigin` unchanged). | `RC-4-guest-following-host-mask-0-hidden.jpg`, `RC-4-host-mask-0-again.jpg`, `RC-4-guest-host-mask-23-overlay.jpg`, `RC-4-host-mask-23.jpg` |
+| 5 | Tumor/Edema/Enhancing buttons on `/jobs/sample/3d` toggle and mirror | **PASS**. Tumor click turns Tumor, Edema, Tumor core and Enhancing all off (it is a group toggle), and a second click turns them all on. Edema click: Edema off only. Enhancing click: Enhancing off only. Button states identical on host and guest after each click, and the 3D views match. | `RC-5-*.jpg` pairs |
+
+The earlier "no state change" for Tumor/Edema/Enhancing in the first pass was a misread on my side: I clicked Tumor first, which flipped all four, so the later clicks netted out. Not a bug.
+
+### Notes
+- **Unexplained guest reload (1 of 2 attempts at check 4).** After my first successful host drag to mask 0, the guest tab reloaded on its own: `performance.getEntriesByType('navigation')[0].type` was `reload`, the canvases went black for a moment, and the guest came back as "Not following Host" at its own slices (168/240, 134/240), roster "Guest" without "following". My own guest reload in check 2 kept "Following Host", so the reload itself should not drop the follow. Git tree was clean (no edits, so not a Vite full reload) and the host tab did not reload. The second run of the same host mask 0 and back action caused no reload. Cause unknown, not reproduced. `RC-X-guest-black-canvases-transient.jpg` and `RC-X-guest-reloaded-not-following.jpg` show it.
+- **Console.** No errors on either tab at the end. The guest's log resets on reload, so errors before that reload were not retained for that tab. On the host tab, the first read returned 7 errors timestamped 12:58:45, from before this run: a Vite hot update of `useMprShare.ts` (the fix) while the older page was open ("change in the order of Hooks", then `getSnapshot` of null in `MriWorkspace`). The host was reloaded right after and showed no errors since. Dev-only HMR effect as far as I can tell, not confirmed.
+- First attempt at the host mask drag missed the slider (wrong coordinate frame after the window size changed). No effect on results.
