@@ -11,7 +11,7 @@ export interface PresenceRow { userId: string; online: boolean; lastDisconnected
 export const HEARTBEAT_MS = 10_000;
 
 /**
- * Online status for this tab, the same protocol as `usePresence` from @convex-dev/presence
+ * Online status for this tab, the same heartbeat protocol as `usePresence` from @convex-dev/presence
  * but on the shared ConvexClient (the app has no ConvexProvider). The server wants
  * roomId = sessionId and userId = participant token; see docs/CONVEX_BACKEND.md §12.
  * Returns a stop function that also tells the server this tab left.
@@ -43,24 +43,24 @@ export function startPresence(client: Client, s: Stored, onRows: (online: Set<st
     timer = null;
     if (sessionToken) void client.mutation(api.presence.disconnect, { sessionToken }).catch(() => {});
   };
-  // A hidden tab is not looking at the scan; the hook does the same.
-  const onVisibility = () => (globalThis.document?.hidden ? pause() : run());
+  // Unlike the component's hook, a hidden tab stays online: "online" means the app is open, so a
+  // presenter switching to slides or two tabs on one laptop don't drop out. A sleeping phone still
+  // expires on its own, because its timers stop and the server times it out after 2.5x the interval.
   // sendBeacon survives the page closing; a normal mutation would not. Path fixed by the component.
+  // pagehide, not beforeunload: it fires on iOS Safari and can never raise a "Leave site?" prompt.
   const onUnload = () => {
     if (!sessionToken || !convexUrl) return;
     const body = new Blob([JSON.stringify({ path: 'presence:disconnect', args: { sessionToken } })], { type: 'application/json' });
     navigator.sendBeacon(`${convexUrl}/api/mutation`, body);
   };
 
-  globalThis.document?.addEventListener('visibilitychange', onVisibility);
-  globalThis.addEventListener?.('beforeunload', onUnload);
+  globalThis.addEventListener?.('pagehide', onUnload);
   run();
 
   return () => {
     stopped = true;
     pause();
     unlist?.();
-    globalThis.document?.removeEventListener('visibilitychange', onVisibility);
-    globalThis.removeEventListener?.('beforeunload', onUnload);
+    globalThis.removeEventListener?.('pagehide', onUnload);
   };
 }
