@@ -1,0 +1,41 @@
+name: Idea
+description: New idea mid-hackathon. Discussed at the next checkpoint, not built yet.
+title: "Idea: "
+labels: ["type:idea", "needs-discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: "Don't start building. This gets triaged at the next checkpoint sync: accept, park (P2-stretch), or close. After hour 29 every idea is parked."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / opportunity
+      description: What does the demo or judge experience lack today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: input
+    id: cost
+    attributes:
+      label: Cost estimate (hours) and lane
+      placeholder: "3h, lane:viewer"
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: What P0 work does this risk or delay?
+    validations:
+      required: true
+  - type: dropdown
+    id: spec_change
+    attributes:
+      label: Changes docs/SPEC.md?
+      options: ["No", "Yes — contract (§7)", "Yes — behaviour/scope"]
+    validations:
+      required: true

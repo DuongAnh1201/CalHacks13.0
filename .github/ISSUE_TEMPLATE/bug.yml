@@ -1,0 +1,33 @@
+name: Bug
+description: Something that breaks spec'd behaviour
+title: "Bug: "
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened vs. what the spec says
+      placeholder: "Expected (SPEC §…): … Actual: …"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+    validations:
+      required: true
+  - type: dropdown
+    id: demo
+    attributes:
+      label: On the demo path?
+      description: If yes, add P0. It jumps the queue.
+      options: ["Yes", "No"]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshot
+      render: shell
