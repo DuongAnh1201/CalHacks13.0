@@ -1,0 +1,20 @@
+.banner {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 12px;
+  padding: 3px 8px;
+  border-radius: var(--nv-radius-pill);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: normal;
+}
+
+.banner img { width: 6px; height: 6px; display: block; }
+
+.ok { color: var(--nv-success-2); background: var(--nv-success-bg); }
+
+.off { color: var(--nv-accent-warm); background: var(--nv-muted-bg); }
+
+.banner code { font-family: var(--nv-mono); font-weight: 400; }

@@ -1,0 +1,29 @@
+:root {
+  --nv-primary: #1f5673;
+  --nv-primary-soft: #e8eff7;
+  --nv-primary-soft-2: #e3eef4;
+  --nv-text: #151c22;
+  --nv-text-2: #41484d;
+  --nv-text-3: #71787e;
+  --nv-border: rgba(193, 199, 206, 0.3);
+  --nv-surface: rgba(255, 255, 255, 0.85);
+  --nv-surface-warm: rgba(251, 249, 245, 0.86);
+  --nv-blur: 8px;
+  --nv-canvas-bg: radial-gradient(ellipse at center, #fbf9f5 0%, #f4efeb 75%, #ebe3db 100%);
+  --nv-success: #38684f;
+  --nv-success-2: #2e6b47;
+  --nv-success-bg: #e2f1e6;
+  --nv-accent-warm: #982713;
+  --nv-muted-bg: #f3f5f7;
+  --nv-radius-control: 8px;
+  --nv-radius-header: 12px;
+  --nv-radius-card: 16px;
+  --nv-radius-pill: 9999px;
+  --nv-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --nv-shadow-card: 0 12px 32px -4px rgba(30, 37, 43, 0.06);
+  --nv-font: 'Manrope', system-ui, sans-serif;
+  --nv-mono: 'Cousine', ui-monospace, monospace;
+  /* 43:1406 border-box: 30px row + 24px pad + 4px chrome. 43:1387: 18px row + 16px pad + 4px chrome. */
+  --nv-header-h: 58px;
+  --nv-footer-h: 38px;
+}
