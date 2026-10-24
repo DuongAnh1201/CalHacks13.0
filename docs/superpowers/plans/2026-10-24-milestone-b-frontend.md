@@ -285,8 +285,8 @@ export async function createJob(files: Record<Sequence, File>): Promise<string> 
 8. Keep `<BackendBanner />` at the top of the column.
 9. Two format cards under the dropzone, built from the Figma **Format Card** symbol (`docs/figma/symbol-format-card.ref.tsx`, node `44:39`) as one `FormatCard` component inside `routes/Upload.tsx` (not exported): "NIfTI volume" (badge "3D", extensions `.nii  .nii.gz`, text "Full 3D volume. The tumor is placed on the 3D brain.") and "Images & screenshots" (badge "Not accepted", warm badge `--nv-accent-warm` on `#ffdad3`, extensions `.jpg  .png  .heic`, text "2D pictures don't contain 3D scan data.").
 
-- [ ] **Step 1:** Write `FlowStepper` + CSS module per the mapping. Write `FlowPage` (TopNavBar + main column with `FlowStepper`, h1, lede, children + Footer).
-- [ ] **Step 2:** Write the Upload page. Skeleton (fill the JSX per the content list above):
+- [x] **Step 1:** Write `FlowStepper` + CSS module per the mapping. Write `FlowPage` (TopNavBar + main column with `FlowStepper`, h1, lede, children + Footer).
+- [x] **Step 2:** Write the Upload page. Skeleton (fill the JSX per the content list above):
 
 ```tsx
 const empty = (): Partial<Record<Sequence, File>> => ({});
@@ -322,8 +322,8 @@ export default function Upload() {
 }
 ```
 
-- [ ] **Step 3:** `npx tsc -b`, `npm test`, `npm run lint`, `npm run build`. Open `http://localhost:5173/` (`npm run dev`) and compare against `docs/figma/01-upload.png`. Pick a `.jpg`: alert shows the contract message; DevTools Network shows **no** `POST /jobs`.
-- [ ] **Step 4: Commit** only the files listed in this task as `feat(upload): Figma 01 upload page with NIfTI guard and samples (#9)`. `hc send qa "T3 ready at <hash>"`.
+- [x] **Step 3:** `npx tsc -b`, `npm test`, `npm run lint`, `npm run build`. Open `http://localhost:5173/` (`npm run dev`) and compare against `docs/figma/01-upload.png`. Pick a `.jpg`: alert shows the contract message; DevTools Network shows **no** `POST /jobs`.
+- [x] **Step 4: Commit** only the files listed in this task as `feat(upload): Figma 01 upload page with NIfTI guard and samples (#9)`. `hc send qa "T3 ready at <hash>"`.
 
 ---
 

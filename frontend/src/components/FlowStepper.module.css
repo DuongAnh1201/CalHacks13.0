@@ -1,0 +1,43 @@
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item { display: flex; align-items: center; gap: 12px; }
+
+.connector { width: 48px; height: 1px; background: #c1c7ce; flex: none; }
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: var(--nv-radius-pill);
+  font-size: 13px;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.index {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--nv-radius-pill);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.current { background: var(--nv-primary-soft-2); color: var(--nv-primary); font-weight: 700; }
+.current .index { background: var(--nv-primary); color: #fff; }
+
+.done { background: var(--nv-success-bg); color: var(--nv-success-2); font-weight: 700; }
+.done .index { background: var(--nv-success-2); color: #fff; }
+
+.future { color: var(--nv-text-3); font-weight: 600; }
+.future .index { border: 1px solid #c1c7ce; }

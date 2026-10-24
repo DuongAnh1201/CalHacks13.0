@@ -10,6 +10,7 @@
   --nv-surface-warm: rgba(251, 249, 245, 0.86);
   --nv-blur: 8px;
   --nv-canvas-bg: radial-gradient(ellipse at center, #fbf9f5 0%, #f4efeb 75%, #ebe3db 100%);
+  --nv-flow-bg: #f6f9ff;
   --nv-success: #38684f;
   --nv-success-2: #2e6b47;
   --nv-success-bg: #e2f1e6;

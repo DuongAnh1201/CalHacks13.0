@@ -1,0 +1,21 @@
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--nv-flow-bg);
+}
+
+.column {
+  flex: 1;
+  width: min(880px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.heading { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.heading h1 { margin: 0; color: var(--nv-text); font-size: 36px; font-weight: 700; line-height: normal; }
+.heading p { margin: 0; max-width: 640px; color: var(--nv-text-3); font-size: 15px; font-weight: 500; line-height: normal; }
