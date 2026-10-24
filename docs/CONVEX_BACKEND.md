@@ -488,13 +488,8 @@ gets no privileges of its own.
 
 ### Next increment (Phase 2)
 
-1. `messages.send` / `messages.list` — session-scoped, **paginated**
-   (`.paginate()`, not `.collect()`; guardrail 8).
-2. `annotations.create` / `list` / `remove` — voxel-anchored, bounds-checked with
-   `isVoxelInBounds`, which is already written and tested.
-3. Decide **M6**: whether `mode` and `layers` join the shared view.
-
-Keep it to one testable increment, per `sage_context/AGENTS.md`.
+Done; see §10. **M6** (whether `mode` and `layers` join the shared view) is now
+W2 Phase B's `scene` (docs/superpowers/specs/2026-10-24-w2-share-design.md §3).
 
 ---
 
@@ -666,3 +661,107 @@ read sample metrics, called export_document, and downloaded HTTP 200 Markdown
 with exact seed values. Private conversation without participant capabilities
 was refused; an incorrect bearer token returned 401. The dummy token was removed
 and the isolated test server stopped. No cloud/shared deployment was changed.
+
+## 11. Phase 2 — chat, annotations, authorization
+
+Human-side functions on the #56 tables (§9). One chat store and one annotation
+store, shared with the agent/MCP side; nothing here adds a table.
+
+### 11.1 Frontend quick reference
+
+Every function takes `{ sessionId, participantToken }` plus the arguments shown.
+
+| Function | Kind | Arguments | Returns |
+|---|---|---|---|
+| `messages.send` | mutation | `text` (trimmed, 1–2000 chars) | `{ messageId }` |
+| `messages.list` | query, paginated | `paginationOpts` | page of `PublicMessage`, **newest first** |
+| `annotations.create` | mutation | `text` (trimmed, 1–280 chars), `anchor` | `{ annotationId }` |
+| `annotations.list` | query | — | `PublicAnnotation[]`, oldest first |
+| `annotations.remove` | mutation | `annotationId` | `{ removed: true }` |
+
+```ts
+// Chat: reverse each page for display; loadMore walks back in time.
+const { results, loadMore } = usePaginatedQuery(
+  api.messages.list, { sessionId, participantToken }, { initialNumItems: 30 });
+
+// Annotations: the whole set (capped at 200 per session), for markers.
+const notes = useQuery(api.annotations.list, { sessionId, participantToken });
+```
+
+`PublicMessage` = `{ messageId, role: "user"|"assistant", author: "human"|"agent",
+authorName, text, createdAt }`. Agent replies in the same session appear in the
+same feed. `clientId`, `runId` and `toolSteps` are not exposed.
+
+`PublicAnnotation` = `{ annotationId, text, anchor, status: "accepted"|"suggested",
+author, authorName, createdAt, canRemove }`. Dismissed agent suggestions are
+omitted. `canRemove` is for showing the button; the server re-checks on remove.
+
+Anchors (#56): `{ kind: "point", ras_mm: [x, y, z] }`,
+`{ kind: "structure", id }`, `{ kind: "tumor" }`.
+
+### 11.2 Rules the server enforces
+
+- **Any member** may chat and annotate. Neither is presenter control.
+- **Author fields are server-stamped** from the resolved participant
+  (`authorFor` / `annotationFor`), never read from the request. Human notes start
+  `accepted` (D10).
+- **Point anchors** must be three finite numbers that, mapped through the scan's
+  affine and rounded, land on a voxel inside the grid (`isVoxelInBounds`). That
+  accepts anything within half a voxel of the outermost voxel centres. Points
+  are stored as sent, in RAS mm.
+- **Tumor anchors** need `scan.tumor.detected`, the same rule and wording as
+  `setTumorVisible`. **Structure ids** are shape-checked only (non-empty, at most
+  64 characters): no atlas registry lives in Convex.
+- **Removal**: the author (by `authorParticipantId`, never by display name) or
+  the host. Agent notes have no participant author, so only the host may remove
+  them. A note from another room answers `NOT_FOUND`. Removal deletes the row;
+  `dismissed` is reserved for the D10 agent-suggestion flow.
+- **Errors**: Phase 2 adds `NOT_ALLOWED` (valid member, not allowed to change
+  this record).
+
+### 11.3 Authorization, held in one place
+
+`convex/tests/authorization.test.ts` runs every public token-taking function
+(11 today) through the same matrix: unknown, empty and oversized token
+(`NOT_AUTHENTICATED`), another room's valid token (`NOT_A_MEMBER`), any call
+after the session ends (`SESSION_ENDED`), a viewer calling a host-only function
+(`NOT_PRESENTER`), and the host succeeding.
+
+A tripwire in that file reads each public function's argument validator. If a
+new function takes `participantToken` and is not added to the matrix, the test
+fails.
+
+Phase 2 also caps credential input: a token or invite code longer than
+`MAX_CREDENTIAL_LENGTH` (128) is rejected before the index lookup, with the same
+code as an unknown one.
+
+### 11.4 Acceptance check — run 2026-10-24
+
+Two Chrome tabs against the local deployment, via the test harness
+(`test-harness/README.md`):
+
+1. Viewer posted a chat message and pinned a note at RAS (12, −30, 8). Both
+   appeared in the presenter's tab without a refresh.
+2. Viewer pinned a note at z = 200. Rejected with
+   `[INVALID_ARGUMENT] That point is outside the scan volume.`; nothing appeared
+   in either tab.
+3. Presenter replied in chat. Then **both tabs were reloaded**: both showed both
+   messages and the note.
+4. Presenter removed the viewer's note. It disappeared from the viewer's tab
+   without a refresh.
+
+**Accepted** for Phase 2 ("chat and annotations persist through page refresh;
+view and annotation changes appear on both devices"), on two tabs of one
+machine. Two physical devices is the Phase 6 check.
+
+### 11.5 Known limits and follow-ups
+
+- **Placeholder affine** (§7): points are consistent across clients, but do not
+  match the real NIfTI header until M4 publishes the scan's affine.
+- **D10 Accept/Dismiss** for agent suggestions is not built yet. It is
+  human-side, so it belongs here next.
+- **`/jarvis` messages** are stored as ordinary chat; Phase 4 acts on them.
+- **No rate limit** on `messages.send` or `annotations.create` (Phase 6).
+- **Per-session annotation cap** counts dismissed and agent rows too.
+- **Ended sessions**: chat and annotations stay in the tables but are no longer
+  readable through these functions (`SESSION_ENDED`), matching `sessions.get`.

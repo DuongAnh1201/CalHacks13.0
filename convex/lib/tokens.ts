@@ -90,6 +90,13 @@ export function newInviteCode(): string {
 }
 
 /**
+ * Longest string accepted where a token or invite code is expected. Both are far
+ * shorter (32 and 19 characters); anything longer is rejected before an index
+ * lookup. Loose rather than exact so a later token format needs no migration.
+ */
+export const MAX_CREDENTIAL_LENGTH = 128;
+
+/**
  * A participant bearer token: 32 base32 characters = 160 bits of entropy.
  *
  * Longer than the invite code because it is never typed by a human and it is the
