@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as annotations from "../annotations.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as http from "../http.js";
@@ -41,6 +42,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  annotations: typeof annotations;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
   http: typeof http;
