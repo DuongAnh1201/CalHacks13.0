@@ -28,6 +28,9 @@ export const getJob = (id: string, signal?: AbortSignal) => fetch(`${API_URL}/jo
 export const getReport = (id: string, signal?: AbortSignal) => fetch(`${API_URL}/jobs/${encodeURIComponent(id)}/report`, { signal }).then((r) => json<Report>(r));
 export const modelUrl = (id: string) => `${API_URL}/jobs/${encodeURIComponent(id)}/model.glb`;
 
+export const segUrl = (id: string) => `${API_URL}/jobs/${encodeURIComponent(id)}/seg.nii.gz`;
+export const flairUrl = (id: string) => `${API_URL}/jobs/${encodeURIComponent(id)}/flair.nii.gz`;
+
 export async function createJob(files: Record<Sequence, File>): Promise<string> {
   const body = new FormData();
   for (const [seq, f] of Object.entries(files)) body.append(seq, f, f.name);
