@@ -2,7 +2,7 @@ import { useGLTF } from '@react-three/drei';
 import { Component, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
-import { dispatch, initCase } from '../actions/dispatch';
+import { dispatch, initCase, viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
 import type { DispatchResult } from '../actions/types';
 import { ApiError, getReport, modelUrl } from '../api/client';
@@ -63,7 +63,11 @@ export default function Brain3D() {
     getReport(id, ctl.signal).then((report) => {
       if (ctl.signal.aborted) return;
       initCase({ jobId: id, hasTumor: report.tumorDetected, structureIds: new Set(), bboxMm: report.brain.bboxMm });
-      if (report.tumorDetected) dispatch({ type: 'focusTumor' }, 'pointer'); // "Place in 3D" lands with the tumor placed
+      if (report.tumorDetected) { // "Place in 3D" lands with the tumor placed, the brain see-through at 40
+        dispatch({ type: 'focusTumor' }, 'pointer');
+        dispatch({ type: 'setMode', mode: 'xray' }, 'pointer');
+        dispatch({ type: 'setOpacity', value: 0.4 }, 'pointer');
+      }
       done({ kind: 'ready', report });
     }).catch((e: unknown) => {
       if (!(e instanceof ApiError)) done({ kind: 'offline' });
@@ -80,6 +84,8 @@ export default function Brain3D() {
   const act = (a: Parameters<typeof dispatch>[0]) => setMessage(dispatch(a, 'pointer'));
   const report = result?.kind === 'ready' ? result.report : null;
   const modelFailed = failedId === id;
+  const anyAvailable = LAYERS.some((l) => available[l.layer]);
+  const anyLayer = LAYERS.some((l) => available[l.layer] && layers[l.layer]);
 
   return (
     <div className={css.page}>
@@ -114,7 +120,7 @@ export default function Brain3D() {
                     Hide Brain <img src={hideIcon} alt="" width={15} height={13} />
                   </button>
                   <button type="button" className={`${css.toggle} ${css.accent}`} disabled={!report.tumorDetected || modelFailed}
-                    title={report.tumorDetected ? undefined : 'No tumor detected in this scan'} onClick={() => act({ type: 'focusTumor' })}>
+                    title={report.tumorDetected ? undefined : 'No tumor detected in this scan'} onClick={() => { const again = useViewer.getState().cameraTarget === 'tumor'; act({ type: 'focusTumor' }); if (again) viewEvents.dispatchEvent(new Event('focus')); }}>
                     Focus Tumor <img src={focusIcon} alt="" width={12} height={12} />
                   </button>
                 </div>
@@ -166,12 +172,25 @@ export default function Brain3D() {
                     </div>
                   )}
                   <div className={css.explode}><ExplodeSlider /></div>
-                  <div className={css.structures} role="group" aria-label="Tumor layers">
+                  <div className={css.structures} role="group" aria-label="Structures">
+                    <span className={css.structuresLabel}>Structures:</span>
+                    {report.tumorDetected && (
+                      <button type="button" className={`${css.layer} ${css.tumorChip}`} aria-pressed={anyLayer} disabled={!anyAvailable}
+                        onClick={() => LAYERS.forEach((l) => available[l.layer] && act({ type: 'setLayerVisible', layer: l.layer, visible: !anyLayer }))}>
+                        Tumor ({cm3(report.volumesCm3.whole)})
+                      </button>
+                    )}
                     {LAYERS.map((l) => (
                       <button key={l.layer} type="button" className={css.layer} aria-pressed={!!layers[l.layer] && !!available[l.layer]}
                         disabled={!available[l.layer]} title={available[l.layer] ? undefined : report.tumorDetected ? 'Not in this case' : 'No tumor detected in this scan'}
                         onClick={() => act({ type: 'setLayerVisible', layer: l.layer, visible: !layers[l.layer] })}>
                         <span className={css.swatch} style={{ background: l.color }} />{l.label}
+                      </button>
+                    ))}
+                    {(['left', 'right'] as const).map((side) => (
+                      <button key={side} type="button" className={css.layer} aria-pressed={!hidden[side]}
+                        onClick={() => act({ type: 'setHemisphereVisible', side, visible: hidden[side] })}>
+                        {side === 'left' ? 'Left' : 'Right'} hemisphere
                       </button>
                     ))}
                   </div>

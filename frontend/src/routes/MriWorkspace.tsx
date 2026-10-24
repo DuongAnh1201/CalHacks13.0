@@ -15,7 +15,7 @@ import { Footer } from '../components/Footer';
 import { Legend } from '../components/Legend';
 import { TopNavBar } from '../components/TopNavBar';
 import css from './MriWorkspace.module.css';
-import { cm3, headline, sideLabel } from './summary';
+import { certaintyText, cm3, headline, sideLabel } from './summary';
 
 type Phase = 'loading' | 'ready' | 'redirect' | 'unknown' | 'offline' | 'api';
 
@@ -69,6 +69,7 @@ export default function MriWorkspace() {
 
   const sample = SAMPLES.some((s) => s.id === id);
   const dims = report ? dimensions(report) : null;
+  const certainty = report ? certaintyText(report.certainty) : null;
 
   return (
     <div className={css.page}>
@@ -147,6 +148,13 @@ export default function MriWorkspace() {
                     <div className={css.tile}>
                       <dt>Model vs expert label (Dice)</dt>
                       <dd>whole {report.expertDice.whole.toFixed(2)} · core {report.expertDice.core.toFixed(2)} · enhancing {report.expertDice.enhancing.toFixed(2)}</dd>
+                    </div>
+                  )}
+                  {certainty && (
+                    <div className={css.tile}>
+                      <dt>Model certainty (not calibrated)</dt>
+                      <dd>{certainty}</dd>
+                      <p className={css.axis}>Model certainty of the outline, not a diagnosis or a probability of disease.</p>
                     </div>
                   )}
                 </dl>

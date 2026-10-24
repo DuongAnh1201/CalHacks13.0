@@ -23,5 +23,6 @@ button.tool { cursor: pointer; }
 .tool input { width: 64px; accent-color: var(--nv-primary); }
 .lock { display: flex; align-items: center; gap: 4px; color: var(--nv-text-3); font-size: 10px; }
 .on { color: var(--nv-success); }
+.hint { margin: -8px 0 0; color: var(--nv-text-3); font-size: 12px; }
 .panel button:focus-visible, .panel input:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 3px; }
 @media (max-width: 540px) { .views { grid-template-columns: 1fr; grid-template-rows: 320px 240px 240px; } .view:first-child { grid-column: auto; } .title { font-size: 16px; } }

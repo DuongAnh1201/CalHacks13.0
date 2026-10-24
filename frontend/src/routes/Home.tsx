@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import brainIcon from '../assets/figma/664bf.svg';
+import learnIcon from '../assets/figma/73f19.svg';
+import { ApiError, getReport } from '../api/client';
 import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
-import { ago, hrefOf, listWorkspaces, saveWorkspace, type Workspace, type WorkspaceKind } from '../home/workspaces';
+import { ago, hrefOf, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace, type WorkspaceKind } from '../home/workspaces';
 import css from './Home.module.css';
 
 const KIND: Record<WorkspaceKind, { label: string; hint: string }> = {
@@ -13,8 +16,22 @@ const FILTERS = [['all', 'All workspaces'], ['mri', 'MRI'], ['learn', 'Learning'
 
 export default function Home() {
   const navigate = useNavigate();
-  const [items] = useState(() => listWorkspaces());
+  const [items, setItems] = useState(() => listWorkspaces());
   const [filter, setFilter] = useState<'all' | WorkspaceKind>('all');
+
+  useEffect(() => {
+    const ctl = new AbortController();
+    for (const row of listWorkspaces()) {
+      if (row.kind !== 'mri') continue;
+      getReport(row.id, ctl.signal).catch((e: unknown) => {
+        if (ctl.signal.aborted) return;
+        if (!(e instanceof ApiError) || e.status !== 404) return;
+        removeWorkspace(row.id);
+        setItems((list) => list.filter((x) => x.id !== row.id));
+      });
+    }
+    return () => ctl.abort();
+  }, []);
   const shown = items.filter((w) => filter === 'all' || w.kind === filter);
 
   const newLearn = () => {
@@ -53,7 +70,9 @@ export default function Home() {
               {shown.map((w) => (
                 <li key={w.id}>
                   <Link className={css.card} to={hrefOf(w)} onClick={() => open(w)}>
-                    <div className={`${css.thumb} ${css[w.kind]}`} />
+                    <div className={`${css.thumb} ${css[w.kind]}`}>
+                      <img src={w.kind === 'mri' ? brainIcon : learnIcon} alt="" width={40} height={40} />
+                    </div>
                     <div className={css.meta}>
                       <p className={css.name}>{w.name}</p>
                       <p className={css.when}>{KIND[w.kind].label} · opened {ago(w.openedAt)}</p>

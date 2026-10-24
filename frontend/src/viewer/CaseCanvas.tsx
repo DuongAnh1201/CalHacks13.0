@@ -1,6 +1,6 @@
 import { CameraControls, useGLTF } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useShallow } from 'zustand/react/shallow';
 import { modelUrl } from '../api/client';
@@ -10,7 +10,7 @@ import { useViewer } from '../actions/store';
 import { applyView } from './applyView';
 import type { Layer } from './layers';
 import { buildCaseScene } from './loadCase';
-import { rasToScene, type Vec3 } from './transform';
+import type { Vec3 } from './transform';
 import css from './CaseCanvas.module.css';
 
 interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void }
@@ -62,24 +62,29 @@ function CaseScene({ jobId, report, onLayers }: Props) {
     return () => viewEvents.removeEventListener('reset', onReset);
   }, []);
 
-  // shortcut: frames the unexploded tumor position, add the hemisphere offset if focus-while-exploded looks wrong
-  // focusTumor: frame the tumor's bounding sphere; the two logs prove the mesh and the camera agree (issue #10).
-  useEffect(() => {
+  // focusTumor: frame the tumor's bounding sphere at its world position (follows the explode offset); the two logs prove the mesh and the camera agree (issue #10).
+  const focus = useCallback(() => {
     const c = controls.current, centroid = report.centroidMm;
     const mesh = cs.tumor.edema ?? Object.values(cs.tumor)[0];
-    if (target !== 'tumor' || !c || !centroid || !mesh) return;
-    const log = () => {
-      cs.world.updateMatrixWorld(true);
-      console.info('[case] tumor world position', mesh.localToWorld(new THREE.Vector3(...centroid)).toArray().map((n) => n.toFixed(2)).join(', '));
-    };
+    if (!c || !centroid || !mesh) return;
+    const world = () => { cs.world.updateMatrixWorld(true); return mesh.localToWorld(new THREE.Vector3(...centroid)); };
+    const log = () => console.info('[case] tumor world position', world().toArray().map((n) => n.toFixed(2)).join(', '));
     const { min, max } = report.bboxMm ?? { min: centroid, max: centroid };
     const radius = Math.max(new THREE.Vector3(...(max as Vec3)).distanceTo(new THREE.Vector3(...(min as Vec3))) / 2, MIN_FRAME_RADIUS_MM);
-    const center = new THREE.Vector3(...rasToScene(centroid, report.brain.centroidMm));
+    const center = world();
     // Approach from the tumor's own side (brain centroid is the scene origin): from the home side an opaque hemisphere would hide it.
     const eye = center.length() > 1 ? center.clone().normalize().multiplyScalar(c.getDistanceToFitSphere(radius)).add(center) : null;
     log();
     void (eye ? c.setLookAt(...eye.toArray(), ...center.toArray(), true) : c.fitToSphere(new THREE.Sphere(center, radius), true)).then(log);
-  }, [target, cs, report]);
+  }, [cs, report]);
+
+  useEffect(() => { if (target === 'tumor') focus(); }, [target, focus]);
+
+  // Focus Tumor pressed again while already focused (e.g. after changing explode): the target does not change, so Brain3D fires this.
+  useEffect(() => {
+    viewEvents.addEventListener('focus', focus);
+    return () => viewEvents.removeEventListener('focus', focus);
+  }, [focus]);
 
   return (
     <>

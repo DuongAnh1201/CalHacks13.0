@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ago, hrefOf, listWorkspaces, saveWorkspace, type Workspace } from './workspaces';
+import { ago, hrefOf, listWorkspaces, removeWorkspace, saveWorkspace, scanName, type Workspace } from './workspaces';
 
 const fake = () => {
   const m = new Map<string, string>();
@@ -20,6 +20,13 @@ describe('workspaces', () => {
     saveWorkspace(w('a', 1), s); saveWorkspace(w('b', 2), s); saveWorkspace(w('a', 3), s);
     expect(listWorkspaces(s).map((x) => x.id)).toEqual(['a', 'b']);
   });
+  it('removes one workspace by id', () => {
+    const s = fake();
+    saveWorkspace(w('a', 1), s);
+    saveWorkspace(w('b', 2), s);
+    removeWorkspace('a', s);
+    expect(listWorkspaces(s).map((x) => x.id)).toEqual(['b']);
+  });
   it('drops rows that are not workspaces', () => {
     const s = fake(); s.setItem('nv.workspaces', JSON.stringify([w('a', 1), { id: 3 }, null, { id: 'x', kind: 'chat' }]));
     expect(listWorkspaces(s).map((x) => x.id)).toEqual(['a']);
@@ -27,6 +34,13 @@ describe('workspaces', () => {
   it('links each kind to its page', () => {
     expect(hrefOf(w('j1', 0))).toBe('/jobs/j1/mri');
     expect(hrefOf(w('l1', 0, 'learn'))).toBe('/learn/l1');
+  });
+  it('names an upload from the file stem without the sequence suffix', () => {
+    expect(scanName('BraTS_0042_flair.nii.gz', 'job-ab12')).toBe('BraTS_0042');
+    expect(scanName('patient7-FLAIR.nii', 'job-ab12')).toBe('patient7');
+  });
+  it('falls back to the job id when the stem is only a sequence name', () => {
+    expect(scanName('flair.nii.gz', 'job-ab12')).toBe('Scan job-ab12');
   });
   it('relative time', () => {
     const now = 1_000_000_000;
