@@ -57,6 +57,7 @@ NeuroVision takes a brain MRI (4 standard sequences), segments the tumor with a 
 | `/jobs/:id/processing` | Show real progress | Backend `status` + `stage` (validating → inferring → meshing). On failure: `error.message`, Retry, Use sample case. No fake percentages |
 | `/jobs/:id/results` | Read the result before 3D | Header **"Tumor detected"** or **"No tumor detected"** (never "healthy"). Volumes in cm³ (whole / core / enhancing), side, lesion count. 3 NiiVue views (FLAIR + 3-colour overlay) + legend. Source badge. On sample cases: model-vs-expert Dice. Limitations. **Place in 3D** |
 | `/jobs/:id/explore` | Shared 2D + 3D workspace | 3D canvas, linked slice panel, 4 mode tabs, layer toggles + legend, opacity / explode / cut controls, Reset, source badge, report panel, Jarvis transcript + text box, gesture status |
+| `/learn` Learning Mode | Explore healthy anatomy, no patient data | CerebrA atlas (95 structures) in template space. Structure tree + search, click → fly-to + info panel, double-click → isolate, hover label, Solid / X-Ray + opacity, explode slider, hide left / right, Reset. Load failure shows Retry. Never mixed into a patient scene (D6) |
 
 ## 4. Exploration modes
 
@@ -183,6 +184,9 @@ interface ViewerState {
   hidden: { left: boolean; right: boolean };
   layers: Record<Layer, boolean>;          // visibility; absent layers stay false + disabled
   cameraTarget: 'brain' | 'tumor';
+  selectedStructure: string | null;        // atlas node id, /learn only
+  isolate: boolean;                        // show only selectedStructure
+  hiddenStructures: Record<string, boolean>;
 }
 ```
 
@@ -200,7 +204,10 @@ type Action =
   | { type: 'setSlice'; axis: Axis; offsetMm: number }   // writes cursorRas[axis]
   | { type: 'select'; target: 'tumor' | 'left' | 'right' | null }
   | { type: 'resetView' }
-  | { type: 'explainFinding' };
+  | { type: 'explainFinding' }
+  | { type: 'selectStructure'; id: string | null }  // id must be in the case's structureIds
+  | { type: 'setStructureVisible'; id: string; visible: boolean }
+  | { type: 'setIsolate'; on: boolean };
 
 type Source = 'pointer' | 'keyboard' | 'gesture' | 'voice';
 function dispatch(a: Action, source: Source): { ok: boolean; message: string };
@@ -354,3 +361,4 @@ Append-only. Format: `date · hour · decision · why · PR`.
 
 - 2026-10-23 · h0 · v1.1: locked D1–D10 (volume primary + 2D fallback, brain from same scan, R3F, hemispheres only, deterministic Jarvis) · resolves the v1.0 open decisions · #32
 - 2026-10-23 · h0 · v1.2: adopt Tom's SegResNet backend + `BACKEND_CONTRACT.md`. Five-node `model.glb` (D11); 4-sequence NIfTI input only, JPG rejected (D1); expert-mask fallback replaces the 2D fallback (D4); routes renamed to `/jobs/:id/*`; layer table + `setLayerVisible` added · real 3D segmentation; a JPG cannot carry the data the model needs · #32
+- 2026-10-23 · h? · Learning Mode `/learn`: CerebrA atlas (CC0, template space, never mixed into patient space so D6 holds); ViewerState + selectedStructure/isolate/hiddenStructures; actions selectStructure/setStructureVisible/setIsolate · S4 delivered as a standalone page; same dispatch door for gestures/Jarvis later · #<PR>
