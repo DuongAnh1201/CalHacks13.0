@@ -419,7 +419,7 @@ export function stageRows({ status, stage }: Pick<JobStatus, 'status' | 'stage'>
   export const cm3: (v: number) => string   // "136.3 cm³"
   ```
 
-- [ ] **Step 1: Failing tests.** `routes/summary.test.ts`:
+- [x] **Step 1: Failing tests.** `routes/summary.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -469,8 +469,8 @@ it('UI source never uses the banned word (contract §5)', () => {
 
 (Test files are skipped because `viewer/atlasData.test.ts` asserts the word is absent and so contains it. The triple-slash reference is needed because `tsconfig.app.json` only loads `vite/client` types; `@types/node` is already installed.)
 
-- [ ] **Step 2:** `npm test` → summary FAIL (module missing); copy test PASS already (it guards regressions).
-- [ ] **Step 3: Implement** `routes/summary.ts`:
+- [x] **Step 2:** `npm test` → summary FAIL (module missing); copy test PASS already (it guards regressions).
+- [x] **Step 3: Implement** `routes/summary.ts`:
 
 ```ts
 import type { Report } from '../api/types';
@@ -481,7 +481,7 @@ export const sideLabel = (s: Report['side']) => (s ? SIDE[s] : '—');
 export const cm3 = (v: number) => `${v.toFixed(1)} cm³`;
 ```
 
-- [ ] **Step 4: Page** per frame 03 (`docs/figma/03-workspace.png`; ref nodes "Patient Dataset Record Card" line 62, "AI Segmentation Analysis Report" line 776, "Button — Place in 3D" line 306). Three-column grid like `routes/Learn.module.css` (left 350px, centre 1fr, right 340px; single column under 1100px), `TopNavBar active="workspace"`, `FlowStepper step={2}` above the grid is **not** in frame 03, so leave it out.
+- [x] **Step 4: Page** per frame 03 (`docs/figma/03-workspace.png`; ref nodes "Patient Dataset Record Card" line 62, "AI Segmentation Analysis Report" line 776, "Button — Place in 3D" line 306). Three-column grid like `routes/Learn.module.css` (left 350px, centre 1fr, right 340px; single column under 1100px), `TopNavBar active="workspace"`, `FlowStepper step={2}` above the grid is **not** in frame 03, so leave it out.
   - Load: `getReport(id)`. `ApiError` 409 → `<Navigate to={`/jobs/${id}/processing`} replace />`. 404 → "Unknown job." + "Use sample case". Network error → "Backend offline — start docker compose up" + Retry. Loading → "Loading results…".
   - **Left card "Scan"** (frame 03 "Patient Dataset"): Job id (mono), Sequences (`input.sequences` → `SEQUENCE_LABEL`, joined " · "), Matrix (`shape.join(' × ')`), Voxel spacing (`spacingMm` mm), Model (`model.arch` + `v${model.version}`). No patient name, no fake fields.
   - **Centre** `<section aria-label="Slices">`: the slot for SlicePanel (C1). Card with title "Slices", text "Linked axial / sagittal / coronal views arrive with ticket C1.", and `<Legend available={{ edema: r.tumorDetected, core: r.tumorDetected, enhancing: r.volumesCm3.enhancing > 0 }} />`.
@@ -492,8 +492,8 @@ export const cm3 = (v: number) => `${v.toFixed(1)} cm³`;
     - "BraTS-style preprocessed MRI only."
     - Samples only (`SAMPLES.some(s => s.id === id)`): "Sample case from the BraTS dataset; it may be part of the model's training data."
   - **CTA card** (frame 03 "Spatial pipeline action"): primary "Place in 3D" + arrow icon `b1141.svg` → `/jobs/${id}/explore`. No other buttons (Export / Adjust threshold are out of scope).
-- [ ] **Step 5:** tsc, test, lint, build. `/jobs/sample/results` shows "Tumor detected", 136.3 / 61.6 / 34.3 cm³, Right hemisphere, 1 lesion, Dice row; "Place in 3D" opens `/jobs/sample/explore`. `sample-2` shows Left hemisphere.
-- [ ] **Step 6: Commit** `feat(results): Figma 03 results with volumes, side, Dice and limitations (#9)`. `hc send qa "T5 ready at <hash>"`.
+- [x] **Step 5:** tsc, test, lint, build. `/jobs/sample/results` shows "Tumor detected", 136.3 / 61.6 / 34.3 cm³, Right hemisphere, 1 lesion, Dice row; "Place in 3D" opens `/jobs/sample/explore`. `sample-2` shows Left hemisphere.
+- [x] **Step 6: Commit** `feat(results): Figma 03 results with volumes, side, Dice and limitations (#9)`. `hc send qa "T5 ready at <hash>"`.
 
 ---
 
