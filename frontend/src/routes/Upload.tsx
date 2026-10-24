@@ -86,7 +86,7 @@ export default function Upload() {
           <label className={css.primary}>
             <img src={browseIcon} alt="" width={18} height={18} />
             Browse files
-            <input hidden type="file" multiple accept=".nii,.nii.gz" onChange={(e) => picked(e)} />
+            <input className={css.file} type="file" multiple accept=".nii,.nii.gz" onChange={(e) => picked(e)} />
           </label>
           <p className={css.foot}>Max 200 MB per file</p>
         </div>
@@ -102,7 +102,7 @@ export default function Upload() {
               <span className={slots[seq] ? css.fileName : css.fileEmpty}>{slots[seq]?.name ?? 'No file'}</span>
               <label className={css.ghost}>
                 Choose
-                <input hidden type="file" accept=".nii,.nii.gz" onChange={(e) => picked(e, seq)} />
+                <input className={css.file} type="file" accept=".nii,.nii.gz" onChange={(e) => picked(e, seq)} />
               </label>
             </li>
           ))}
