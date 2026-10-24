@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>NeuroVision — Convex Phase 1 test harness</title>
+<style>
+  /* Deliberately bare-bones: this page exists to prove reactivity, not to look
+     like the product. The real UI is the frontend team's React app. */
+  body { font: 14px/1.5 system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.1rem; }
+  .hint { color: #666; font-size: 0.85rem; }
+  section { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+  label { display: block; margin-top: 0.75rem; font-weight: 600; }
+  input, select { width: 100%; padding: 0.4rem; margin-top: 0.25rem; box-sizing: border-box; }
+  button { margin-top: 0.5rem; padding: 0.5rem 0.9rem; cursor: pointer; }
+  .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .error { color: #b00020; background: #fdecea; border: 1px solid #f5c2c0; border-radius: 6px; padding: 0.5rem; margin-top: 0.5rem; }
+  .stat { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 0.3rem 0; }
+  .stat b { font-family: ui-monospace, monospace; }
+  #roster-list { padding-left: 1.2rem; }
+  #invite-box { background: #eef6ff; border-radius: 6px; padding: 0.5rem; margin-top: 0.5rem; }
+  #invite-code-text { font-family: ui-monospace, monospace; font-weight: 700; }
+  #raw-state { background: #0d1117; color: #c9d1d9; font-family: ui-monospace, monospace; font-size: 0.75rem; padding: 0.75rem; border-radius: 6px; overflow-x: auto; max-height: 300px; }
+  .danger { background: #fff3cd; border-color: #ffe69c; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1>NeuroVision — Convex Phase 1 test harness</h1>
+<p class="hint">
+  Not the real frontend. A plain <code>convex/browser</code> client (no React),
+  bundled with esbuild, to prove live reactivity across two tabs.
+  Open this same URL in a <b>second tab</b> to see it.
+</p>
+
+<section id="setup-panel">
+  <h2>Join or start a room</h2>
+
+  <label for="name-input">Your display name</label>
+  <input id="name-input" placeholder="Presenter or Judge" />
+
+  <div class="row">
+    <div style="flex:1">
+      <label for="scan-picker">Case</label>
+      <select id="scan-picker"></select>
+    </div>
+  </div>
+  <button id="create-btn">Create a new session (become presenter)</button>
+
+  <label for="invite-input">— or join with an invite code —</label>
+  <div class="row">
+    <input id="invite-input" placeholder="XXXX-XXXX-XXXX-XXXX" style="flex:1" />
+    <button id="join-btn">Join as viewer</button>
+  </div>
+
+  <div id="setup-error" class="error" hidden></div>
+</section>
+
+<section id="room-panel" hidden>
+  <div class="row" style="justify-content: space-between;">
+    <strong id="me-label"></strong>
+    <button id="leave-btn">Leave</button>
+  </div>
+
+  <div id="invite-box" hidden>
+    Invite code: <span id="invite-code-text"></span>
+    <p class="hint">Paste this into the setup form in another tab/device to join.</p>
+  </div>
+
+  <h2>Shared view (subscribed — updates with no refresh)</h2>
+  <div class="stat"><span>plane</span><b id="plane-value">—</b></div>
+  <div class="stat"><span>slice</span><b><span id="slice-index-value">—</span> / <span id="slice-count-value">—</span></b></div>
+  <div class="stat"><span>tumor</span><b id="tumor-visible-value">—</b></div>
+  <div class="stat"><span>viewVersion</span><b id="view-version-value">—</b></div>
+
+  <h3>Participants</h3>
+  <ul id="roster-list"></ul>
+
+  <div id="action-error" class="error" hidden></div>
+
+  <div id="presenter-controls">
+    <h3>Presenter controls</h3>
+    <div class="row" id="plane-buttons">
+      <button data-plane="axial">Axial</button>
+      <button data-plane="coronal">Coronal</button>
+      <button data-plane="sagittal">Sagittal</button>
+    </div>
+    <div class="row">
+      <button id="step-back-btn">◀ step slice</button>
+      <button id="step-fwd-btn">step slice ▶</button>
+    </div>
+    <div class="row">
+      <input id="slice-jump-input" type="number" placeholder="slice index" style="width:8rem" />
+      <button id="slice-jump-btn">Jump to slice</button>
+    </div>
+    <div class="row">
+      <button id="tumor-toggle-btn">Toggle tumor visible</button>
+      <button id="reset-btn">Reset view</button>
+    </div>
+  </div>
+
+  <div id="viewer-notice" class="danger" hidden style="padding:0.5rem;border-radius:6px;">
+    You are a viewer. These two buttons exist only to prove the server rejects
+    them — clicking one should show a <code>NOT_PRESENTER</code> error above,
+    not change anything.
+    <div class="row">
+      <button id="viewer-try-move-btn">Try to change the view (should fail)</button>
+      <button id="get-invite-btn">Try to read the invite code (should fail)</button>
+    </div>
+  </div>
+
+  <h3>Raw <code>sessions.get</code> payload</h3>
+  <p class="hint">Confirm no <code>inviteCode</code> or <code>token</code> field ever appears here.</p>
+  <pre id="raw-state">—</pre>
+</section>
+
+<script>
+  // The local anonymous deployment's client URL, as `npx convex dev` prints it.
+  // Override with ?url=http://... if you're pointed at a different deployment.
+  window.__CONVEX_URL__ = new URLSearchParams(location.search).get("url") || "http://127.0.0.1:3210";
+</script>
+<script type="module" src="./dist/app.js"></script>
+
+</body>
+</html>

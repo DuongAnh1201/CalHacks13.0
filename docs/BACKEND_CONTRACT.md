@@ -69,7 +69,7 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
 | `GET /jobs/{id}/flair.nii.gz` | the FLAIR input, unchanged | **NEW — needed** |
 | `GET /health` | `{"ok": true, "model": "...", "version": "..."}` | in Tom's doc |
 
-- [ ] **`flair.nii.gz`**: the 2D slice panel needs the actual scan as its background. The mask alone isn't enough. **This blocks the linked-slices ticket.**
+- [ ] **`flair.nii.gz`**: the 2D slice panel needs the actual scan as its background. The mask alone isn't enough. **This blocks the linked-slices ticket.** It's the uploaded input, so it is available as soon as the job exists, in any status (`queued`, `running`, `done` or `failed`).
 - [ ] **Sample job:** seed `jobs/sample/` in the image or volume so that `GET /jobs/sample/*` works immediately, with no upload and no inference. This is the offline demo fallback.
 
 ### 2.1 Status (`GET /jobs/{id}`)
@@ -99,7 +99,7 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
 | `INFERENCE_ERROR` | Exception during inference |
 | `MESH_ERROR` | Exception during meshing |
 
-- [ ] Input validation errors return **422 from `POST /jobs`** before a job is queued, with the same `{code, message}` body.
+- [ ] Input validation errors return **422 from `POST /jobs`** before a job is queued, with the same `{code, message}` body. `TOO_LARGE` is one of these: it returns 422 too, not 413.
 
 ### Input guard: no JPG/PNG, ever
 
@@ -128,8 +128,8 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
 ```
 
 - [ ] `centroidMm` / `bboxMm` are the **whole tumor**, in the same RAS mm frame as the GLB. `null` when there's no tumor.
-- [ ] `side` is computed against the **brain midline** (same x as the §1.1 split). Use `bilateral` when the whole tumor crosses it substantially. `+x` = patient **Right**.
-- [ ] `lesionCount` = connected components of WT **above a minimum size**, so stray specks don't count. Tom picks the threshold and documents it here.
+- [ ] `side` is computed against the **brain midline** (same x as the §1.1 split). `bilateral` = **at least 20% of WT voxels on each side** of the midline; otherwise the side holding the majority. `+x` = patient **Right**.
+- [ ] `lesionCount` = connected components of WT with **≥ 100 voxels** (0.1 cm³ at 1 mm isotropic), so stray specks don't count.
 - [ ] `segmentationSource` is `"model"` for SegResNet output and `"expert"` for the expert-mask fallback. The UI badge reads only this field.
 - [ ] `brain` block is included. The frontend uses it for centering, camera framing and clamping the cut plane.
 
