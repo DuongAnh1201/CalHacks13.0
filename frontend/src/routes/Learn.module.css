@@ -1,0 +1,11 @@
+.page { display: flex; flex-direction: column; height: 100vh; }
+/* 43:1203 is 350px; 43:1273 is 340px. Plan guessed 300 for the tree. */
+.grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 350px 1fr 340px; gap: 16px; padding: 16px; }
+.side { border-radius: var(--nv-radius-card); background: var(--nv-surface); }
+.stage { position: relative; min-height: 0; border-radius: var(--nv-radius-card); background: var(--nv-canvas-bg); overflow: hidden; }
+.top { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); pointer-events: none; }
+.bottom { position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+.bottom > * { pointer-events: auto; }
+.loading, .error { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--nv-text-3); }
+.retry { margin-top: 8px; padding: 8px 16px; border: 0; border-radius: var(--nv-radius-control); background: var(--nv-primary); color: #fff; }
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; grid-auto-rows: minmax(320px, auto); } }
