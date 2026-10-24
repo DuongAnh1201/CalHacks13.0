@@ -22,5 +22,6 @@ export interface Report {
   volumesCm3: { whole: number; core: number; enhancing: number };
   brain: { centroidMm: Vec3; bboxMm: BBoxMm };
   input: { shape: [number, number, number]; spacingMm: Vec3; sequences: string[] };
+  certainty?: { whole: number | null; core: number | null; enhancing: number | null } | null;
   expertDice?: { whole: number; core: number; enhancing: number };
 }
