@@ -343,7 +343,7 @@ export default function Upload() {
   export function stageRows(job: Pick<JobStatus, 'status' | 'stage'>): StageRow[]
   ```
 
-- [ ] **Step 1: Failing test** `routes/stages.test.ts`:
+- [x] **Step 1: Failing test** `routes/stages.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -365,8 +365,8 @@ describe('stageRows', () => {
 });
 ```
 
-- [ ] **Step 2:** `npm test -- src/routes/stages.test.ts` → FAIL.
-- [ ] **Step 3: Implement** `routes/stages.ts`:
+- [x] **Step 2:** `npm test -- src/routes/stages.test.ts` → FAIL.
+- [x] **Step 3: Implement** `routes/stages.ts`:
 
 ```ts
 import type { JobStatus, Stage } from '../api/types';
@@ -391,16 +391,16 @@ export function stageRows({ status, stage }: Pick<JobStatus, 'status' | 'stage'>
 }
 ```
 
-- [ ] **Step 4:** test passes.
-- [ ] **Step 5: Page.** Poll `getJob(id)` immediately, then every **1 s** (`setTimeout` after each response, `AbortController` on unmount; stop on `done`/`failed`). Behaviour:
+- [x] **Step 4:** test passes.
+- [x] **Step 5: Page.** Poll `getJob(id)` immediately, then every **1 s** (`setTimeout` after each response, `AbortController` on unmount; stop on `done`/`failed`). Behaviour:
   - `done` → `navigate(`/jobs/${id}/results`, { replace: true })`.
   - `failed` → `role="alert"` box with `job.error.message`, buttons "Retry" (→ `/`, Upload) and "Use sample case" (→ `/jobs/sample/processing`).
   - `ApiError` 404 → alert "Unknown job." + "Use sample case".
   - Network error → alert "Backend offline — start docker compose up" + "Retry" (restarts polling) + "Use sample case".
   - While `queued`/`running`: card per frame 02 (44:218): file row shows "Job `<id>`" in mono + status pill ("Queued" / "Running" / "Failed"); stage rows from `stageRows` (done = 22px green circle + check icon; active = running ring icon + bold `--nv-primary` label; pending = 1.5px grey ring; failed = `--nv-accent-warm` ring). **No progress bar, no %.** A "Use sample case" secondary button stays visible (SPEC §9 "Inference slow").
   - Stepper step 2, h1 "Preparing your study", lede "The results open as soon as segmentation finishes."
-- [ ] **Step 6:** tsc, test, lint, build. With the backend up, `/jobs/sample/processing` must land on `/jobs/sample/results` without a click; `/jobs/nope/processing` shows "Unknown job.".
-- [ ] **Step 7: Commit** `feat(processing): poll job status and stage every second (#9)`. `hc send qa "T4 ready at <hash>"`.
+- [x] **Step 6:** tsc, test, lint, build. With the backend up, `/jobs/sample/processing` must land on `/jobs/sample/results` without a click; `/jobs/nope/processing` shows "Unknown job.".
+- [x] **Step 7: Commit** `feat(processing): poll job status and stage every second (#9)`. `hc send qa "T4 ready at <hash>"`.
 
 ---
 
