@@ -146,6 +146,15 @@ describe("Markdown safety and provenance", () => {
     expect(text).not.toMatch(BANNED_EXPORT_WORDS);
   });
 
+  it("states no-tumor and unavailable certainty without inventing zero certainty", () => {
+    const report = exportReportSchema.parse({ ...sample, tumorDetected: false, side: null,
+      lesionCount: 0, volumesCm3: { whole: 0, core: 0, enhancing: 0 }, certainty: null, expertDice: undefined });
+    const text = buildMarkdown("sample", ["report"], report, empty);
+    expect(text).toContain("No tumor detected in this scan");
+    expect(text).toContain("whole | 0 | not available | not available");
+    expect(text).not.toMatch(BANNED_EXPORT_WORDS);
+  });
+
   it("redacts every banned word in author names, notes, chat, summaries and tool args", async () => {
     const { t, room } = await setup();
     const forbidden = "Diagnosis PROGNOSIS survival malignant benign healthy";
