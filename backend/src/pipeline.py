@@ -1,8 +1,4 @@
-# src/pipeline.py
-"""
-Full analysis for one job:
-  4 MRI files → predict() → clean masks → seg.nii.gz + model.glb + report.json
-"""
+"""Inference and reusable contract outputs in the input's RAS millimetres."""
 import json
 from pathlib import Path
 
@@ -11,113 +7,131 @@ import numpy as np
 import trimesh
 from scipy import ndimage
 
-from src.predict import predict
 from src.mask_to_mesh import to_mesh
 
-MIN_VOXELS = 100          # blobs smaller than this (≈0.1 cm³ at 1 mm) are treated as noise
-SEQUENCES = ("t1c", "t1", "t2", "flair")   # order the model expects
-
-# Layer name → RGBA color for the 3D model
+MIN_VOXELS = 100
+SEQUENCES = ("t1c", "t1", "t2", "flair")
 COLORS = {
-    "brain":     [200, 200, 200,  60],   # transparent gray
-    "edema":     [255, 220,   0, 140],   # yellow
-    "core":      [255, 120,   0, 255],   # orange (necrotic / non-enhancing)
-    "enhancing": [220,   0,   0, 255],   # red
+    "brain_left": [217, 212, 207, 255],
+    "brain_right": [217, 212, 207, 255],
+    "edema": [242, 201, 76, 255],
+    "core": [242, 153, 74, 255],
+    "enhancing": [235, 87, 87, 255],
 }
 
 
 def remove_small_blobs(mask, min_voxels=MIN_VOXELS):
-    """Keep only connected regions with at least min_voxels voxels."""
-    labeled, n = ndimage.label(mask)
-    if n == 0:
-        return mask
-    sizes = ndimage.sum(mask, labeled, range(1, n + 1))
-    keep_ids = np.where(sizes >= min_voxels)[0] + 1
-    return np.isin(labeled, keep_ids)
+    labeled, _ = ndimage.label(mask)
+    sizes = np.bincount(labeled.ravel())
+    keep = sizes >= min_voxels
+    keep[0] = False
+    return keep[labeled]
+
+
+def clean_brain(brain):
+    brain = ndimage.binary_fill_holes(brain)
+    labeled, count = ndimage.label(brain)
+    if not count:
+        raise ValueError("Brain mask is empty")
+    sizes = np.bincount(labeled.ravel())
+    sizes[0] = 0
+    return labeled == sizes.argmax()
+
+
+def coordinates(mask, affine):
+    return nib.affines.apply_affine(affine, np.argwhere(mask))
+
+
+def spatial_summary(points):
+    if not len(points):
+        return {"centroidMm": None, "bboxMm": None}
+    return {
+        "centroidMm": points.mean(axis=0).tolist(),
+        "bboxMm": {"min": points.min(axis=0).tolist(), "max": points.max(axis=0).tolist()},
+    }
 
 
 def save_label_map(wt, tc, et, affine, path):
-    """One NIfTI file in BraTS convention: 0 background, 1 core, 2 edema, 4 enhancing."""
     seg = np.zeros(wt.shape, dtype=np.uint8)
-    seg[wt] = 2
-    seg[tc] = 1
-    seg[et] = 4
+    seg[wt] = 1
+    seg[tc] = 2
+    seg[et] = 3
     nib.save(nib.Nifti1Image(seg, affine), path)
 
 
 def build_glb(brain, wt, tc, et, affine, path):
-    """Mesh each layer in mm coordinates and pack them into one .glb file."""
-    layers = {
-        "brain":     brain,
-        "edema":     wt & ~tc,     # whole tumor minus core
-        "core":      tc & ~et,     # core minus enhancing
-        "enhancing": et,
-    }
+    midline = coordinates(brain, affine)[:, 0].mean()
+    # Broadcast all affine terms: oblique and mirrored inputs need the full x row.
+    i, j, k = np.ogrid[tuple(slice(0, size) for size in brain.shape)]
+    x = affine[0, 0] * i + affine[0, 1] * j + affine[0, 2] * k + affine[0, 3]
+    layers = {"brain_left": brain & (x < midline),
+              "brain_right": brain & (x >= midline),
+              "edema": wt, "core": tc, "enhancing": et}
     scene = trimesh.Scene()
     for name, mask in layers.items():
-        mesh = to_mesh(mask, affine, COLORS[name])
+        is_brain = name.startswith("brain_")
+        mesh = to_mesh(mask, affine, COLORS[name], step_size=2 if is_brain else 1,
+                       max_faces=150_000 if is_brain else 50_000)
         if mesh is not None:
-            scene.add_geometry(mesh, node_name=name, geom_name=name)
-    scene.export(path)
+            scene.add_geometry(mesh, node_name=name, geom_name=name, transform=np.eye(4))
+    scene.export(str(path))
+    if Path(path).stat().st_size > 15_000_000:
+        raise ValueError("model.glb exceeds the 15 MB budget")
 
 
-def build_report(brain, wt, tc, et, affine, zooms):
-    """Detection, position (mm) and volume (cm³) from the masks."""
-    cm3_per_voxel = float(np.prod(zooms)) / 1000.0
-    report = {
-        "has_tumor": bool(wt.any()),
-        "units": "mm",
-        "axes": "RAS",
-        "centroid_mm": None,
-        "bbox_mm": None,
-        "side": None,
-        "n_lesions": int(ndimage.label(wt)[1]),
-        "volume_cm3": {
-            "whole_tumor": round(wt.sum() * cm3_per_voxel, 2),
-            "core":        round(tc.sum() * cm3_per_voxel, 2),
-            "enhancing":   round(et.sum() * cm3_per_voxel, 2),
-        },
+def build_report(brain, wt, tc, et, affine, zooms, job_id, source="model"):
+    metadata_path = Path(__file__).resolve().parents[1] / "brats_mri_segmentation/configs/metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    brain_points = coordinates(brain, affine)
+    points = coordinates(wt, affine)
+    side = None
+    if len(points):
+        left_fraction = np.mean(points[:, 0] < brain_points[:, 0].mean())
+        side = "bilateral" if 0.2 <= left_fraction <= 0.8 else ("left" if left_fraction > 0.5 else "right")
+    labeled, _ = ndimage.label(wt)
+    sizes = np.bincount(labeled.ravel())[1:]
+    voxel_cm3 = float(abs(np.linalg.det(affine[:3, :3]))) / 1000
+    return {
+        "jobId": job_id, "coordinateFrame": "RAS_mm",
+        "model": {"name": metadata["name"], "arch": metadata.get("arch", "SegResNet"),
+                  "version": metadata["version"]},
+        "segmentationSource": source, "tumorDetected": bool(wt.any()), "side": side,
+        "lesionCount": int(np.count_nonzero(sizes >= MIN_VOXELS)),
+        **spatial_summary(points),
+        "volumesCm3": {name: float(mask.sum()) * voxel_cm3 for name, mask in
+                       (("whole", wt), ("core", tc), ("enhancing", et))},
+        "brain": spatial_summary(brain_points),
+        "input": {"shape": list(brain.shape), "spacingMm": [float(z) for z in zooms],
+                  "sequences": list(SEQUENCES)},
     }
-    if not wt.any():
-        return report
-
-    idx = np.argwhere(wt)                                   # voxel indices of the tumor
-    centroid = nib.affines.apply_affine(affine, idx.mean(0))
-    report["centroid_mm"] = centroid.round(1).tolist()
-    report["bbox_mm"] = {
-        "min": nib.affines.apply_affine(affine, idx.min(0)).round(1).tolist(),
-        "max": nib.affines.apply_affine(affine, idx.max(0)).round(1).tolist(),
-    }
-
-    # Side: compare tumor centroid x with the brain's own center x (RAS: +x = right)
-    brain_center_x = nib.affines.apply_affine(affine, np.argwhere(brain).mean(0))[0]
-    report["side"] = "right" if centroid[0] > brain_center_x else "left"
-    return report
 
 
-def run(job_dir: Path) -> dict:
+def build_outputs(job_dir, brain, wt, tc, et, affine, zooms, source="model"):
+    """Build the same artifacts for model predictions or expert segmentations."""
     job_dir = Path(job_dir)
-    paths = [job_dir / f"{s}.nii.gz" for s in SEQUENCES]
-
-    # 1. Model
-    r = predict(paths)
-    affine, zooms, brain = r["affine"], r["zooms"], r["brain"]
-
-    # 2. Clean: remove specks from WT, keep TC/ET consistent (inside WT)
-    wt = remove_small_blobs(r["wt"])
-    tc = r["tc"] & wt
-    et = r["et"] & tc
-
-    # 3. Outputs
+    brain = clean_brain(brain)
+    wt = remove_small_blobs(np.asarray(wt, dtype=bool))
+    tc = np.asarray(tc, dtype=bool) & wt
+    et = np.asarray(et, dtype=bool) & tc
     save_label_map(wt, tc, et, affine, job_dir / "seg.nii.gz")
     build_glb(brain, wt, tc, et, affine, job_dir / "model.glb")
-    report = build_report(brain, wt, tc, et, affine, zooms)
+    report = build_report(brain, wt, tc, et, affine, zooms, job_dir.name, source)
     (job_dir / "report.json").write_text(json.dumps(report, indent=2))
-
     return report
+
+
+def run(job_dir, on_stage=None):
+    from src.predict import predict
+
+    job_dir = Path(job_dir)
+    if on_stage:
+        on_stage("inferring")
+    result = predict([job_dir / f"{s}.nii.gz" for s in SEQUENCES])
+    if on_stage:
+        on_stage("meshing")
+    return build_outputs(job_dir, **result)
 
 
 if __name__ == "__main__":
-    # Quick test without the API:  uv run python -m src.pipeline jobs/test
     import sys
     print(json.dumps(run(Path(sys.argv[1])), indent=2))
