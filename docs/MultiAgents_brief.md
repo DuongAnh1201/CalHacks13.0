@@ -18,10 +18,10 @@
 ---
 
 > **Everything below this line was added by the lead (claude), from Tom's brief above.**
-> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions.
-> Status: **DRAFT v3 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
+> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions. **🧭** = changed in **v4**: the D1 wording, open questions, model certainty.
+> Status: **DRAFT v4 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
 
-# 🆕 Multi-agent assistant: detailed plan (v3)
+# 🆕 Multi-agent assistant: detailed plan (v4)
 
 ## 0. 🔄 What the frontend already gives us (read before the plan)
 
@@ -121,7 +121,7 @@ Claude API tool names may only use letters, digits, `_` and `-`, so v1's `viewer
 | 🆕 (Figma "Undo") | `undo` | — | 🆕 `{ type: 'undo' }` → restores the last state from a 20-step history kept by `dispatch` | history in `dispatch` |
 | ✏️ Explain | `explain_structure` | `name`, `depth`: `brief` · `detailed` | 🔀 **MCP**: text from `content/anatomy.json`. The agent then also calls `focus_region` (dispatch) so the info panel opens | MCP tool |
 | ✏️ Explain | `explain_finding` | `job_id` | 🔀 **MCP**: the SPEC §8.3 template over `report.json` | MCP tool |
-| 🆕 Tumor size / info | `get_tumor_metrics` | `job_id`, `fields?` | 🔀 **MCP**: from `report.json`: `volumesCm3` (whole, core, enhancing), `side`, `lesionCount`, `centroidMm`, bbox size in cm, `segmentationSource`, `expertDice` when present. No report or `tumorDetected: false` → says so ("No tumor detected in this scan", never "healthy") | MCP tool |
+| 🆕 Tumor size / info | `get_tumor_metrics` | `job_id`, `fields?` | 🔀 **MCP**: from `report.json`: `volumesCm3` (whole, core, enhancing), `side`, `lesionCount`, `centroidMm`, bbox size in cm, `segmentationSource`, `expertDice` when present, 🧭 `certainty` when present (#52). No report or `tumorDetected: false` → says so ("No tumor detected in this scan", never "healthy") | MCP tool |
 | 🆕 Case facts | `get_report` | `job_id` | 🔀 **MCP**: the scan facts (shape, spacing, sequences, model name/version) | MCP tool |
 | ✏️ Search | `search` | `query`, `sources`: `atlas` · `report` · `chat` | 🔀 **MCP**: name/group match (same rule as `learn/filter.ts`) + chat history | MCP tool |
 | ✏️ Annotation | `add_annotation` / `remove_annotation` | `text` (≤ 280), `anchor`: `selected` · `tumor` · RAS mm point | **dispatch** (it puts a pin on screen) + 🆕 `annotations` table | P7 |
@@ -213,6 +213,42 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 3. It hands off to **Anatomy tutor**, which calls `explain_structure({ name: "hippocampus", depth: "brief" })` on **MCP** → ✓.
 4. Distance numbers come only from real data. On `/learn` there is no tumor, so the tutor says so. On Explore, a distance needs the atlas registered to the patient, which is out of scope (SPEC D6). The agent says it can't measure that, rather than inventing "6.2 mm".
 
+### 6.1 🧭 Open questions: how the Router handles them
+
+The Router sorts every question into one of five kinds before any specialist runs:
+
+| Kind | Example | What happens |
+|---|---|---|
+| **1. This scan or this brain** | "How big is the tumor?", "Where is the hippocampus?" | Anatomy tutor → MCP tools. Answers only with numbers and text from `report.json` / `anatomy.json`, and names the source |
+| **2. General education** | "What is a glioblastoma?", "What does edema mean?" | **Pending Tom (D13).** Proposed **A**: Claude answers from general knowledge, short, always labelled *"General information, not from this scan"*, never with numbers about this patient. Other options: **B** = A + a web search tool with cited sources (slower, needs a key); **C** = strict refusal ("I can only answer about this scan and the atlas") |
+| **3. Medical judgement** | "Is it cancer?", "How long will he live?", "Should he have surgery?", "Is the scan healthy?" | **Always refused**, fixed text: *"I can't diagnose or predict outcomes. This is an educational view, not clinically validated. Please ask a doctor."* It may still state facts: volumes, side and the model's certainty of the outline (§6.2) |
+| **4. About the app** | "What can you do?", "How do I explode the brain?" | Short help text + this page's tool list + "Try saying" chips |
+| **5. Off-topic** | "What's the weather?" | One line: "I help with the brain viewer. Try: …" |
+
+**When unsure:**
+- It asks back instead of guessing ("Left or right hippocampus?").
+- No report → "There is no patient report on this page (template atlas)."
+- No LLM key or no network → "Assistant unavailable for open questions. Commands still work."
+
+**The Guard** (code, not a prompt) blocks *diagnosis*, *prognosis*, *survival*, *malignant / benign* and *"healthy"* in every reply.
+
+### 6.2 🧭 Model certainty (Tom approved, issue #52)
+
+What the model does and doesn't give us:
+- **What SegResNet gives:** a per-voxel probability for each region (TC, WT, ET).
+- **What `predict.py` does with it today:** cuts it at 0.5 and throws the probabilities away, so `report.json` has **no confidence field**.
+- **What `expertDice` is:** it exists on the seeded samples only. It measures **agreement with the expert outline**, not how sure the model is.
+- **What the model can't do:** decide "cancer or not" or the tumor type. It was trained on glioma scans (BraTS) and only outlines regions.
+
+**Change (contract v1.2, issue #52, codex1):**
+- `report.json` gets `"certainty": { "whole", "core", "enhancing" }`: the mean model probability inside each segmented region, 0–1.
+- An empty region gives `null`, and so do expert segmentations.
+- The seeds are regenerated with it.
+
+**How the agent may use it:** only as *"the model's average certainty for the outlined region is 93%. This measures the outline, not a diagnosis."* It is not calibrated, so it is never called a probability of disease.
+
+**Example answer to "Is it cancer?":** *"I can't diagnose. The model outlined a 136 cm³ region in the right hemisphere, with an average outline certainty of 93%. That describes the outline, not what the tissue is. Please ask a doctor."*
+
 **Convex files (P3):**
 
 | File | Contents |
@@ -264,7 +300,7 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 |---|---|---|
 | `explain_structure` | `anatomy.json`, `structures.json` | description, functions, "when damaged", side, group, volume |
 | `explain_finding` | `report.json` | the SPEC §8.3 template text |
-| `get_tumor_metrics` | `report.json` | volumes (whole, core, enhancing), side, lesions, size, source, Dice when present |
+| `get_tumor_metrics` | `report.json` | volumes (whole, core, enhancing), side, lesions, size, source, Dice when present, 🧭 `certainty` when present |
 | `get_report` | `report.json` | scan facts and model version |
 | `search` | atlas list, report, chat | matches with where they came from |
 | `summarize` | session chat + tool steps | summary text; stored in `sessionSummaries` |
@@ -298,9 +334,9 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 
 | # | Decision | Proposed |
 |---|---|---|
-| D1 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Amend D8: fast path stays deterministic and offline; Claude agents added behind it |
+| D1 🧭 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
 | D2 | 🔄 M6 (wider shared view) | Not needed for chat, voice or MCP any more; keep for multi-viewer review (P8) |
-| D3 | M4: affine in `report.json` (contract v1.2) | Only needed for P7 annotations on Explore |
+| D3 | M4: affine in `report.json` (🧭 now contract **v1.3**, since v1.2 is the certainty field) | Only needed for P7 annotations on Explore |
 | D4 | LLM key and Router model | `claude-opus-5-5`, effort `low`; or `claude-haiku-5-5` for the Router |
 | D5 | Auto-export triggers | job done + leaving Explore |
 | D6 | What ships before the h29 freeze | 🔀 P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
@@ -310,12 +346,15 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D10 🆕 | Frontend ownership | PR #50 merges first; Ben reviews the frontend PRs from this plan |
 | D11 🔀 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
 | D12 🔀 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
+| D13 🧭 | General-education questions (§6.1 kind 2) | **A** (general knowledge, labelled). B = + web search; C = strict refusal |
+| D14 🧭 ✅ | Model certainty in `report.json` | **Approved by Tom.** Issue #52, contract v1.2 |
 
 ## 11. 🔄 Build phases (each = one GitHub issue, merged only by Tom)
 
 | # | Phase | Owner | Done when (acceptance) |
 |---|---|---|---|
-| P0 | Decisions D1–D10; SPEC D8 amendment | lead + Tom | Decision Log lines merged |
+| P0 | Decisions D1–D13; SPEC D8 amendment (D1 text in §10) | lead + Tom | Decision Log lines merged |
+| P0b 🧭 | Model certainty in `report.json` (#52, contract v1.2) | codex1 | **in progress**; acceptance in #52 |
 | **P1** | Pure `reduce` + `cameraCommands` + new actions (zoom, rotate, spin, undo) + `actionLog` + `tools.ts` + `parseIntent` + `resolveTarget` + Agent Panel with a text box, on `/learn` | codex1 (logic) + claude2 (panel), Ben reviews | On `/learn`, typing each of these changes the view and shows a ✓ row with ms: "zoom to 150%", "left view", "spin", "x-ray", "cortex 20%", "explode 50%", "isolate the left hippocampus", "hide the cortex", "undo", "reset". Existing dispatch tests still pass; new tests for every parser phrase and every tool's `toActions`. **No Convex, no LLM** |
 | P2 | Push-to-talk + voice chip + suggestion chips + Script tab | claude2 | Same 10 phrases by voice in Chrome; mic denied → `Voice off`, text still works |
 | P3 | Convex client in the frontend + `agentRuns` + `agent.ask` / `run` + Router + Navigator (viewer tools only) | codex2 | The viewer half of the Figma request works end to end; 40-phrase eval ≥ 90% correct tool calls; with no key: "Assistant unavailable", fast path still works |
@@ -343,7 +382,9 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
   - numbers equal `report.json` exactly;
   - no-tumor and no-report wording;
   - bad token → 401;
+  - 🧭 `certainty` passed through exactly; `null` → the tool says the certainty is not available;
   - MCP Inspector run.
+- 🧭 **Open questions:** 10 phrases per kind (§6.1). Kind 3 is always refused, kind 5 always redirected; the Guard word list is tested on replies.
 - **Eval:** 40 phrases per page with the expected tool calls, run on every prompt change.
 - **Manual:**
   - the Figma request;
@@ -378,3 +419,9 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 - 🔀 §8: `neuro-mcp` hosted on Convex's HTTP endpoint (no extra server). Viewer tools over MCP are optional (pairing, P5).
 - 🔀 §10: D6 updated; new D11 (how the agent calls MCP) and D12 (PDF).
 - 🔀 §11: P4 is now the MCP knowledge server (before the freeze); P5 is optional.
+
+**v4 (2026-10-24), after Tom's Telegram questions:**
+- 🧭 §10 D1: the exact replacement text for SPEC D8.
+- 🧭 §6.1: how the Router handles open questions (5 kinds). General education is pending Tom (new D13); medical judgement is always refused, with fixed text.
+- 🧭 §6.2: model certainty. Today the model's probabilities are discarded. Tom approved a per-region `certainty` field (issue #52, contract v1.2, new D14). The agent may only call it certainty of the outline, never a probability of disease.
+- 🧭 §3, §8: `get_tumor_metrics` returns `certainty`. §10 D3 is renumbered to contract v1.3. §11 adds P0b (#52). §12 adds certainty and open-question tests.
