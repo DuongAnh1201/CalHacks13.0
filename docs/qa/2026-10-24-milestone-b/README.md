@@ -11,8 +11,8 @@ Checks 1-13 ran at `6e98090`; header/footer commit `4b9791a` landed during the r
 | 2 | `.jpg` picked: contract message shown, no `POST /jobs` | PASS (no `/jobs` fetch in resource timing) | 02-jpg-rejected.jpg |
 | 3 | Use sample → Results; Processing never shows a % | PASS. Sample job is already `done`, so it lands on Results directly; no `%` text on any screen. | 04-results-sample.jpg |
 | 4 | Results `sample`: Tumor detected, 136.3 / 61.6 / 34.3 cm³, Right hemisphere, 1 lesion, Dice, limitations incl. training-case line | PASS. Also 5.5 × 8.9 × 7.3 cm tile and Dice 0.89/0.96/0.88. No invented values. | 04-results-sample.jpg |
-| 4b | Results layout vs `03-workspace.png` | FAIL: panels padded 16px, header inset 24px, panels overhang header 8px each side (`Results.module.css:14`). Owner fe. | 04-results-sample.jpg, figma-results.jpg |
-| 4c | Processing layout vs `02-processing.png` | FAIL: card sits at top, Figma centers it vertically (`FlowPage.module.css:12`). Owner fe. | figma-processing.jpg, 14-offline-processing.jpg |
+| 4b | Results layout vs `03-workspace.png` | FAIL at `6e98090` (panels overhang header 8px each side). PASS after `f326915`: header and panels both span x 24–1708 at a 1732px viewport. | 04-results-sample.jpg, figma-results.jpg |
+| 4c | Processing layout vs `02-processing.png` | FAIL at `6e98090` (card at top, Figma centers it). PASS after `4ed75d7`: step-2 main centered, h1 top 387 in an 851px viewport, no page scroll (seen in the offline state, same layout as running). | figma-processing.jpg, 14-offline-processing.jpg |
 | 5 | `sample-2`: Left hemisphere | PASS (67.7 / 9.7 / 7.5 cm³, Dice 0.92/0.85/0.87) | 05-results-sample-2-left.jpg |
 | 6 | Place in 3D → `/jobs/sample/explore`: brain loads, tumor hidden, no console errors | PASS. Only warning: `THREE.Clock deprecated` (three internals). | 06-explore-loaded-tumor-hidden.jpg |
 | 7 | Show tumor: tumor on patient-right, camera frames it; two `[case] tumor world position` logs identical | PASS. Both logs `37.20, -8.70, -9.30`. | 07-show-tumor.jpg |
@@ -26,4 +26,4 @@ Checks 1-13 ran at `6e98090`; header/footer commit `4b9791a` landed during the r
 | 14 | Explore layout vs `04-explore.png` | PASS: warm bg, floating header/footer, right panel real data only; Figma left HUD, telemetry and agent panels not shipped by design. | figma-explore.jpg, 07-show-tumor.jpg |
 | 15 | Header/footer after `4b9791a` on `/`, `/jobs/sample/results`, `/jobs/sample-2/results`, `/jobs/sample/explore`, `/learn`: header 12px card, footer 8px card, 24px left inset | PASS. Measured by `getBoundingClientRect`: left 24, header radius 12, height 58; footer radius 8, height 38; explore/learn footer pinned 8px above viewport bottom, upload/results footers sit at end of scrolling content. Right inset 24 (37 where the page scrollbar shows). | 16-learn-header-footer.jpg |
 
-Totals: 16 PASS / 2 FAIL / 0 not run.
+Totals: 18 PASS / 0 FAIL / 0 not run, all FAILs found were fixed and re-verified.
