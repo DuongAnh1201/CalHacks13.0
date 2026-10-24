@@ -511,7 +511,7 @@ export const cm3 = (v: number) => `${v.toFixed(1)} cm³`;
   export function buildCaseScene(gltfScene: THREE.Object3D, report: Report): CaseScene
   ```
 
-- [ ] **Step 1: Failing test** `viewer/loadCase.test.ts`:
+- [x] **Step 1: Failing test** `viewer/loadCase.test.ts`:
 
 ```ts
 import * as THREE from 'three';
@@ -569,8 +569,8 @@ describe('buildCaseScene', () => {
 });
 ```
 
-- [ ] **Step 2:** `npm test -- src/viewer/loadCase.test.ts` → FAIL.
-- [ ] **Step 3: Implement** `viewer/loadCase.ts`:
+- [x] **Step 2:** `npm test -- src/viewer/loadCase.test.ts` → FAIL.
+- [x] **Step 3: Implement** `viewer/loadCase.ts`:
 
 ```ts
 import * as THREE from 'three';
@@ -632,8 +632,8 @@ export function buildCaseScene(gltfScene: THREE.Object3D, report: Report): CaseS
 }
 ```
 
-- [ ] **Step 4:** tests pass. `npx tsc -b`, `npm run lint`.
-- [ ] **Step 5: Commit** `feat(viewer): loadCase builds the SPEC §6 scene graph, names missing nodes (#10)`. `hc send qa "T6 ready at <hash>"`.
+- [x] **Step 4:** tests pass. `npx tsc -b`, `npm run lint`.
+- [x] **Step 5: Commit** `feat(viewer): loadCase builds the SPEC §6 scene graph, names missing nodes (#10)`. `hc send qa "T6 ready at <hash>"`.
 
 ---
 
