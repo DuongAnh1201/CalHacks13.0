@@ -162,7 +162,7 @@ The Figma frame already designs the chat and voice UI. Mapping each part to code
 | Context chips ("Tumor · focused", "Explode 75%") | `ContextChips` | derived from `useViewer` (mode, explode %, selection, isolate). Also sent to the agent as context |
 | Event row ("Pinch · you selected Hippocampus") | `ConversationLog` | 🆕 `actionLog` bus: `dispatch` emits `{ source, action, result }` for **every** source, so pointer and gesture actions show here too |
 | User bubble ("You · voice · 10:45") | `ConversationLog` | transcript + source |
-| Agent message with its role label and reply | `ConversationLog` | `agentRuns.reply` + which specialist answered. ✏️ Figma says "Neuro · Clinical Reasoner"; proposed **"Neuro · Navigator" / "Neuro · Anatomy tutor" / "Neuro · Scribe"**, since "clinical" clashes with the no-diagnosis rule (D9) |
+| Agent message with its role label and reply | `ConversationLog` | `agentRuns.reply` + which specialist answered. ✏️ Figma says "Neuro · Clinical Reasoner"; **decided (D6): "Neuro · Navigator" / "Neuro · Anatomy tutor" / "Neuro · Scribe"**; "clinical" is never shown (no-diagnosis rule) |
 | **Tool Calls** rows: ✓ + `focus_region("right_temporal")` + "14 ms" | `ToolCallRow` (Figma `45:30`) | one row per step: call text, ✓ or ✗ with the dispatch message, latency = server time + apply time |
 | "Try saying" chips | `SuggestionChips` | from state: exploded → "Bring it back together"; X-Ray → "Bring cortex back"; selection → "Explain this"; else the SPEC §8.3 phrases |
 | Voice Input Bar: mic, live transcript, waveform, "Hold Space or open palm to talk" | `VoiceInputBar` + `usePushToTalk` | Web Speech API interim results; a text box is always there (SPEC §8.3 fallback) |
@@ -341,7 +341,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D3 ✅ #77 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
 | D4 ✅ #78 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
 | D5 ✅ #79 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
-| D6 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
+| D6 ✅ #80 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
 | D7 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
 | D8 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
 | D9 | General-education questions (§6.1 kind 2) | **A** (general knowledge, labelled). B = + web search; C = strict refusal |
