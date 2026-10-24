@@ -74,6 +74,12 @@ Workspace `w33`, checked 2026-10-23 with `hc who` / `hp status`:
    - `hc send qa "review T<n> at <sha>: <one line>"`
    - `hc send lead "T<n> done at <sha>"`
 6. `qa` replies to the lead with `T<n> PASS` or `T<n> FAIL: <file:line> <problem>`. The owner fixes FAILs in a new commit.
+7. **GitNexus.** The repo is indexed as `CalHacks13.0`, and the MCP server `gitnexus` is configured for Claude Code, Codex and Cursor. `AGENTS.md` and `CLAUDE.md` in the repo root hold the rules; they are local-only, ignored by the global gitignore.
+   - Before editing an existing symbol (a function, component or store field another task produced), run `impact({target, direction: "upstream", repo: "CalHacks13.0"})`.
+   - Before each commit, run `detect_changes({repo: "CalHacks13.0"})`.
+   - New files have no callers yet, so an empty impact result is normal there.
+   - **Only the lead re-indexes** (`gitnexus analyze`, after each qa PASS). The checkout and index are shared, so concurrent `analyze` runs from several panes would race. A worker that finds the index stale sends `hc send lead "reindex"`.
+   - qa uses `detect_changes({scope: "compare", base_ref: "main", repo: "CalHacks13.0"})` in every review.
 
 **Dispatch template (lead → worker):**
 ```
