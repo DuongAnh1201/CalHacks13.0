@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fracsOf, indicesOf, sameIndices, toFrac, toIdx } from './mprSync';
+import { fracsOf, indicesOf, maskCommand, sameIndices, toFrac, toIdx } from './mprSync';
 
 const DIMS = [3, 240, 240, 155]; // NiiVue dimsRAS: [ndim, x, y, z]
 
@@ -15,5 +15,12 @@ describe('mprSync', () => {
     expect(indicesOf(fracsOf(idx, DIMS), DIMS)).toEqual(idx);
     expect(sameIndices(idx, { ...idx })).toBe(true);
     expect(sameIndices(idx, { ...idx, axial: 0 })).toBe(false);
+  });
+  it('mask: sends setTumorVisible only for an active host whose overlay state differs from the session', () => {
+    expect(maskCommand(true, true, false)).toEqual({ type: 'setTumorVisible', visible: true }); // a session started after the page mounted
+    expect(maskCommand(false, true, true)).toEqual({ type: 'setTumorVisible', visible: false });
+    expect(maskCommand(true, true, true)).toBeNull();
+    expect(maskCommand(null, true, false)).toBeNull(); // page has not reported its overlay yet
+    expect(maskCommand(true, false, false)).toBeNull(); // not an active host
   });
 });

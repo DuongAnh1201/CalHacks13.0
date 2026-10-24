@@ -1,6 +1,6 @@
 import type { Axis } from '../actions/types';
 import { AXIS_INDEX, sliceOf } from '../viewer/slices';
-import type { SliceIndices } from './types';
+import type { SliceIndices, ViewerCommand } from './types';
 
 const AXES: readonly Axis[] = ['axial', 'coronal', 'sagittal'];
 
@@ -17,3 +17,7 @@ export const fracsOf = (idx: SliceIndices, dimsRAS: ArrayLike<number>): [number,
   [toFrac(idx.sagittal, dimsRAS[1]), toFrac(idx.coronal, dimsRAS[2]), toFrac(idx.axial, dimsRAS[3])];
 
 export const sameIndices = (a: SliceIndices, b: SliceIndices) => AXES.every((x) => a[x] === b[x]);
+
+/** What an active host must send so the session's mask flag matches its overlay; null when nothing to send. */
+export const maskCommand = (mask: boolean | null, activeHost: boolean, sessionVisible: boolean): ViewerCommand | null =>
+  activeHost && mask !== null && mask !== sessionVisible ? { type: 'setTumorVisible', visible: mask } : null;

@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { sameIndices } from './mprSync';
+import { maskCommand, sameIndices } from './mprSync';
 import { sendView, setFollowing, useShare } from './store';
 import type { SliceIndices } from './types';
 
@@ -29,12 +29,18 @@ export function useMprShare(jobId: string): { onCrosshair: (idx: SliceIndices) =
     }
   }, [jobId]);
 
-  const onMaskVisible = useCallback((visible: boolean) => {
-    const { stored, session } = useShare.getState();
-    if (jobId === 'sample' && session?.status === 'active' && stored?.role === 'host' && session.view.tumorVisible !== visible) {
-      void sendView([{ type: 'setTumorVisible', visible }]);
-    }
-  }, [jobId]);
+  // The page reports its overlay state on mount, usually before any session exists; keep it for when one starts.
+  const mask = useRef<boolean | null>(null);
+  const hostSession = useShare((s) => jobId === 'sample' && s.stored?.role === 'host' && s.session?.status === 'active' ? s.session.sessionId : null);
+  const hostVisible = useShare((s) => hostSession && s.session?.status === 'active' ? s.session.view.tumorVisible : false);
+  const syncMask = useCallback(() => {
+    const { session } = useShare.getState();
+    const cmd = maskCommand(mask.current, !!hostSession, session?.status === 'active' ? session.view.tumorVisible : false);
+    if (cmd) void sendView([cmd]);
+  }, [hostSession]);
+  const onMaskVisible = useCallback((visible: boolean) => { mask.current = visible; syncMask(); }, [syncMask]);
+  // Session just became active, or the server's flag drifted from the overlay: send once. A rejected send leaves hostVisible unchanged, so no retry loop.
+  useEffect(() => { syncMask(); }, [syncMask, hostVisible]);
 
   return { onCrosshair, onMaskVisible, remote };
 }
