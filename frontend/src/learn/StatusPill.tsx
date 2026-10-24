@@ -6,7 +6,9 @@ export function StatusPill() {
   const explode = useViewer((s) => s.explodeAmount);
   return (
     <div className={css.pill} role="status">
-      <span className={css.dot} />{mode === 'xray' ? 'X-Ray' : 'Solid'} · Explode {Math.round(explode * 100)}%
+      <span className={css.title}>{mode === 'xray' ? 'X-Ray' : 'Solid'}</span>
+      <span className={css.sep} />
+      <span className={css.detail}>Explode {Math.round(explode * 100)}%</span>
     </div>
   );
 }

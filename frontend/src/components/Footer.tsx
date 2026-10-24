@@ -12,7 +12,7 @@ export function Footer() {
         <span>Regulatory Note</span>
         <span>Data Accuracy</span>
         <span>Documentation</span>
-        <span className={css.guide}>Gesture Guide</span>
+        <span>Gesture Guide</span>
       </div>
     </footer>
   );

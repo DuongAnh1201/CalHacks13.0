@@ -1,0 +1,30 @@
+# Milestone B browser verification (T10)
+
+HEAD `4b9791a`, Chrome, viewport 1568x765, Vite dev server on :5173, docker backend on :8000 (jobs `sample` right, `sample-2` left).
+Automated: vitest 10 files / 53 tests pass · `tsc -b` OK · `npm run build` OK · `npm run lint` 0 errors (2 old warnings).
+Checks 1-13 ran at `6e98090`; header/footer commit `4b9791a` landed during the run and was re-measured (row 15).
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | `/` layout vs `01-upload.png`; samples above dropzone; NIfTI-only copy; educational footer | PASS | 01-upload.jpg, figma-upload.jpg |
+| 1b | Keyboard: Tab reaches all 5 file inputs (Browse + 4 sequences), focus ring on label | PASS. Order: 2 sample buttons, Browse files, 4 × Choose. Label outline solid 2px. Enter-opens-picker not testable (native dialog); inputs are real `<input type=file>` focus targets. | 03-focus-browse-files.png |
+| 2 | `.jpg` picked: contract message shown, no `POST /jobs` | PASS (no `/jobs` fetch in resource timing) | 02-jpg-rejected.jpg |
+| 3 | Use sample → Results; Processing never shows a % | PASS. Sample job is already `done`, so it lands on Results directly; no `%` text on any screen. | 04-results-sample.jpg |
+| 4 | Results `sample`: Tumor detected, 136.3 / 61.6 / 34.3 cm³, Right hemisphere, 1 lesion, Dice, limitations incl. training-case line | PASS. Also 5.5 × 8.9 × 7.3 cm tile and Dice 0.89/0.96/0.88. No invented values. | 04-results-sample.jpg |
+| 4b | Results layout vs `03-workspace.png` | FAIL at `6e98090` (panels overhang header 8px each side). PASS after `f326915`: header and panels both span x 24–1708 at a 1732px viewport. | 04-results-sample.jpg, figma-results.jpg |
+| 4c | Processing layout vs `02-processing.png` | FAIL at `6e98090` (card at top, Figma centers it). PASS after `4ed75d7`: step-2 main centered, h1 top 387 in an 851px viewport, no page scroll (seen in the offline state, same layout as running). | figma-processing.jpg, 14-offline-processing.jpg |
+| 5 | `sample-2`: Left hemisphere | PASS (67.7 / 9.7 / 7.5 cm³, Dice 0.92/0.85/0.87) | 05-results-sample-2-left.jpg |
+| 6 | Place in 3D → `/jobs/sample/explore`: brain loads, tumor hidden, no console errors | PASS. Only warning: `THREE.Clock deprecated` (three internals). | 06-explore-loaded-tumor-hidden.jpg |
+| 7 | Show tumor: tumor on patient-right, camera frames it; two `[case] tumor world position` logs identical | PASS. Both logs `37.20, -8.70, -9.30`. | 07-show-tumor.jpg |
+| 8 | Orbit, Reset view: camera returns to first frame, tumor hides | PASS. Reset frame equals the settled direct-load frame. First screenshot after a click-through was taken mid-camera-animation (4 s), so compare settled frames. | 08-orbit.jpg, 09-reset-view.jpg, 10-direct-load-settled.jpg |
+| 9 | Broken GLB (`brain_left` → `brain_LEFT`): error names `brain_left` | PASS: "3D model is missing node: brain_left" + Retry. `jobs/sample-broken` deleted afterwards. | 11-broken-glb-error.jpg |
+| 9b | Same screen, rest of UI | FAIL at `6e98090` (legend said "not in this case", buttons enabled). PASS after `9c9c3ac`: legend hidden, Show tumor / Reset view disabled; after restoring the GLB, Retry re-enables both and the brain renders. | 11-broken-glb-error.jpg, 17-broken-glb-after-fix.jpg, 18-broken-glb-retry-recovers.jpg |
+| 10 | Backend stopped: `/` shows "Backend offline — start docker compose up"; Processing/Results show message + Retry | PASS. Backend restarted afterwards (`/health` ok, model.glb 200). | 12, 13, 14 |
+| 11 | Real upload (user case `~/Desktop/test/{t1c,t1,t2,flair}.nii.gz`, ~3 MB each, files not copied into the repo), live stages | PASS (UI picker not exercised: `file_upload` refused the path, so the 4 files were POSTed with curl to `/jobs`, 201 in 1.1 s, `job-pkrix1bx`, then the UI opened at `/jobs/<id>/processing`). Processing showed Check the 4 sequences done and Segment the tumor active for the whole CPU inference; job `done` about 90 s after creation. The `meshing` stage was not seen (status polls at 2 s only returned `inferring`). Results: 136.3 / 61.6 / 34.3 cm³, Right hemisphere, 1 lesion, 5.5 × 8.9 × 7.3 cm, no Dice row and no training-case line (non-sample job). Explore: brain renders, Show tumor frames the tumor, both `[case]` logs `37.20, -8.70, -9.30`, Reset returns to the home view, no console errors. Numbers equal `sample`, so the user case is the sample data. | 19-real-upload-processing-t0.jpg, 20, 21, 22, 23 |
+| 12 | Banned word in non-test `frontend/src` | PASS (grep empty; `copy.test.ts` passes) | none |
+| 13 | `/learn` regression smoke: loads, no console errors, click structure → fly-to + panel (name, chips, volume, text, neighbours, "Educational · unreviewed") | PASS. Full 16-check suite from `2026-10-23-learn` not rerun. | 15-learn-select.jpg |
+| 14 | Explore layout vs `04-explore.png` | PASS: warm bg, floating header/footer, right panel real data only; Figma left HUD, telemetry and agent panels not shipped by design. | figma-explore.jpg, 07-show-tumor.jpg |
+| 15 | Header/footer after `4b9791a` on `/`, `/jobs/sample/results`, `/jobs/sample-2/results`, `/jobs/sample/explore`, `/learn`: header 12px card, footer 8px card, 24px left inset | PASS. Measured by `getBoundingClientRect`: left 24, header radius 12, height 58; footer radius 8, height 38; explore/learn footer pinned 8px above viewport bottom, upload/results footers sit at end of scrolling content. Right inset 24 (37 where the page scrollbar shows). | 16-learn-header-footer.jpg |
+| 16 | Upload picker accept after `ba34727` (macOS greyed out `.nii.gz`) | PASS for code and DOM: all 5 file inputs have `accept=".nii,.gz"` (multi + 4 per-sequence); a synthetic `stray.gz` change event shows INVALID_FORMAT_MESSAGE ("Images and screenshots don't contain 3D scan data…"); vitest 53, tsc, build ok, lint 2 old warnings. **Native macOS picker not exercised** (automation cannot drive it; the user's manual pick of a `.nii.gz` is the real check). | none |
+
+Totals: 19 PASS / 0 FAIL / 0 not run, all FAILs found were fixed and re-verified.
