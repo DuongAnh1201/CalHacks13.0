@@ -1,18 +1,21 @@
 import type { ConvexClient } from 'convex/browser';
 import { create } from 'zustand';
-import { api, convex } from './client';
+import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NO_SAMPLE, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
+import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
 import type { SessionState, ViewerCommand } from './types';
 
 type Client = Pick<ConvexClient, 'query' | 'mutation' | 'onUpdate'>;
 
-interface ShareState { stored: Stored | null; session: SessionState | null; notice: string | null; syncNote: string | null }
+/** `online` holds participantIds with an open tab (Phase 3 presence), separate from the roster. */
+interface ShareState { stored: Stored | null; session: SessionState | null; notice: string | null; syncNote: string | null; online: Set<string> }
 
 let client: Client | null = convex;
 let unsubscribe: (() => void) | null = null;
+let stopPresence: (() => void) | null = null;
 
-export const useShare = create<ShareState>()(() => ({ stored: loadStored(), session: null, notice: null, syncNote: null }));
+export const useShare = create<ShareState>()(() => ({ stored: loadStored(), session: null, notice: null, syncNote: null, online: new Set<string>() }));
 export const shareConfigured = () => client !== null;
 export function useClientForTest(c: Client | null): void { unsubscribe = null; client = c; }
 
@@ -24,12 +27,16 @@ const auth = (s: Stored) => ({ sessionId: s.sessionId, participantToken: s.parti
 function drop(notice: string | null): void {
   unsubscribe?.();
   unsubscribe = null;
+  stopPresence?.();
+  stopPresence = null;
   clearStored();
-  useShare.setState({ stored: null, session: null, notice, syncNote: null });
+  useShare.setState({ stored: null, session: null, notice, syncNote: null, online: new Set<string>() });
 }
 
 function watch(s: Stored): void {
   unsubscribe?.();
+  stopPresence?.();
+  stopPresence = startPresence(client!, s, (online) => useShare.setState({ online }), convexUrl);
   unsubscribe = client!.onUpdate(api.sessions.get, auth(s), (session: SessionState) => useShare.setState({ session }), (e: Error) => {
     const code = codeOf(e);
     if (code === 'SESSION_ENDED') drop(SESSION_ENDED);
