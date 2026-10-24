@@ -39,7 +39,7 @@ describe('share store', () => {
   it('startShare creates a session on the seeded sample and subscribes', async () => {
     const f = fakeClient(); useClientForTest(f.client as never);
     expect(await startShare()).toBeNull();
-    expect(f.calls.map((c) => c[0])).toEqual(['scans:getByJobId', 'sessions:create']);
+    expect(f.calls.map((c) => c[0]).filter((n) => !n.startsWith('presence:'))).toEqual(['scans:getByJobId', 'sessions:create']); // presence: presence.test.ts
     expect(f.calls[1][1]).toEqual({ scanId: 'scan1', hostDisplayName: 'Host' });
     expect(useShare.getState().stored).toMatchObject({ role: 'host', inviteCode: 'ABC123' });
     f.subs[0].onData(SESSION);
