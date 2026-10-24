@@ -18,10 +18,10 @@
 ---
 
 > **Everything below this line was added by the lead (claude), from Tom's brief above.**
-> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames.
-> Status: **DRAFT v2 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
+> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions.
+> Status: **DRAFT v3 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
 
-# 🆕 Multi-agent assistant: detailed plan (v2)
+# 🆕 Multi-agent assistant: detailed plan (v3)
 
 ## 0. 🔄 What the frontend already gives us (read before the plan)
 
@@ -36,52 +36,73 @@ v1 was planned from the docs. v2 is planned from the code on `main` and in PR #5
 | Camera is drei `CameraControls`, home pose `[-260, 80, -200]`, distance limits 20–900 mm, Reset via `viewEvents` | `viewer/AtlasCanvas.tsx`, `viewer/CaseCanvas.tsx` | Zoom and rotate are camera commands sent through the same `viewEvents` bus as Reset. |
 | `/learn`: 95 atlas structures, Solid / X-Ray, cortex opacity, explode, L / R, isolate, search, info panel | `routes/Learn.tsx`, `learn/*` | The richest page. **The assistant ships here first.** |
 | `/jobs/:id/explore` (PR #50): brain + tumor, Show tumor, Reset only. `CaseCanvas` ignores `brainOpacity`, `hidden`, `layers` and `explodeAmount` today | `routes/Explore.tsx`, `viewer/CaseCanvas.tsx` | Most viewer tools can't do anything here until the Explore controls land (Milestone D). The agent must only offer tools the page supports (§3.3). |
-| Educational text for every structure: description, functions, "when damaged" | `frontend/src/content/anatomy.json` | The ground truth for `explain_structure`. No invented anatomy. |
+| Educational text for every structure: description, functions, "when damaged" | `frontend/src/content/anatomy.json` | The ground truth for the MCP `explain_structure` tool. No invented anatomy. |
 | Figma frame 04 has a full **"Neuro Agent" panel** (nodes `46:*`) and a **Tool Call** row (`45:30`) | `docs/figma/04-explore.png`, `04-explore.ref.tsx`, `symbol-tool-call.ref.tsx` (PR #50) | That panel is the UI spec for chat and voice (§4). |
 | **No Convex client in the frontend** (`convex` is not in `frontend/package.json`) | | Adding it is a P3 task. P1 and P2 work with no Convex and no LLM. |
 
-## 1. 🆕 Goal
+## 1. 🔀 Goal
 
-Chat and voice both drive the same **tool calls**. A tool call becomes a typed `Action` and goes through the existing `dispatch`, so the panel, the keyboard and the assistant all change the viewer the same way. Claude agents run in **Convex** actions. The same tools are served over **MCP**, so Claude Desktop can drive the viewer as well.
+Chat and voice share one assistant. Its tools come in **two kinds** (Tom's split, v3):
 
-## 2. 🔄 Architecture: tools run in the browser, Convex carries them
+| Kind | Examples | Runs through | Why |
+|---|---|---|---|
+| **Viewer actions**: change what is on screen | zoom, rotate, spin, mode, opacity, explode, isolate, show/hide, focus, reset, undo | **`dispatch`** in the browser | the viewer state and the camera live in the browser; they must feel instant |
+| **Knowledge and documents**: read real data or build a document, never change the view | explain a brain structure, tumor size and other report numbers, search, summary, export | **MCP server** (`neuro-mcp`) | read-only or document-producing; one server that the in-app agents **and** outside clients (Claude Desktop) share |
+
+The Claude agents run in **Convex** actions and use both kinds in one request: "rotate left and tell me the tumor volume" = `rotate_view` applied in the browser + `get_tumor_metrics` answered by MCP.
+
+## 2. 🔀 Architecture: viewer tools through `dispatch`, knowledge tools through MCP
 
 ```
  AgentPanel text box ─┐
  Push-to-talk (Space) ┤
                       ▼
-            parseIntent(text, page)            ← in the browser, no network, no LLM (SPEC D8)
+            parseIntent(text, page)            ← browser, no network, no LLM (SPEC D8); viewer commands only
               │ match                │ no match
               ▼                      ▼
-        tool calls          Convex mutation agent.ask({ clientId, text, source, snapshot })
+        viewer tool calls   Convex mutation agent.ask({ clientId, text, source, snapshot })
               │                      ▼ schedules
-              │             internalAction agent.run: Router → one specialist (Claude, ≤ 6 tool turns)
-              │               · viewer tool → checked with the SAME pure reducer → tool_result → appended to agentRuns.steps
-              │               · knowledge tool → runs on the server (anatomy.json, report.json)
+              │             internalAction agent.run: Router → specialist (Claude, ≤ 6 tool turns)
+              │               │
+              │               ├─ VIEWER tool_use → checked with the SAME pure reducer → tool_result
+              │               │                    → appended to agentRuns.steps (browser applies it)
+              │               │
+              │               └─ KNOWLEDGE / DOCUMENT tool → MCP server `neuro-mcp` (Convex HTTP endpoint /mcp)
+              │                    explain_structure · get_tumor_metrics · get_report · search ·
+              │                    summarize · export_document
+              │                    reads ONLY report.json / anatomy.json / structures.json / the session's chat
               │                      ▼
               │             agentRuns row (status, steps[], reply)
-              │                      │ useQuery subscription: each new step is applied once (by step id)
+              │                      │ useQuery subscription: each viewer step is applied once (by step id)
               ▼                      ▼
         toolToActions(step) ──► dispatch(action, 'voice' | 'chat' | 'mcp') ──► useViewer ──► 3D view
-                                     │
-                                     └─► actionLog event ──► AgentPanel shows a Tool Call row (✓/✗, message, ms)
+                                     └─► actionLog ──► AgentPanel Tool Call rows (✓/✗, message, ms)
+                                                       (MCP steps show as rows too, with an "MCP" tag)
 
- MCP client (Claude Desktop) ─► mcp/ server ─► Convex mutation agent.callTool({ pairCode, name, args })
-                                               └─► agentRuns row with one step ─► same browser path as above
+ Claude Desktop / Claude Code ─► neuro-mcp (same server, same knowledge + document tools)
+                                 └─ optional: viewer tools, forwarded to a paired browser (§8.3)
 ```
 
-**Why the browser applies the tools (🔄 replaces v1 §3 "widen `sessions.view` first"):**
-- The viewer state (`useViewer`) and the camera live in the browser. A server agent can't move the camera directly.
-- Applying the step through `dispatch` keeps the house rule: one door, one validation (SPEC §7.3).
-- v1's wider shared view (M6) is still useful for **multi-viewer** live review, but it is no longer needed to ship chat, voice or MCP. It moves to P8.
+**Why viewer actions stay on `dispatch`:**
+- The viewer state (`useViewer`) and the camera live in the browser. A server can't move the camera directly.
+- One door, one validation (SPEC §7.3).
+- Viewer commands must feel instant, so they skip the extra MCP hop.
+- v1's wider shared view (M6) is still needed for **multi-viewer** live review only; it moves to P8.
 
-**Why the server can still answer "did it work?":** the reducer inside `dispatch` is pulled out into a pure function, `reduce(state, action, ctx) → { state, result }` (§5, P1). The Convex action runs the same function on the state snapshot the browser sent, so Claude gets the real `{ ok, message }` (e.g. "No tumor detected in this scan") as its `tool_result`, and the browser gets the same result when it applies the step.
+**Why the server can still answer "did it work?" for viewer tools:** the reducer inside `dispatch` is pulled out into a pure function, `reduce(state, action, ctx) → { state, result }` (§5, P1). The Convex action runs it on the snapshot the browser sent, so Claude gets the real `{ ok, message }` (e.g. "No tumor detected in this scan") as its `tool_result`, and the browser gets the same result when it applies the step.
+
+**Why knowledge and documents go to MCP:**
+- They only read real data or produce a file; nothing on screen changes, so they don't need the browser.
+- One server answers both the in-app agents and outside MCP clients: Claude Desktop gets "how big is the tumor?" and "export a summary" for free.
+- The data rules live in one place: every number comes from `report.json`; no report (as on `/learn`) = the tool says so.
 
 ## 3. ✏️ Tool catalog, mapped to the frontend
 
 ### 3.1 🔄 Tool names
 
 Claude API tool names may only use letters, digits, `_` and `-`, so v1's `viewer.zoom` style is invalid. v2 uses **snake_case**, matching the names in the Figma panel (`focus_region`, `explain_structure`, `toggle_visibility`). MCP uses the same names.
+
+🔀 **Where each tool runs** (v3): the **Runs on** column below. `dispatch` = applied in the browser. `MCP` = answered by the `neuro-mcp` server.
 
 ### 3.2 Tools
 
@@ -98,12 +119,14 @@ Claude API tool names may only use letters, digits, `_` and `-`, so v1's `viewer
 | 🆕 (Figma) Show / hide | `toggle_visibility` | `targets[]` (`cortex`, a group, a structure, `left`, `right`, `edema`, `core`, `enhancing`), `visible` | many `setStructureVisible` / `setHemisphereVisible` / `setLayerVisible` | none on `/learn` |
 | 🆕 | `reset_view` | — | `resetView` | none |
 | 🆕 (Figma "Undo") | `undo` | — | 🆕 `{ type: 'undo' }` → restores the last state from a 20-step history kept by `dispatch` | history in `dispatch` |
-| ✏️ Explain | `explain_structure` | `name`, `depth`: `brief` · `detailed` | server: text from `content/anatomy.json`; browser: `selectStructure` so the info panel opens too | server tool |
-| ✏️ Explain | `explain_finding` | — | server: the SPEC §8.3 template over `report.json` (Explore only) | server tool |
-| ✏️ Search | `search` | `query`, `sources`: `atlas` · `report` · `chat` | server: name/group match (same rule as `learn/filter.ts`) + chat history | server tool |
-| ✏️ Annotation | `add_annotation` / `remove_annotation` | `text` (≤ 280), `anchor`: `selected` · `tumor` · RAS mm point | 🆕 `annotations` table + a 3D pin component | P7 |
-| ✏️ Summarization | `summarize` | `scope`: `session` · `since_last` | server; stored in `sessionSummaries` | P7 |
-| ✏️ Export (on request) | `export_document` | `format`: `md` · `pdf`; `sections` | built in the browser from report + transcript + annotations; download | P7 |
+| ✏️ Explain | `explain_structure` | `name`, `depth`: `brief` · `detailed` | 🔀 **MCP**: text from `content/anatomy.json`. The agent then also calls `focus_region` (dispatch) so the info panel opens | MCP tool |
+| ✏️ Explain | `explain_finding` | `job_id` | 🔀 **MCP**: the SPEC §8.3 template over `report.json` | MCP tool |
+| 🆕 Tumor size / info | `get_tumor_metrics` | `job_id`, `fields?` | 🔀 **MCP**: from `report.json`: `volumesCm3` (whole, core, enhancing), `side`, `lesionCount`, `centroidMm`, bbox size in cm, `segmentationSource`, `expertDice` when present. No report or `tumorDetected: false` → says so ("No tumor detected in this scan", never "healthy") | MCP tool |
+| 🆕 Case facts | `get_report` | `job_id` | 🔀 **MCP**: the scan facts (shape, spacing, sequences, model name/version) | MCP tool |
+| ✏️ Search | `search` | `query`, `sources`: `atlas` · `report` · `chat` | 🔀 **MCP**: name/group match (same rule as `learn/filter.ts`) + chat history | MCP tool |
+| ✏️ Annotation | `add_annotation` / `remove_annotation` | `text` (≤ 280), `anchor`: `selected` · `tumor` · RAS mm point | **dispatch** (it puts a pin on screen) + 🆕 `annotations` table | P7 |
+| ✏️ Summarization | `summarize` | `scope`: `session` · `since_last` | 🔀 **MCP**: summary of this session's chat + tool steps; stored in `sessionSummaries` | P7 |
+| ✏️ Export (on request) | `export_document` | `format`: `md` · `pdf`; `sections` | 🔀 **MCP**: builds the document, stores it in Convex file storage, returns a download link (§7) | P7 |
 | ✏️ Export (auto after a phase) | same, `trigger: auto` | — | §7 | P7 |
 
 **Name → id resolution** ("hippocampus" → `lh_hippocampus` + `rh_hippocampus`; "left hippocampus" → `lh_hippocampus`): one pure function, `resolveTarget(text, atlas)`, in `frontend/src/agent/resolveTarget.ts`. It uses the same matching as `learn/filter.ts` plus side words (left/right/L/R). If two structures match and no side is given, the tool picks both for show/hide and asks back for focus ("Left or right hippocampus?").
@@ -122,8 +145,9 @@ Every request carries `page` and `availableTools`. The Router never offers a too
 | `set_explode` | ✅ | ⏳ `CaseCanvas` ignores `explodeAmount` |
 | `toggle_visibility` | ✅ structures, groups, L / R | ⏳ `CaseCanvas` ignores `hidden` and `layers` (marked `shortcut:` in the code) |
 | `isolate`, `focus_region` | ✅ | `tumor` only ✅ (`focusTumor`) |
-| `explain_structure` | ✅ | — (no atlas on Explore) |
-| `explain_finding` | — | ✅ |
+| `explain_structure` (MCP) | ✅ | — (no atlas on Explore) |
+| `explain_finding`, `get_tumor_metrics`, `get_report` (MCP) | — (answers "this is the template atlas, not a patient scan") | ✅ |
+| `search`, `summarize`, `export_document` (MCP) | ✅ | ✅ |
 
 ⏳ rows turn ✅ as Ben's Explore controls land. The agent picks them up with no agent change: the page's tool list is the switch.
 
@@ -177,8 +201,8 @@ The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: 
 | **Fast path** (`parseIntent`, browser code) | Common commands, instantly, with no network | all viewer tools | none |
 | **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (option: `claude-haiku-5-5`, D4) |
 | **Navigator** | Multi-step view requests ("spin to the right side and fade the cortex") | viewer tools for this page | `claude-opus-5-5`, `low` |
-| **Anatomy tutor** | Explain and search, only from `anatomy.json`, `structures.json`, `report.json` and session chat | `explain_structure`, `explain_finding`, `search`, `focus_region` | `claude-opus-5-5`, `medium` |
-| **Scribe** | Summaries, annotations, exports | `summarize`, `add_annotation`, `export_document` | `claude-opus-5-5`, `medium` |
+| **Anatomy tutor** | Explain, tumor numbers and search, only from `anatomy.json`, `structures.json`, `report.json` and session chat | 🔀 MCP: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search`; dispatch: `focus_region` | `claude-opus-5-5`, `medium` |
+| **Scribe** | Summaries, annotations, exports | 🔀 MCP: `summarize`, `export_document`; dispatch: `add_annotation` | `claude-opus-5-5`, `medium` |
 | **Guard** (code) | Tool allow-list per page, rate limit (1 active run per client, 10 runs/min), spend cap, banned wording (diagnosis, prognosis, "healthy") checked on every reply | inside `agent.run` | none |
 
 The Figma example, as one run: *"Spin to the right side. How close is the hippocampus to the tumor?"*
@@ -186,7 +210,7 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 2. Navigator calls:
    - `rotate_view({ preset: "right" })` → ✓;
    - `toggle_visibility({ targets: ["cortex"], visible: false })` → ✓.
-3. It hands off to **Anatomy tutor**, which calls `explain_structure({ name: "hippocampus", depth: "brief" })` → ✓.
+3. It hands off to **Anatomy tutor**, which calls `explain_structure({ name: "hippocampus", depth: "brief" })` on **MCP** → ✓.
 4. Distance numbers come only from real data. On `/learn` there is no tumor, so the tutor says so. On Explore, a distance needs the atlas registered to the patient, which is out of scope (SPEC D6). The agent says it can't measure that, rather than inventing "6.2 mm".
 
 **Convex files (P3):**
@@ -194,49 +218,71 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 | File | Contents |
 |---|---|
 | `convex/schema.ts` | 🆕 `agentRuns` { clientId, sessionId?, text, source, page, status, steps[ { id, tool, args, ok, message, ms } ], reply, agent, error, createdAt }, index `by_client` |
-| `convex/agent.ts` | `ask` (mutation: check rate limit, insert run, `scheduler.runAfter(0, internal.agent.run)`), `run` (internalAction: Claude loop), `getRun` / `listRuns` (queries), `cancel`, `callTool` (MCP) |
+| `convex/agent.ts` | `ask` (mutation: check rate limit, insert run, `scheduler.runAfter(0, internal.agent.run)`), `run` (internalAction: Claude loop), `getRun` / `listRuns` (queries), `cancel`, `callTool` (forwarded MCP viewer calls, §8.3) |
+| `convex/http.ts` + `convex/mcp/*` 🔀 | the `neuro-mcp` server on the Convex HTTP endpoint `/mcp` (Streamable HTTP, stateless). Knowledge and document tools (§8) |
 | `convex/agentPrompts.ts` | system prompts per agent; frozen text so prompt caching works |
 | shared imports | `frontend/src/agent/tools.ts` and `frontend/src/actions/reduce.ts` imported by Convex (check in P3 that the Convex bundler accepts imports from outside `convex/`; if not, move both to a root `shared/` folder) |
 
 **Claude call details:**
 - `@anthropic-ai/sdk` inside the action; key in a Convex env var only.
 - Hand-written tool loop, max 6 turns, so each call is checked and logged.
+- 🔀 **How the agent reaches MCP (D11):**
+  - **A (proposed):** the Convex action is an MCP client (`@modelcontextprotocol/sdk` `Client`). It lists `neuro-mcp`'s tools once, passes them to Claude next to the viewer tools, and runs each MCP `tool_use` itself. We keep the rate limit, the log row and the latency for every call.
+  - **B:** the Claude API's MCP connector (`mcp_servers` in the request). Less code, but Anthropic calls the server, so it needs a public URL + token and we log the calls after the fact.
 - `strict: true` tool schemas and `tool_choice: auto`.
 - Prompt caching: system prompt + sorted tool list first.
 - The state snapshot, recent chat and the user text go after the cache breakpoint.
 - Chat text is untrusted data, never instructions.
 
-## 7. ✏️ Export, and auto-export after a phase
+## 7. 🔀 Export, and auto-export after a phase (MCP)
 
-- **On request:** "export this as PDF" → Scribe → `export_document`. The browser builds the file:
-  - Markdown first;
-  - PDF through the browser's print-to-PDF of a print stylesheet, so no new dependency.
+- **On request:** "export this as PDF" → Scribe → MCP `export_document`:
+  - the server builds Markdown from real data, plus a PDF from the same Markdown (a small Markdown → PDF step on the server, chosen in P7);
+  - the file goes into **Convex file storage**;
+  - the tool returns a download link, shown in the panel as a file card.
 
-  Figma's share icon (bottom-left of frame 04) is the manual button.
+  Figma's share icon (bottom-left of frame 04) calls the same tool directly.
+- **The same tool works from Claude Desktop:** "export a summary of my session" returns the same link.
 - **Contents:**
   - the case, or "Atlas (template brain, not a patient)" on `/learn`;
-  - report numbers;
+  - report numbers (from `get_tumor_metrics`, so the same numbers as the chat);
   - annotations;
-  - the conversation;
-  - the tool steps;
+  - the conversation summary (`summarize`) and the tool steps;
   - the "Educational, not clinically validated" notice.
-- **Auto triggers (D5):**
-  - job reaches `done`;
-  - leaving Explore;
-  - every ~15 messages (with the rolling summary).
+- **Auto triggers (D5):** job reaches `done`; leaving Explore; every ~15 messages (with the rolling summary). Convex calls the MCP tool from a scheduled function, versioned `export-v1`, `export-v2`, …; nothing is overwritten.
 
-  Versioned `export-v1`, `export-v2`, …; nothing is overwritten.
+## 8. 🔀 MCP server `neuro-mcp`
 
-## 8. 🔄 MCP server
+### 8.1 Where it lives
+- On the Convex deployment's HTTP endpoint (`https://<deployment>.convex.site/mcp`), Streamable HTTP, stateless: **no extra server to run or host**.
+- Built with `@modelcontextprotocol/sdk`. A thin stdio wrapper in `mcp/` lets Claude Desktop / Claude Code connect locally.
+- Tool definitions: one file, shared with the frontend registry, so names and schemas can't drift.
 
-- `mcp/` package, `@modelcontextprotocol/sdk`, stdio (Claude Desktop, Claude Code) + Streamable HTTP.
-- Tools: generated from `frontend/src/agent/tools.ts` (same names, same schemas).
-- 🔄 **Pairing instead of session tokens:** the frontend has no live-review session yet. The Agent Panel's History tab shows a 6-character pair code for this browser tab. The code expires after 10 minutes and is stored in an `agentLinks` table.
-  - The user gives the code to Claude Desktop once (`pair` tool).
-  - Calls then go to `agent.callTool({ pairCode, name, args })` → an `agentRuns` row → the browser applies it like any other step.
-  - Rows show `source: mcp`.
-- Resources: current context chips, `report.json`, the atlas list.
-- **Demo moment:** in Claude Desktop, "rotate to the left view and isolate the hippocampus" → the browser turns, with the tool rows in the panel.
+### 8.2 Tools and resources (the core, used by the in-app agents)
+
+| Tool | Reads | Returns |
+|---|---|---|
+| `explain_structure` | `anatomy.json`, `structures.json` | description, functions, "when damaged", side, group, volume |
+| `explain_finding` | `report.json` | the SPEC §8.3 template text |
+| `get_tumor_metrics` | `report.json` | volumes (whole, core, enhancing), side, lesions, size, source, Dice when present |
+| `get_report` | `report.json` | scan facts and model version |
+| `search` | atlas list, report, chat | matches with where they came from |
+| `summarize` | session chat + tool steps | summary text; stored in `sessionSummaries` |
+| `export_document` | all of the above | download link (§7) |
+
+Resources (read-only): `report://{jobId}`, `atlas://structures`, `session://{id}/summary`.
+
+**Rules for every tool:**
+- Numbers only from the files: no report → "There is no report for this case". `tumorDetected: false` → "No tumor detected in this scan", never "healthy".
+- No diagnosis, prognosis or treatment wording (contract §5); the Guard checks every reply.
+- Read-only, apart from `summarize` and `export_document`, which write their own rows and files.
+- **Auth:** a bearer token on every request: a Convex env secret for the in-app agent, a per-user token for Claude Desktop. Rate limited.
+
+### 8.3 Optional: viewer tools for Claude Desktop
+Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
+- `neuro-mcp` also lists the viewer tools, but **does not run them**. It forwards each call to `agent.callTool({ pairCode, name, args })` → an `agentRuns` row → the paired browser applies it through `dispatch`, like any other step.
+- Pairing: the Agent Panel's History tab shows a 6-character code (10-minute expiry, stored in `agentLinks`). The user gives it to Claude Desktop once (`pair` tool).
+- The in-app agents never use this path; they hand viewer tools to the browser directly (§2).
 
 ## 9. ✏️ Voice
 
@@ -257,11 +303,13 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 | D3 | M4: affine in `report.json` (contract v1.2) | Only needed for P7 annotations on Explore |
 | D4 | LLM key and Router model | `claude-opus-5-5`, effort `low`; or `claude-haiku-5-5` for the Router |
 | D5 | Auto-export triggers | job done + leaving Explore |
-| D6 | What ships before the h29 freeze | P1–P3, plus P5 (MCP) if time |
+| D6 | What ships before the h29 freeze | 🔀 P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
 | D7 | Name: NeuroVision vs NeuroLens | NeuroVision (the UI already uses it) |
 | D8 🆕 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
 | D9 🆕 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
 | D10 🆕 | Frontend ownership | PR #50 merges first; Ben reviews the frontend PRs from this plan |
+| D11 🔀 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
+| D12 🔀 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
 
 ## 11. 🔄 Build phases (each = one GitHub issue, merged only by Tom)
 
@@ -270,11 +318,11 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 | P0 | Decisions D1–D10; SPEC D8 amendment | lead + Tom | Decision Log lines merged |
 | **P1** | Pure `reduce` + `cameraCommands` + new actions (zoom, rotate, spin, undo) + `actionLog` + `tools.ts` + `parseIntent` + `resolveTarget` + Agent Panel with a text box, on `/learn` | codex1 (logic) + claude2 (panel), Ben reviews | On `/learn`, typing each of these changes the view and shows a ✓ row with ms: "zoom to 150%", "left view", "spin", "x-ray", "cortex 20%", "explode 50%", "isolate the left hippocampus", "hide the cortex", "undo", "reset". Existing dispatch tests still pass; new tests for every parser phrase and every tool's `toActions`. **No Convex, no LLM** |
 | P2 | Push-to-talk + voice chip + suggestion chips + Script tab | claude2 | Same 10 phrases by voice in Chrome; mic denied → `Voice off`, text still works |
-| P3 | Convex client in the frontend + `agentRuns` + `agent.ask` / `run` + Router + Navigator | codex2 | The Figma request works end to end; 40-phrase eval ≥ 90% correct tool calls; with no key: "Assistant unavailable", fast path still works |
-| P4 | Anatomy tutor: `explain_structure`, `explain_finding`, `search` | claude-old | Answers quote `anatomy.json` / the report; banned-wording test passes |
-| P5 | MCP server + pairing | codex1 | MCP Inspector lists all tools; Claude Desktop drives `/learn` after pairing |
+| P3 | Convex client in the frontend + `agentRuns` + `agent.ask` / `run` + Router + Navigator (viewer tools only) | codex2 | The viewer half of the Figma request works end to end; 40-phrase eval ≥ 90% correct tool calls; with no key: "Assistant unavailable", fast path still works |
+| P4 🔀 | **`neuro-mcp`** on Convex `/mcp`: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search` + Anatomy tutor wired to it (D11) | codex1 (server) + claude-old (agent) | MCP Inspector lists the tools; "how big is the tumor?" on `sample` answers the report's exact cm³; on `/learn` it says there is no patient report; Claude Desktop gets the same answers; banned-wording test passes |
+| P5 🔀 | Optional: viewer tools for Claude Desktop through pairing (§8.3) | codex1 | Claude Desktop turns the brain on `/learn` after pairing |
 | P6 | Explore parity: wire `CaseCanvas` to opacity, hidden, layers, explode (with or after Milestone D) | Ben | the ⏳ rows in §3.3 turn ✅ with no agent change |
-| P7 | Scribe: summarize, annotations (needs D3), export + auto-export | claude2 | manual and auto exports download; pins sit within 2 mm |
+| P7 | Scribe: MCP `summarize` + `export_document` (+ auto-export), annotations through dispatch (needs D3) | claude2 | exports download from the panel and from Claude Desktop; same numbers as the chat; pins sit within 2 mm |
 | P8 | Multi-viewer sync (M6), hardening, demo script twice | lead | two tabs follow one presenter; demo runs twice with the LLM off and on |
 
 ## 12. 🆕 Test plan
@@ -290,6 +338,12 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
   - rate limit;
   - page allow-list;
   - a step's `{ ok, message }` equals what the browser's `dispatch` returns for the same snapshot.
+- **MCP:**
+  - each tool against the `sample`, `sample-2` and no-report cases;
+  - numbers equal `report.json` exactly;
+  - no-tumor and no-report wording;
+  - bad token → 401;
+  - MCP Inspector run.
 - **Eval:** 40 phrases per page with the expected tool calls, run on every prompt change.
 - **Manual:**
   - the Figma request;
@@ -315,3 +369,12 @@ The Figma example, as one run: *"Spin to the right side. How close is the hippoc
 - 🔄 §10: decisions D8–D10 added; D2 downgraded.
 - 🔄 §11: phases reordered: frontend-only P1–P2 first (no LLM needed), the Convex agent in P3.
 - 🆕 §12: test plan.
+
+**v3 (2026-10-24), Tom's split:**
+- 🔀 §1, §2: two kinds of tools. Viewer actions run through `dispatch` in the browser. Knowledge (explain, tumor size, report facts, search) and documents (summary, export) run on the MCP server `neuro-mcp`.
+- 🔀 §3: a "Runs on" note for every tool; new MCP tools `get_tumor_metrics` and `get_report`.
+- 🔀 §6: the Anatomy tutor and Scribe use MCP tools; the Convex agent acts as the MCP client (D11).
+- 🔀 §7: export is built by MCP, stored in Convex file storage, returned as a link; it works from Claude Desktop too.
+- 🔀 §8: `neuro-mcp` hosted on Convex's HTTP endpoint (no extra server). Viewer tools over MCP are optional (pairing, P5).
+- 🔀 §10: D6 updated; new D11 (how the agent calls MCP) and D12 (PDF).
+- 🔀 §11: P4 is now the MCP knowledge server (before the freeze); P5 is optional.
