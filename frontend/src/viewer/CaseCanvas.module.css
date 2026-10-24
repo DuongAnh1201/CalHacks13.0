@@ -1,3 +1,3 @@
-.canvas { position: absolute; inset: 0; background: var(--nv-canvas-bg); }
-.lost { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--nv-text-2); background: var(--nv-canvas-bg); }
+.canvas { position: absolute; inset: 0; }
+.lost { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--nv-text-2); }
 .lost button { padding: 8px 16px; border: 0; border-radius: var(--nv-radius-control); background: var(--nv-primary); color: #fff; }

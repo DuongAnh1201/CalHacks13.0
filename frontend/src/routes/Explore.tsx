@@ -95,7 +95,7 @@ export default function Explore() {
               <div className={css.bottom}>
                 <p className={css.status} role="status">{message?.message}</p>
                 <div className={css.bar}>
-                  <button className={css.chip} disabled={!report.tumorDetected} title={report.tumorDetected ? undefined : 'No tumor detected in this scan'}
+                  <button className={`${css.chip} ${css.tumor}`} disabled={!report.tumorDetected} title={report.tumorDetected ? undefined : 'No tumor detected in this scan'}
                     onClick={() => act({ type: 'focusTumor' })}>Show tumor</button>
                   <button className={css.chip} onClick={() => act({ type: 'resetView' })}>Reset view</button>
                 </div>
