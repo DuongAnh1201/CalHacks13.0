@@ -1,7 +1,9 @@
 .pill {
-  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
-  font: 600 12px var(--nv-font); color: var(--nv-text-2);
-  background: var(--nv-surface-warm); backdrop-filter: blur(var(--nv-blur));
-  border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill); box-shadow: var(--nv-shadow);
+  display: inline-flex; align-items: center; gap: 12px; padding: 11px 21px;
+  font: 600 13px/18px var(--nv-font); letter-spacing: .13px; color: var(--nv-text-2);
+  background: rgba(255, 255, 255, .92); backdrop-filter: blur(7px);
+  border: 1px solid rgba(59, 110, 140, .2); border-radius: var(--nv-radius-pill); box-shadow: var(--nv-shadow);
 }
-.dot { width: 8px; height: 8px; border-radius: var(--nv-radius-pill); background: var(--nv-success); }
+.title { font: 600 18px/26px var(--nv-font); letter-spacing: -.09px; color: var(--nv-primary); }
+.sep { width: 6px; height: 6px; border-radius: var(--nv-radius-pill); background: #c1c7ce; }
+.detail { padding-left: 12px; font: 600 11px/16px var(--nv-font); letter-spacing: .33px; color: var(--nv-success); border-left: 1px solid rgba(193, 199, 206, .4); }

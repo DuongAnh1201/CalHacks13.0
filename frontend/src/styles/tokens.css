@@ -15,10 +15,12 @@
   --nv-success-2: #2e6b47;
   --nv-success-bg: #e2f1e6;
   --nv-accent-warm: #982713;
+  --nv-accent: #3b6e8c;
   --nv-muted-bg: #f3f5f7;
   --nv-radius-control: 8px;
   --nv-radius-header: 12px;
   --nv-radius-card: 16px;
+  --nv-radius-panel: 18px;
   --nv-radius-pill: 9999px;
   --nv-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   --nv-shadow-card: 0 12px 32px -4px rgba(30, 37, 43, 0.06);

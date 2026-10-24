@@ -1,16 +1,16 @@
 .card {
-  display: flex; flex-direction: column; gap: 12px; min-height: 0; padding: 16px;
-  background: var(--nv-surface); backdrop-filter: blur(var(--nv-blur));
-  border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); box-shadow: var(--nv-shadow-card);
+  display: flex; flex-direction: column; gap: 12px; min-height: 0; padding: 21px;
+  background: var(--nv-surface-warm); backdrop-filter: blur(var(--nv-blur));
+  border: 1px solid var(--nv-border); border-radius: var(--nv-radius-panel); box-shadow: var(--nv-shadow-card);
   font-family: var(--nv-font); color: var(--nv-text);
 }
-.heading { margin: 0; font: 700 16px/24px var(--nv-font); }
+.heading { margin: 0; font: 700 18px/26px var(--nv-font); letter-spacing: -0.45px; }
 .search {
   padding: 8px 12px; font: 500 14px var(--nv-font); color: var(--nv-text);
   background: var(--nv-muted-bg); border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control);
 }
 .scroll { overflow: auto; flex: 1; min-height: 0; }
-.group { margin: 12px 0 4px; font: 700 11px/16px var(--nv-font); letter-spacing: .06em; text-transform: uppercase; color: var(--nv-text-3); }
+.group { margin: 12px 0 4px; font: 500 10px/14px var(--nv-font); letter-spacing: .5px; text-transform: uppercase; color: var(--nv-text-3); }
 .list { margin: 0; padding: 0; list-style: none; }
 .row { display: flex; align-items: center; border-radius: var(--nv-radius-control); }
 .row:hover { background: var(--nv-muted-bg); }
