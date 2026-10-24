@@ -35,8 +35,8 @@ jobs:
   convex:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run typecheck
@@ -48,8 +48,8 @@ jobs:
     defaults:
       run: { working-directory: frontend }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: npm ci
       - run: npm run lint
@@ -62,8 +62,8 @@ jobs:
     defaults:
       run: { working-directory: backend }
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with: { enable-cache: true, cache-dependency-glob: backend/uv.lock }
       - run: uv sync --frozen
       - run: uv run pytest -q
@@ -79,8 +79,8 @@ jobs:
     steps:
       # Without it the shipped frontend calls no model service at all.
       - run: test -n "$VITE_API_URL" || { echo "::error::Repo variable VITE_API_URL is not set"; exit 1; }
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
       - run: npm ci
       - run: npm ci --prefix frontend
@@ -96,8 +96,8 @@ jobs:
     outputs:
       backend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend == 'true' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with: { filters: 'backend: [backend/**]' }
 
@@ -109,16 +109,16 @@ jobs:
     outputs:
       image: ${{ steps.name.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: name
         run: |
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_ENV"
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v3
         with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
       # RunPod hosts are x86_64; docker-compose.yml's arm64 pin is for local Apple Silicon only.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: backend
           platforms: linux/amd64
@@ -137,7 +137,7 @@ jobs:
       IMAGE: ${{ needs.backend-image.outputs.image }}
       API: https://${{ vars.RUNPOD_POD_ID }}-8000.proxy.runpod.net
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Changing imageName resets the pod: same ID and proxy URL, container disk (finished jobs) wiped.
       - run: |
           curl -sS --fail-with-body -X PATCH "https://rest.runpod.io/v1/pods/${{ vars.RUNPOD_POD_ID }}" \
