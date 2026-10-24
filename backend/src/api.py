@@ -117,6 +117,12 @@ app.add_middleware(
 )
 
 
+@app.get("/ping")
+def ping():
+    # RunPod load-balancing health check (default path /ping): 200 = ready for traffic.
+    return {"status": "healthy"}
+
+
 @app.get("/health")
 def health():
     metadata = Path(__file__).resolve().parents[1] / "brats_mri_segmentation/configs/metadata.json"

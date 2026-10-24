@@ -28,6 +28,7 @@
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { vScene } from "./lib/viewCommands";
 import { vAuthor } from "./lib/author";
 
 // ---------------------------------------------------------------------------
@@ -218,6 +219,8 @@ export default defineSchema({
      * SPEC §7.2 calls the frontend's equivalent flag `tumorRevealed`.
      */
     tumorVisible: v.boolean(),
+    /** W2 Phase B: the /3d page state guests mirror. Optional so rows created before it read as DEFAULT_SCENE. */
+    scene: v.optional(vScene),
 
     /**
      * Monotonically increasing counter, bumped on every accepted view write.
@@ -368,4 +371,11 @@ export default defineSchema({
   })
     .index("by_job", ["jobId"])
     .index("by_session", ["sessionId"]),
+  // MCP fixed-window counters. Only SHA-256 token hashes are stored.
+  mcpRateLimits: defineTable({
+    tokenHash: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_token_hash", ["tokenHash"]),
+
 });

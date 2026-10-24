@@ -104,7 +104,7 @@ describe("the seeded fixture scan", () => {
     })();
   });
 
-  it("is labelled as a fixture and claims no measurements", async () => {
+  it("is labelled as a fixture and carries only the real model report's tumor numbers", async () => {
     const t = convexTest({ schema });
     await t.mutation(internal.seed.seedSampleScan, {});
     const scan = await t.query(api.scans.getByJobId, { jobId: "sample" });
@@ -112,10 +112,8 @@ describe("the seeded fixture scan", () => {
     expect(scan).not.toBeNull();
     // Guardrail 12: the UI must be able to tell a fixture from a real result.
     expect(scan!.isFixture).toBe(true);
-    expect(scan!.segmentationSource).toBe("none");
-    // Guardrail: no fabricated measurements. "absent" is the honest value for
-    // a case nothing has measured.
-    expect(scan!.tumor).toBeUndefined();
+    expect(scan!.segmentationSource).toBe("model");
+    expect(scan!.tumor).toEqual({ detected: true, volumesCm3: { whole: 136.28, core: 61.56, enhancing: 34.26 } });
     expect(scan!.brain).toBeUndefined();
   });
 
@@ -358,7 +356,12 @@ describe("two clients share one view", () => {
   it("propagates tumour visibility once a tumour exists", async () => {
     const { t, host, viewer, scanId } = await setUpRoom();
 
-    // The fixture is unsegmented, so revealing is refused with a distinct
+    // Clear the model result to exercise an unsegmented case.
+    await t.run(async (ctx) => {
+      await ctx.db.patch(scanId, { segmentationSource: "none", tumor: undefined });
+    });
+
+    // An unsegmented case refuses revealing with a distinct
     // message. (The reducer's wording rules are covered in viewCommands.test.ts;
     // this asserts the mutation enforces them too.)
     await expectAppError(
@@ -802,5 +805,21 @@ describe("argument validators", () => {
         command: { type: "deleteEverything" } as never,
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("W2 scene sync", () => {
+  it("a host scene change reaches the guest", async () => {
+    const { t, host, viewer } = await setUpRoom();
+    await t.mutation(api.sessions.updateView, { sessionId: host.sessionId, participantToken: host.participantToken, command: { type: "setExplosion", value: 0.6 } });
+    const seen = await t.query(api.sessions.get, { sessionId: viewer.sessionId, participantToken: viewer.participantToken });
+    expect(seen.view.scene.explodeAmount).toBe(0.6);
+  });
+  it("a guest cannot change the scene", async () => {
+    const { t, viewer } = await setUpRoom();
+    await expectAppError(
+      t.mutation(api.sessions.updateView, { sessionId: viewer.sessionId, participantToken: viewer.participantToken, command: { type: "setPage", page: "3d" } }),
+      "NOT_PRESENTER",
+    );
   });
 });

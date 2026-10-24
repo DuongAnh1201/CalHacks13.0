@@ -16,6 +16,7 @@ import { demoMessages } from '../components/agent/demo';
 import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { ExplodeSlider } from '../learn/ExplodeSlider';
+import { useShareSync } from '../share/useShareSync';
 import { StatusPill } from '../learn/StatusPill';
 import { LAYERS, type Layer } from '../viewer/layers';
 import { CaseCanvas } from '../viewer/CaseCanvas';
@@ -79,6 +80,7 @@ export default function Brain3D() {
   }, [id, key]);
 
   const result = res?.key === key ? res.result : null;
+  useShareSync(id, '3d', result?.kind === 'ready');
   if (result?.kind === 'pending') return <Navigate to={`/jobs/${id}/processing`} replace />;
 
   const act = (a: Parameters<typeof dispatch>[0]) => setMessage(dispatch(a, 'pointer'));

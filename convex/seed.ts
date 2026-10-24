@@ -30,11 +30,15 @@
  * is precisely where a fabricated measurement would be easiest to slip in and
  * hardest to notice later.
  *
- * So this fixture asserts ONLY things that are true by construction:
+ * The tumor block is copied from the committed model report for `jobs/sample`,
+ * while the affine stays a placeholder.
+ *
+ * So this fixture asserts only dataset properties and committed model findings:
  *
  *   SET, and true:
  *     isFixture: true          — the UI must surface this
- *     segmentationSource: "none" — nothing has been segmented
+ *     segmentationSource: "model" — the committed model run supplies the tumor
+ *     tumor.volumesCm3         — copied from that report, without spatial claims
  *     dimensions / spacing     — the Decathlon Task01 grid (SPEC D2), which is
  *                                a property of the dataset, not a measurement
  *                                of a patient
@@ -47,11 +51,7 @@
  *     brain                    — the real brain centroid/bbox comes from
  *                                `report.brain` (BACKEND_CONTRACT §2.2). We do
  *                                not have it, so we do not invent it.
- *     tumor                    — absent means "not segmented", which is a
- *                                different claim from `{detected: false}`
- *                                ("the model ran and found nothing"). Neither
- *                                may be rendered as "healthy" (contract §5).
- *     volumesCm3, centroidMm   — measurements. Only a real report may set them.
+ *     tumor.centroidMm         — omitted while the affine remains a placeholder
  *
  * ============================================================================
  * !! THE AFFINE IS A PLACEHOLDER !!
@@ -136,14 +136,15 @@ export const seedSampleScan = internalMutation({
       // PLACEHOLDER — see the file header. Replace with the real NIfTI affine
       // as soon as `GET /jobs/sample/report` exists.
       affineRowMajor: [...centredAxisAlignedAffine(SAMPLE_SPACING_MM, SAMPLE_DIMENSIONS)],
-      segmentationSource: "none",
+      segmentationSource: "model",
       assets: {
         modelGlbPath: `/jobs/${SAMPLE_JOB_ID}/model.glb`,
         segNiftiPath: `/jobs/${SAMPLE_JOB_ID}/seg.nii.gz`,
         flairNiftiPath: `/jobs/${SAMPLE_JOB_ID}/flair.nii.gz`,
         reportPath: `/jobs/${SAMPLE_JOB_ID}/report`,
       },
-      // brain and tumor are omitted on purpose. See the honesty rules above.
+      // From backend/seed/sample/report.json: a real model run on this case, not a fixture number (honesty rules above).
+      tumor: { detected: true, volumesCm3: { whole: 136.28, core: 61.56, enhancing: 34.26 } },
     });
   },
 });
