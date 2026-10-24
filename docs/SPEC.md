@@ -354,3 +354,4 @@ Append-only. Format: `date · hour · decision · why · PR`.
 
 - 2026-10-23 · h0 · v1.1: locked D1–D10 (volume primary + 2D fallback, brain from same scan, R3F, hemispheres only, deterministic Jarvis) · resolves the v1.0 open decisions · #32
 - 2026-10-23 · h0 · v1.2: adopt Tom's SegResNet backend + `BACKEND_CONTRACT.md`. Five-node `model.glb` (D11); 4-sequence NIfTI input only, JPG rejected (D1); expert-mask fallback replaces the 2D fallback (D4); routes renamed to `/jobs/:id/*`; layer table + `setLayerVisible` added · real 3D segmentation; a JPG cannot carry the data the model needs · #32
+- 2026-10-24 · h2 · Contract notes: `lesionCount` counts WT components ≥ 100 voxels; `side: bilateral` = ≥ 20% of WT voxels on each side of the brain midline; `flair.nii.gz` is served as soon as the job exists; `TOO_LARGE` returns 422 like the other input errors · fills the thresholds the contract left to the backend, and gives the input errors one status code · #36
