@@ -30,7 +30,7 @@ function SliceView({ jobId, view, onNv }: { jobId: string; view: View; onNv: (ax
 
   useEffect(() => {
     let live = true;
-    const nv = new Niivue({ backColor: [0.08, 0.13, 0.17, 1], crosshairColor: [0.92, 0.34, 0.34, 1], isResizeCanvas: true });
+    const nv = new Niivue({ backColor: [0.08, 0.13, 0.17, 1], crosshairColor: [0.92, 0.34, 0.34, 1], isResizeCanvas: true, loadingText: '' });
     // Each effect owns a canvas: StrictMode can clean up while attachToCanvas is still awaiting init.
     const canvas = document.createElement('canvas');
     canvas.className = css.canvas;
@@ -149,11 +149,12 @@ export function MprPanel({ jobId }: { jobId: string }) {
         {VIEWS.map((v) => <SliceView key={`${jobId}:${v.axis}`} jobId={jobId} view={v} onNv={onNv} />)}
       </div>
       <div className={css.tools}>
-        <button type="button" aria-pressed={caliper} className={css.tool} onClick={() => setCaliper((c) => !c)}><img src={caliperIcon} alt="" />Electronic Caliper</button>
+        <button type="button" aria-pressed={caliper} title="Right-drag on a slice to measure." className={css.tool} onClick={() => setCaliper((c) => !c)}><img src={caliperIcon} alt="" />Electronic Caliper</button>
         <label className={css.tool}><img src={contrastIcon} alt="" />Contrast / Gamma <input type="range" min={0.3} max={3} step={0.1} value={gamma} onChange={(e) => setGamma(Number(e.target.value))} /></label>
         <label className={css.tool}><img src={maskIcon} alt="" />Mask Overlay {mask}% <input type="range" min={0} max={100} value={mask} onChange={(e) => setMask(Number(e.target.value))} /></label>
         <span className={locked ? `${css.lock} ${css.on}` : css.lock} role="status"><img src={lockIcon} alt="" />{locked ? '3-Axis Triangulation Locked' : 'Linking views…'}</span>
       </div>
+      {caliper && <p className={css.hint}>Right-drag on a slice to measure.</p>}
     </section>
   );
 }
