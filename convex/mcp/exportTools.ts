@@ -7,7 +7,7 @@ import { EXPORT_SECTIONS } from "../lib/exportMarkdown";
 
 /** Structural subset of #68 McpDependencies, so this module can land independently. */
 export interface ExportDependencies {
-  caller: { kind: "service"; tokenHash: string; authorName?: string };
+  caller: { kind: "service" | "user"; tokenHash: string; authorName?: string };
   ctx?: ActionCtx;
 }
 

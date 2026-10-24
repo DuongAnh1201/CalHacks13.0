@@ -5,9 +5,9 @@ import type { KnowledgeData } from './data';
 export type AgentName = 'Claude Desktop' | 'Navigator' | 'Anatomy tutor' | 'Scribe';
 export interface McpDependencies {
   data: KnowledgeData;
-  /** Verified service identity. Never infer participant/session permission from it. */
+  /** Verified service or Desktop identity; neither implies session membership. */
   caller: {
-    readonly kind: 'service';
+    readonly kind: 'service' | 'user';
     readonly tokenHash: string;
     /** Fixed by the authenticated adapter, never by tool arguments. */
     readonly agentName: AgentName;
