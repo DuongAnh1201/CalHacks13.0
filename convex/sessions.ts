@@ -51,7 +51,7 @@ import {
   type PublicParticipant,
 } from "./lib/auth";
 import { appError } from "./lib/errors";
-import { newInviteCode, newParticipantToken } from "./lib/tokens";
+import { MAX_CREDENTIAL_LENGTH, newInviteCode, newParticipantToken } from "./lib/tokens";
 import { sliceIndexFromCursor, type Plane } from "./lib/transform";
 import {
   applyCommand,
@@ -297,9 +297,15 @@ export const join = mutation({
   }> => {
     const displayName = normaliseDisplayName(args.displayName);
 
+    // Oversized input cannot be a code; answer exactly like an unknown one.
+    const inviteCode = args.inviteCode.trim();
+    if (inviteCode.length > MAX_CREDENTIAL_LENGTH) {
+      throw appError("INVALID_INVITE", "That invite link is not valid any more.");
+    }
+
     const session = await ctx.db
       .query("sessions")
-      .withIndex("by_inviteCode", (q) => q.eq("inviteCode", args.inviteCode.trim()))
+      .withIndex("by_inviteCode", (q) => q.eq("inviteCode", inviteCode))
       .unique();
 
     if (session === null || session.status === "ended") {

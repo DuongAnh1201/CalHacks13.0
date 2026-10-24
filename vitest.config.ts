@@ -37,7 +37,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
-    server: { deps: { inline: ["convex-test"] } },
+    // The presence component's test helper (and its nested batch-worker) also
+    // discover their modules with `import.meta.glob`, so they need the same.
+    server: { deps: { inline: ["convex-test", "@convex-dev/presence", "@convex-dev/batch-worker"] } },
     include: ["convex/tests/**/*.test.ts"],
   },
 });

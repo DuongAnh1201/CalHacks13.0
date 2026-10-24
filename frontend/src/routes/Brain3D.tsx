@@ -16,6 +16,7 @@ import { demoMessages } from '../components/agent/demo';
 import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { ExplodeSlider } from '../learn/ExplodeSlider';
+import { SessionChat } from '../share/SessionChat';
 import { useShareSync } from '../share/useShareSync';
 import { StatusPill } from '../learn/StatusPill';
 import { LAYERS, type Layer } from '../viewer/layers';
@@ -205,6 +206,7 @@ export default function Brain3D() {
 
         <aside className={css.right} aria-label="Assistants">
           {report && <div className={css.agent}><AgentPanel messages={demoMessages(report, '3d')} status="offline" /></div>}
+          <SessionChat />
         </aside>
       </main>
       <Footer />
