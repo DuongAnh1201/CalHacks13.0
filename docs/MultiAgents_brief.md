@@ -199,7 +199,7 @@ The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: 
 | Agent | Job | Tools it gets | Model |
 |---|---|---|---|
 | **Fast path** (`parseIntent`, browser code) | Common commands, instantly, with no network | all viewer tools | none |
-| **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (option: `claude-haiku-5-5`, D2) |
+| **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (D2: Haiku only if latency or cost needs it later) |
 | **Navigator** | Multi-step view requests ("spin to the right side and fade the cortex") | viewer tools for this page | `claude-opus-5-5`, `low` |
 | **Anatomy tutor** | Explain, tumor numbers and search, only from `anatomy.json`, `structures.json`, `report.json` and session chat | 🔀 MCP: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search`; dispatch: `focus_region` | `claude-opus-5-5`, `medium` |
 | **Scribe** | Summaries, annotations, exports | 🔀 MCP: `summarize`, `export_document`; dispatch: `add_annotation` | `claude-opus-5-5`, `medium` |
@@ -260,7 +260,7 @@ What the model does and doesn't give us:
 | shared imports | `frontend/src/agent/tools.ts` and `frontend/src/actions/reduce.ts` imported by Convex (check in P3 that the Convex bundler accepts imports from outside `convex/`; if not, move both to a root `shared/` folder) |
 
 **Claude call details:**
-- `@anthropic-ai/sdk` inside the action; key in a Convex env var only.
+- `@anthropic-ai/sdk` inside the action; the key is the Convex env var `ANTHROPIC_API_KEY` only, never in the frontend or git (D2).
 - Hand-written tool loop, max 6 turns, so each call is checked and logged.
 - 🔀 **How the agent reaches MCP (D7):**
   - **A (proposed):** the Convex action is an MCP client (`@modelcontextprotocol/sdk` `Client`). It lists `neuro-mcp`'s tools once, passes them to Claude next to the viewer tools, and runs each MCP `tool_use` itself. We keep the rate limit, the log row and the latency for every call.
@@ -337,7 +337,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | # | Decision | Proposed |
 |---|---|---|
 | D1 ✅ #75 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
-| D2 | LLM model and API key | `claude-opus-5-5`, effort `low`, key in a Convex env var only; option: `claude-haiku-5-5` for the Router |
+| D2 ✅ #76 | LLM model and API key | `claude-opus-5-5`, effort `low`, for every agent; Haiku for the Router only if latency or cost needs it later. Key: Convex env var `ANTHROPIC_API_KEY` (Tom provides it before #67) |
 | D3 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
 | D4 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
 | D5 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
