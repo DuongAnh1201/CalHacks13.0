@@ -177,8 +177,10 @@ describe("annotations: validation", () => {
     const { t, scanId, asHost } = await setUpRoom();
     const tumorNote = { ...asHost, text: "tumor", anchor: { kind: "tumor" as const } };
 
-    // The fixture has not been segmented.
-    await expectAppError(t.mutation(api.annotations.create, tumorNote), "INVALID_ARGUMENT");
+    // Set each state explicitly rather than relying on what the seed holds.
+    await t.run((ctx) => ctx.db.patch(scanId, { tumor: undefined }));
+    const unsegmented = await expectAppError(t.mutation(api.annotations.create, tumorNote), "INVALID_ARGUMENT");
+    expect(unsegmented.message).toBe("This scan has not been segmented yet.");
 
     await t.run((ctx) => ctx.db.patch(scanId, { tumor: { detected: false } }));
     const data = await expectAppError(t.mutation(api.annotations.create, tumorNote), "INVALID_ARGUMENT");
