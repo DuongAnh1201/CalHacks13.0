@@ -136,7 +136,7 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
       Object.hasOwn(viewerSchemas, name),
     );
     const mcpTools = mcp.tools.filter((tool) => permitted.includes(tool.name));
-    const tools: (Anthropic.Tool | Anthropic.WebSearchTool20250305)[] = [
+    const tools: (Anthropic.Tool | Anthropic.WebSearchTool20260209)[] = [
       ...viewerNames.map((name) => ({
         name,
         description: viewerDescriptions[name as keyof typeof viewerSchemas],
@@ -156,9 +156,9 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
       ...(webAllowed
         ? [
             {
-              type: "web_search_20250305" as const,
+              type: "web_search_20260209" as const,
               name: "web_search" as const,
-              max_uses: 1,
+              max_uses: 3,
             },
           ]
         : []),

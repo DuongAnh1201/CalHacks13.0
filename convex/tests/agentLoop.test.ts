@@ -281,6 +281,10 @@ it("logs Claude server-side web_search and labels cited general education", asyn
       (tool) => "name" in tool && tool.name === "web_search",
     ),
   ).toBe(true);
+  expect(f.requests[0].tools?.find(tool => "name" in tool && tool.name === "web_search")).toMatchObject({
+    type: "web_search_20260209",
+    max_uses: 3,
+  });
   expect(result?.reply).toContain("General information, not from this scan");
   expect(result?.reply).toContain("https://example.org/education");
 });
