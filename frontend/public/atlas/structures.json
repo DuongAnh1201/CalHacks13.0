@@ -1,0 +1,3118 @@
+{
+ "source": {
+  "atlas": "CerebrA",
+  "license": "CC0-1.0",
+  "doi": "10.12751/g-node.be5e62"
+ },
+ "brain": {
+  "centroidMm": [
+   0.0,
+   -24.1,
+   5.48
+  ],
+  "bboxMm": {
+   "min": [
+    -71.89,
+    -106.65,
+    -78.43
+   ],
+   "max": [
+    71.89,
+    73.43,
+    82.1
+   ]
+  }
+ },
+ "structures": [
+  {
+   "id": "lh_caudal_anterior_cingulate",
+   "name": "Caudal Anterior Cingulate",
+   "side": "left",
+   "group": "insula_cingulate",
+   "volumeCm3": 3.652,
+   "centroidMm": [
+    -5.14,
+    20.71,
+    27.41
+   ],
+   "bboxMm": {
+    "min": [
+     -12.04,
+     2.46,
+     13.92
+    ],
+    "max": [
+     -0.53,
+     39.77,
+     41.63
+    ]
+   },
+   "neighbours": [
+    "lh_posterior_cingulate",
+    "lh_rostral_anterior_cingulate",
+    "lh_superior_frontal"
+   ]
+  },
+  {
+   "id": "rh_caudal_anterior_cingulate",
+   "name": "Caudal Anterior Cingulate",
+   "side": "right",
+   "group": "insula_cingulate",
+   "volumeCm3": 3.652,
+   "centroidMm": [
+    5.14,
+    20.71,
+    27.41
+   ],
+   "bboxMm": {
+    "min": [
+     0.52,
+     2.49,
+     13.85
+    ],
+    "max": [
+     12.1,
+     39.73,
+     41.64
+    ]
+   },
+   "neighbours": [
+    "rh_posterior_cingulate",
+    "rh_rostral_anterior_cingulate",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_caudal_middle_frontal",
+   "name": "Caudal Middle Frontal",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 13.22,
+   "centroidMm": [
+    -36.94,
+    12.26,
+    47.66
+   ],
+   "bboxMm": {
+    "min": [
+     -54.02,
+     -7.2,
+     26.3
+    ],
+    "max": [
+     -21.8,
+     33.41,
+     66.28
+    ]
+   },
+   "neighbours": [
+    "lh_pars_opercularis",
+    "lh_precentral",
+    "lh_rostral_middle_frontal",
+    "lh_superior_frontal"
+   ]
+  },
+  {
+   "id": "rh_caudal_middle_frontal",
+   "name": "Caudal Middle Frontal",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 13.22,
+   "centroidMm": [
+    36.94,
+    12.26,
+    47.66
+   ],
+   "bboxMm": {
+    "min": [
+     21.78,
+     -7.22,
+     26.29
+    ],
+    "max": [
+     54.02,
+     33.33,
+     66.27
+    ]
+   },
+   "neighbours": [
+    "rh_pars_opercularis",
+    "rh_precentral",
+    "rh_rostral_middle_frontal",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_cuneus",
+   "name": "Cuneus",
+   "side": "left",
+   "group": "occipital",
+   "volumeCm3": 8.066,
+   "centroidMm": [
+    -8.61,
+    -81.31,
+    24.58
+   ],
+   "bboxMm": {
+    "min": [
+     -21.23,
+     -98.95,
+     1.21
+    ],
+    "max": [
+     -0.51,
+     -60.09,
+     44.16
+    ]
+   },
+   "neighbours": [
+    "lh_isthmus_cingulate",
+    "lh_lateral_occipital",
+    "lh_lingual",
+    "lh_pericalcarine",
+    "lh_precuneus",
+    "lh_superior_parietal",
+    "rh_cuneus"
+   ]
+  },
+  {
+   "id": "rh_cuneus",
+   "name": "Cuneus",
+   "side": "right",
+   "group": "occipital",
+   "volumeCm3": 8.072,
+   "centroidMm": [
+    8.6,
+    -81.3,
+    24.58
+   ],
+   "bboxMm": {
+    "min": [
+     0.36,
+     -98.93,
+     1.22
+    ],
+    "max": [
+     21.23,
+     -60.05,
+     44.12
+    ]
+   },
+   "neighbours": [
+    "lh_cuneus",
+    "rh_isthmus_cingulate",
+    "rh_lateral_occipital",
+    "rh_lingual",
+    "rh_pericalcarine",
+    "rh_precuneus",
+    "rh_superior_parietal"
+   ]
+  },
+  {
+   "id": "lh_entorhinal",
+   "name": "Entorhinal",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 3.205,
+   "centroidMm": [
+    -22.22,
+    -4.53,
+    -31.87
+   ],
+   "bboxMm": {
+    "min": [
+     -32.9,
+     -17.98,
+     -42.39
+    ],
+    "max": [
+     -10.95,
+     6.09,
+     -20.27
+    ]
+   },
+   "neighbours": [
+    "lh_amygdala",
+    "lh_fusiform",
+    "lh_hippocampus",
+    "lh_inferior_temporal",
+    "lh_parahippocampal",
+    "lh_superior_temporal"
+   ]
+  },
+  {
+   "id": "rh_entorhinal",
+   "name": "Entorhinal",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 3.205,
+   "centroidMm": [
+    22.22,
+    -4.53,
+    -31.87
+   ],
+   "bboxMm": {
+    "min": [
+     10.95,
+     -17.97,
+     -42.41
+    ],
+    "max": [
+     32.89,
+     6.1,
+     -20.24
+    ]
+   },
+   "neighbours": [
+    "rh_amygdala",
+    "rh_fusiform",
+    "rh_hippocampus",
+    "rh_inferior_temporal",
+    "rh_parahippocampal",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_fusiform",
+   "name": "Fusiform",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 13.472,
+   "centroidMm": [
+    -35.7,
+    -42.15,
+    -21.39
+   ],
+   "bboxMm": {
+    "min": [
+     -50.18,
+     -79.17,
+     -44.32
+    ],
+    "max": [
+     -21.9,
+     0.64,
+     -3.19
+    ]
+   },
+   "neighbours": [
+    "lh_amygdala",
+    "lh_cerebellum_gray_matter",
+    "lh_entorhinal",
+    "lh_inferior_temporal",
+    "lh_lateral_occipital",
+    "lh_lingual",
+    "lh_middle_temporal",
+    "lh_parahippocampal"
+   ]
+  },
+  {
+   "id": "rh_fusiform",
+   "name": "Fusiform",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 13.472,
+   "centroidMm": [
+    35.7,
+    -42.15,
+    -21.39
+   ],
+   "bboxMm": {
+    "min": [
+     21.88,
+     -79.17,
+     -44.36
+    ],
+    "max": [
+     50.2,
+     0.79,
+     -3.24
+    ]
+   },
+   "neighbours": [
+    "rh_amygdala",
+    "rh_cerebellum_gray_matter",
+    "rh_entorhinal",
+    "rh_inferior_temporal",
+    "rh_lateral_occipital",
+    "rh_lingual",
+    "rh_middle_temporal",
+    "rh_parahippocampal"
+   ]
+  },
+  {
+   "id": "lh_inferior_parietal",
+   "name": "Inferior Parietal",
+   "side": "left",
+   "group": "parietal",
+   "volumeCm3": 26.186,
+   "centroidMm": [
+    -45.85,
+    -64.43,
+    31.72
+   ],
+   "bboxMm": {
+    "min": [
+     -66.6,
+     -91.06,
+     9.76
+    ],
+    "max": [
+     -26.76,
+     -40.0,
+     58.32
+    ]
+   },
+   "neighbours": [
+    "lh_lateral_occipital",
+    "lh_middle_temporal",
+    "lh_superior_parietal",
+    "lh_superior_temporal",
+    "lh_supramarginal"
+   ]
+  },
+  {
+   "id": "rh_inferior_parietal",
+   "name": "Inferior Parietal",
+   "side": "right",
+   "group": "parietal",
+   "volumeCm3": 26.186,
+   "centroidMm": [
+    45.85,
+    -64.43,
+    31.72
+   ],
+   "bboxMm": {
+    "min": [
+     26.75,
+     -91.03,
+     9.68
+    ],
+    "max": [
+     66.58,
+     -39.99,
+     58.26
+    ]
+   },
+   "neighbours": [
+    "rh_lateral_occipital",
+    "rh_middle_temporal",
+    "rh_superior_parietal",
+    "rh_superior_temporal",
+    "rh_supramarginal"
+   ]
+  },
+  {
+   "id": "lh_inferior_temporal",
+   "name": "Inferior Temporal",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 16.224,
+   "centroidMm": [
+    -49.21,
+    -24.77,
+    -29.98
+   ],
+   "bboxMm": {
+    "min": [
+     -67.74,
+     -63.21,
+     -51.8
+    ],
+    "max": [
+     -20.08,
+     12.8,
+     -4.4
+    ]
+   },
+   "neighbours": [
+    "lh_entorhinal",
+    "lh_fusiform",
+    "lh_lateral_occipital",
+    "lh_middle_temporal",
+    "lh_superior_temporal"
+   ]
+  },
+  {
+   "id": "rh_inferior_temporal",
+   "name": "Inferior Temporal",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 16.224,
+   "centroidMm": [
+    49.21,
+    -24.77,
+    -29.98
+   ],
+   "bboxMm": {
+    "min": [
+     20.15,
+     -63.11,
+     -51.79
+    ],
+    "max": [
+     67.75,
+     12.79,
+     -4.42
+    ]
+   },
+   "neighbours": [
+    "rh_entorhinal",
+    "rh_fusiform",
+    "rh_lateral_occipital",
+    "rh_middle_temporal",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_isthmus_cingulate",
+   "name": "Isthmus Cingulate",
+   "side": "left",
+   "group": "insula_cingulate",
+   "volumeCm3": 4.427,
+   "centroidMm": [
+    -8.03,
+    -45.79,
+    18.9
+   ],
+   "bboxMm": {
+    "min": [
+     -21.77,
+     -56.87,
+     -4.68
+    ],
+    "max": [
+     -0.5,
+     -33.78,
+     37.14
+    ]
+   },
+   "neighbours": [
+    "lh_cuneus",
+    "lh_lingual",
+    "lh_parahippocampal",
+    "lh_posterior_cingulate",
+    "lh_precuneus"
+   ]
+  },
+  {
+   "id": "rh_isthmus_cingulate",
+   "name": "Isthmus Cingulate",
+   "side": "right",
+   "group": "insula_cingulate",
+   "volumeCm3": 4.427,
+   "centroidMm": [
+    8.03,
+    -45.79,
+    18.9
+   ],
+   "bboxMm": {
+    "min": [
+     0.5,
+     -56.86,
+     -4.71
+    ],
+    "max": [
+     21.7,
+     -33.78,
+     37.12
+    ]
+   },
+   "neighbours": [
+    "rh_cuneus",
+    "rh_lingual",
+    "rh_parahippocampal",
+    "rh_posterior_cingulate",
+    "rh_precuneus"
+   ]
+  },
+  {
+   "id": "lh_lateral_occipital",
+   "name": "Lateral Occipital",
+   "side": "left",
+   "group": "occipital",
+   "volumeCm3": 22.807,
+   "centroidMm": [
+    -31.91,
+    -87.16,
+    1.54
+   ],
+   "bboxMm": {
+    "min": [
+     -55.99,
+     -106.65,
+     -20.32
+    ],
+    "max": [
+     -4.85,
+     -64.3,
+     30.74
+    ]
+   },
+   "neighbours": [
+    "lh_cuneus",
+    "lh_fusiform",
+    "lh_inferior_parietal",
+    "lh_inferior_temporal",
+    "lh_lingual",
+    "lh_middle_temporal",
+    "lh_pericalcarine",
+    "lh_superior_parietal",
+    "lh_superior_temporal"
+   ]
+  },
+  {
+   "id": "rh_lateral_occipital",
+   "name": "Lateral Occipital",
+   "side": "right",
+   "group": "occipital",
+   "volumeCm3": 22.807,
+   "centroidMm": [
+    31.91,
+    -87.16,
+    1.54
+   ],
+   "bboxMm": {
+    "min": [
+     4.84,
+     -106.63,
+     -20.34
+    ],
+    "max": [
+     55.99,
+     -64.32,
+     30.78
+    ]
+   },
+   "neighbours": [
+    "rh_cuneus",
+    "rh_fusiform",
+    "rh_inferior_parietal",
+    "rh_inferior_temporal",
+    "rh_lingual",
+    "rh_middle_temporal",
+    "rh_pericalcarine",
+    "rh_superior_parietal",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_lateral_orbitofrontal",
+   "name": "Lateral Orbitofrontal",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 15.042,
+   "centroidMm": [
+    -22.61,
+    36.0,
+    -19.15
+   ],
+   "bboxMm": {
+    "min": [
+     -42.46,
+     4.96,
+     -30.97
+    ],
+    "max": [
+     -5.73,
+     68.12,
+     -6.99
+    ]
+   },
+   "neighbours": [
+    "lh_insula",
+    "lh_medial_orbitofrontal",
+    "lh_pars_orbitalis",
+    "lh_pars_triangularis",
+    "lh_rostral_middle_frontal",
+    "lh_superior_frontal",
+    "lh_superior_temporal",
+    "optic_chiasm"
+   ]
+  },
+  {
+   "id": "rh_lateral_orbitofrontal",
+   "name": "Lateral Orbitofrontal",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 15.042,
+   "centroidMm": [
+    22.61,
+    36.0,
+    -19.15
+   ],
+   "bboxMm": {
+    "min": [
+     5.76,
+     4.93,
+     -31.03
+    ],
+    "max": [
+     42.44,
+     68.11,
+     -7.05
+    ]
+   },
+   "neighbours": [
+    "optic_chiasm",
+    "rh_insula",
+    "rh_medial_orbitofrontal",
+    "rh_pars_orbitalis",
+    "rh_pars_triangularis",
+    "rh_rostral_middle_frontal",
+    "rh_superior_frontal",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_lingual",
+   "name": "Lingual",
+   "side": "left",
+   "group": "occipital",
+   "volumeCm3": 12.359,
+   "centroidMm": [
+    -13.53,
+    -69.35,
+    -5.14
+   ],
+   "bboxMm": {
+    "min": [
+     -31.59,
+     -98.81,
+     -18.93
+    ],
+    "max": [
+     -0.51,
+     -39.67,
+     10.99
+    ]
+   },
+   "neighbours": [
+    "lh_cerebellum_gray_matter",
+    "lh_cuneus",
+    "lh_fusiform",
+    "lh_isthmus_cingulate",
+    "lh_lateral_occipital",
+    "lh_lateral_ventricle",
+    "lh_parahippocampal",
+    "lh_pericalcarine",
+    "lh_precuneus",
+    "rh_lingual"
+   ]
+  },
+  {
+   "id": "rh_lingual",
+   "name": "Lingual",
+   "side": "right",
+   "group": "occipital",
+   "volumeCm3": 12.362,
+   "centroidMm": [
+    13.53,
+    -69.35,
+    -5.14
+   ],
+   "bboxMm": {
+    "min": [
+     0.41,
+     -98.8,
+     -18.89
+    ],
+    "max": [
+     31.63,
+     -39.67,
+     10.99
+    ]
+   },
+   "neighbours": [
+    "lh_lingual",
+    "rh_cerebellum_gray_matter",
+    "rh_cuneus",
+    "rh_fusiform",
+    "rh_isthmus_cingulate",
+    "rh_lateral_occipital",
+    "rh_lateral_ventricle",
+    "rh_parahippocampal",
+    "rh_pericalcarine",
+    "rh_precuneus"
+   ]
+  },
+  {
+   "id": "lh_medial_orbitofrontal",
+   "name": "Medial Orbitofrontal",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 8.764,
+   "centroidMm": [
+    -5.41,
+    37.79,
+    -18.04
+   ],
+   "bboxMm": {
+    "min": [
+     -13.83,
+     6.02,
+     -31.83
+    ],
+    "max": [
+     -0.52,
+     70.68,
+     -3.45
+    ]
+   },
+   "neighbours": [
+    "lh_accumbens_area",
+    "lh_basal_forebrain",
+    "lh_lateral_orbitofrontal",
+    "lh_rostral_anterior_cingulate",
+    "lh_superior_frontal",
+    "optic_chiasm",
+    "rh_medial_orbitofrontal",
+    "rh_rostral_anterior_cingulate"
+   ]
+  },
+  {
+   "id": "rh_medial_orbitofrontal",
+   "name": "Medial Orbitofrontal",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 8.884,
+   "centroidMm": [
+    5.34,
+    37.69,
+    -18.06
+   ],
+   "bboxMm": {
+    "min": [
+     -0.33,
+     6.0,
+     -31.85
+    ],
+    "max": [
+     13.83,
+     70.71,
+     -3.41
+    ]
+   },
+   "neighbours": [
+    "lh_medial_orbitofrontal",
+    "optic_chiasm",
+    "rh_accumbens_area",
+    "rh_basal_forebrain",
+    "rh_lateral_orbitofrontal",
+    "rh_rostral_anterior_cingulate",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_middle_temporal",
+   "name": "Middle Temporal",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 28.291,
+   "centroidMm": [
+    -57.25,
+    -31.58,
+    -11.29
+   ],
+   "bboxMm": {
+    "min": [
+     -71.89,
+     -72.14,
+     -47.32
+    ],
+    "max": [
+     -33.87,
+     18.73,
+     16.16
+    ]
+   },
+   "neighbours": [
+    "lh_fusiform",
+    "lh_inferior_parietal",
+    "lh_inferior_temporal",
+    "lh_lateral_occipital",
+    "lh_superior_temporal"
+   ]
+  },
+  {
+   "id": "rh_middle_temporal",
+   "name": "Middle Temporal",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 28.291,
+   "centroidMm": [
+    57.25,
+    -31.58,
+    -11.29
+   ],
+   "bboxMm": {
+    "min": [
+     33.9,
+     -72.17,
+     -47.38
+    ],
+    "max": [
+     71.89,
+     18.75,
+     16.17
+    ]
+   },
+   "neighbours": [
+    "rh_fusiform",
+    "rh_inferior_parietal",
+    "rh_inferior_temporal",
+    "rh_lateral_occipital",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_parahippocampal",
+   "name": "Parahippocampal",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 2.708,
+   "centroidMm": [
+    -23.75,
+    -31.13,
+    -17.44
+   ],
+   "bboxMm": {
+    "min": [
+     -35.64,
+     -42.88,
+     -31.67
+    ],
+    "max": [
+     -11.84,
+     -18.16,
+     -3.54
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_amygdala",
+    "lh_cerebellum_gray_matter",
+    "lh_entorhinal",
+    "lh_fusiform",
+    "lh_hippocampus",
+    "lh_isthmus_cingulate",
+    "lh_lingual"
+   ]
+  },
+  {
+   "id": "rh_parahippocampal",
+   "name": "Parahippocampal",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 2.708,
+   "centroidMm": [
+    23.75,
+    -31.13,
+    -17.44
+   ],
+   "bboxMm": {
+    "min": [
+     11.86,
+     -42.96,
+     -31.68
+    ],
+    "max": [
+     35.72,
+     -18.09,
+     -3.48
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "rh_amygdala",
+    "rh_cerebellum_gray_matter",
+    "rh_entorhinal",
+    "rh_fusiform",
+    "rh_hippocampus",
+    "rh_isthmus_cingulate",
+    "rh_lingual"
+   ]
+  },
+  {
+   "id": "lh_paracentral",
+   "name": "Paracentral",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 8.238,
+   "centroidMm": [
+    -7.67,
+    -26.53,
+    59.71
+   ],
+   "bboxMm": {
+    "min": [
+     -19.16,
+     -46.34,
+     38.98
+    ],
+    "max": [
+     -0.51,
+     -6.23,
+     78.71
+    ]
+   },
+   "neighbours": [
+    "lh_postcentral",
+    "lh_posterior_cingulate",
+    "lh_precentral",
+    "lh_precuneus",
+    "lh_superior_frontal"
+   ]
+  },
+  {
+   "id": "rh_paracentral",
+   "name": "Paracentral",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 8.238,
+   "centroidMm": [
+    7.67,
+    -26.53,
+    59.71
+   ],
+   "bboxMm": {
+    "min": [
+     0.52,
+     -46.29,
+     38.97
+    ],
+    "max": [
+     19.16,
+     -6.23,
+     78.73
+    ]
+   },
+   "neighbours": [
+    "rh_postcentral",
+    "rh_posterior_cingulate",
+    "rh_precentral",
+    "rh_precuneus",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_pars_opercularis",
+   "name": "Pars Opercularis",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 7.673,
+   "centroidMm": [
+    -47.78,
+    14.88,
+    13.11
+   ],
+   "bboxMm": {
+    "min": [
+     -61.29,
+     3.14,
+     -4.44
+    ],
+    "max": [
+     -31.4,
+     26.11,
+     29.95
+    ]
+   },
+   "neighbours": [
+    "lh_caudal_middle_frontal",
+    "lh_insula",
+    "lh_pars_triangularis",
+    "lh_precentral",
+    "lh_rostral_middle_frontal",
+    "lh_superior_temporal"
+   ]
+  },
+  {
+   "id": "rh_pars_opercularis",
+   "name": "Pars Opercularis",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 7.673,
+   "centroidMm": [
+    47.78,
+    14.88,
+    13.11
+   ],
+   "bboxMm": {
+    "min": [
+     31.34,
+     3.2,
+     -4.42
+    ],
+    "max": [
+     61.29,
+     26.17,
+     29.95
+    ]
+   },
+   "neighbours": [
+    "rh_caudal_middle_frontal",
+    "rh_insula",
+    "rh_pars_triangularis",
+    "rh_precentral",
+    "rh_rostral_middle_frontal",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_pars_orbitalis",
+   "name": "Pars Orbitalis",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 3.639,
+   "centroidMm": [
+    -43.08,
+    34.03,
+    -12.77
+   ],
+   "bboxMm": {
+    "min": [
+     -53.78,
+     19.15,
+     -22.07
+    ],
+    "max": [
+     -29.16,
+     49.96,
+     -0.89
+    ]
+   },
+   "neighbours": [
+    "lh_insula",
+    "lh_lateral_orbitofrontal",
+    "lh_pars_triangularis",
+    "lh_rostral_middle_frontal"
+   ]
+  },
+  {
+   "id": "rh_pars_orbitalis",
+   "name": "Pars Orbitalis",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 3.639,
+   "centroidMm": [
+    43.08,
+    34.03,
+    -12.77
+   ],
+   "bboxMm": {
+    "min": [
+     29.15,
+     19.15,
+     -22.06
+    ],
+    "max": [
+     53.82,
+     49.92,
+     -0.89
+    ]
+   },
+   "neighbours": [
+    "rh_insula",
+    "rh_lateral_orbitofrontal",
+    "rh_pars_triangularis",
+    "rh_rostral_middle_frontal"
+   ]
+  },
+  {
+   "id": "lh_pars_triangularis",
+   "name": "Pars Triangularis",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 8.196,
+   "centroidMm": [
+    -48.56,
+    31.76,
+    4.7
+   ],
+   "bboxMm": {
+    "min": [
+     -60.23,
+     19.93,
+     -10.84
+    ],
+    "max": [
+     -29.31,
+     47.87,
+     22.3
+    ]
+   },
+   "neighbours": [
+    "lh_insula",
+    "lh_lateral_orbitofrontal",
+    "lh_pars_opercularis",
+    "lh_pars_orbitalis",
+    "lh_rostral_middle_frontal"
+   ]
+  },
+  {
+   "id": "rh_pars_triangularis",
+   "name": "Pars Triangularis",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 8.196,
+   "centroidMm": [
+    48.56,
+    31.76,
+    4.7
+   ],
+   "bboxMm": {
+    "min": [
+     29.27,
+     19.94,
+     -10.9
+    ],
+    "max": [
+     60.23,
+     47.87,
+     22.28
+    ]
+   },
+   "neighbours": [
+    "rh_insula",
+    "rh_lateral_orbitofrontal",
+    "rh_pars_opercularis",
+    "rh_pars_orbitalis",
+    "rh_rostral_middle_frontal"
+   ]
+  },
+  {
+   "id": "lh_pericalcarine",
+   "name": "Pericalcarine",
+   "side": "left",
+   "group": "occipital",
+   "volumeCm3": 5.03,
+   "centroidMm": [
+    -11.38,
+    -82.34,
+    6.18
+   ],
+   "bboxMm": {
+    "min": [
+     -24.54,
+     -101.03,
+     -9.69
+    ],
+    "max": [
+     -3.82,
+     -63.29,
+     18.76
+    ]
+   },
+   "neighbours": [
+    "lh_cuneus",
+    "lh_lateral_occipital",
+    "lh_lateral_ventricle",
+    "lh_lingual",
+    "lh_precuneus"
+   ]
+  },
+  {
+   "id": "rh_pericalcarine",
+   "name": "Pericalcarine",
+   "side": "right",
+   "group": "occipital",
+   "volumeCm3": 5.03,
+   "centroidMm": [
+    11.38,
+    -82.34,
+    6.18
+   ],
+   "bboxMm": {
+    "min": [
+     3.81,
+     -101.04,
+     -9.64
+    ],
+    "max": [
+     24.59,
+     -63.3,
+     18.79
+    ]
+   },
+   "neighbours": [
+    "rh_cuneus",
+    "rh_lateral_occipital",
+    "rh_lateral_ventricle",
+    "rh_lingual",
+    "rh_precuneus"
+   ]
+  },
+  {
+   "id": "lh_postcentral",
+   "name": "Postcentral",
+   "side": "left",
+   "group": "parietal",
+   "volumeCm3": 18.194,
+   "centroidMm": [
+    -42.99,
+    -25.03,
+    46.68
+   ],
+   "bboxMm": {
+    "min": [
+     -69.46,
+     -57.91,
+     8.04
+    ],
+    "max": [
+     -5.09,
+     -2.58,
+     82.1
+    ]
+   },
+   "neighbours": [
+    "lh_insula",
+    "lh_paracentral",
+    "lh_precentral",
+    "lh_precuneus",
+    "lh_superior_parietal",
+    "lh_superior_temporal",
+    "lh_supramarginal",
+    "lh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "rh_postcentral",
+   "name": "Postcentral",
+   "side": "right",
+   "group": "parietal",
+   "volumeCm3": 18.194,
+   "centroidMm": [
+    42.99,
+    -25.03,
+    46.68
+   ],
+   "bboxMm": {
+    "min": [
+     5.05,
+     -57.85,
+     8.06
+    ],
+    "max": [
+     69.44,
+     -2.62,
+     82.08
+    ]
+   },
+   "neighbours": [
+    "rh_insula",
+    "rh_paracentral",
+    "rh_precentral",
+    "rh_precuneus",
+    "rh_superior_parietal",
+    "rh_superior_temporal",
+    "rh_supramarginal",
+    "rh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "lh_posterior_cingulate",
+   "name": "Posterior Cingulate",
+   "side": "left",
+   "group": "insula_cingulate",
+   "volumeCm3": 5.302,
+   "centroidMm": [
+    -5.52,
+    -19.87,
+    38.6
+   ],
+   "bboxMm": {
+    "min": [
+     -15.87,
+     -39.9,
+     26.24
+    ],
+    "max": [
+     -0.51,
+     4.35,
+     48.93
+    ]
+   },
+   "neighbours": [
+    "lh_caudal_anterior_cingulate",
+    "lh_isthmus_cingulate",
+    "lh_paracentral",
+    "lh_precuneus",
+    "lh_rostral_anterior_cingulate",
+    "lh_superior_frontal",
+    "rh_posterior_cingulate"
+   ]
+  },
+  {
+   "id": "rh_posterior_cingulate",
+   "name": "Posterior Cingulate",
+   "side": "right",
+   "group": "insula_cingulate",
+   "volumeCm3": 5.411,
+   "centroidMm": [
+    5.41,
+    -19.77,
+    38.59
+   ],
+   "bboxMm": {
+    "min": [
+     -0.18,
+     -39.87,
+     26.23
+    ],
+    "max": [
+     15.88,
+     4.33,
+     48.9
+    ]
+   },
+   "neighbours": [
+    "lh_posterior_cingulate",
+    "rh_caudal_anterior_cingulate",
+    "rh_isthmus_cingulate",
+    "rh_paracentral",
+    "rh_precuneus",
+    "rh_rostral_anterior_cingulate",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_precentral",
+   "name": "Precentral",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 21.393,
+   "centroidMm": [
+    -42.76,
+    -7.3,
+    41.74
+   ],
+   "bboxMm": {
+    "min": [
+     -66.26,
+     -35.9,
+     -0.95
+    ],
+    "max": [
+     -5.27,
+     13.84,
+     81.09
+    ]
+   },
+   "neighbours": [
+    "lh_caudal_middle_frontal",
+    "lh_insula",
+    "lh_paracentral",
+    "lh_pars_opercularis",
+    "lh_postcentral",
+    "lh_rostral_middle_frontal",
+    "lh_superior_frontal",
+    "lh_superior_temporal"
+   ]
+  },
+  {
+   "id": "rh_precentral",
+   "name": "Precentral",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 21.393,
+   "centroidMm": [
+    42.76,
+    -7.3,
+    41.74
+   ],
+   "bboxMm": {
+    "min": [
+     5.18,
+     -35.78,
+     -0.94
+    ],
+    "max": [
+     66.27,
+     13.82,
+     81.06
+    ]
+   },
+   "neighbours": [
+    "rh_caudal_middle_frontal",
+    "rh_insula",
+    "rh_paracentral",
+    "rh_pars_opercularis",
+    "rh_postcentral",
+    "rh_rostral_middle_frontal",
+    "rh_superior_frontal",
+    "rh_superior_temporal"
+   ]
+  },
+  {
+   "id": "lh_precuneus",
+   "name": "Precuneus",
+   "side": "left",
+   "group": "parietal",
+   "volumeCm3": 18.771,
+   "centroidMm": [
+    -9.07,
+    -59.0,
+    39.66
+   ],
+   "bboxMm": {
+    "min": [
+     -25.35,
+     -82.85,
+     5.73
+    ],
+    "max": [
+     -0.5,
+     -36.17,
+     77.63
+    ]
+   },
+   "neighbours": [
+    "lh_cuneus",
+    "lh_isthmus_cingulate",
+    "lh_lateral_ventricle",
+    "lh_lingual",
+    "lh_paracentral",
+    "lh_pericalcarine",
+    "lh_postcentral",
+    "lh_posterior_cingulate",
+    "lh_superior_parietal",
+    "rh_precuneus"
+   ]
+  },
+  {
+   "id": "rh_precuneus",
+   "name": "Precuneus",
+   "side": "right",
+   "group": "parietal",
+   "volumeCm3": 18.772,
+   "centroidMm": [
+    9.07,
+    -59.0,
+    39.66
+   ],
+   "bboxMm": {
+    "min": [
+     0.5,
+     -82.86,
+     5.67
+    ],
+    "max": [
+     25.36,
+     -36.16,
+     77.56
+    ]
+   },
+   "neighbours": [
+    "lh_precuneus",
+    "rh_cuneus",
+    "rh_isthmus_cingulate",
+    "rh_lateral_ventricle",
+    "rh_lingual",
+    "rh_paracentral",
+    "rh_pericalcarine",
+    "rh_postcentral",
+    "rh_posterior_cingulate",
+    "rh_superior_parietal"
+   ]
+  },
+  {
+   "id": "lh_rostral_anterior_cingulate",
+   "name": "Rostral Anterior Cingulate",
+   "side": "left",
+   "group": "insula_cingulate",
+   "volumeCm3": 3.782,
+   "centroidMm": [
+    -5.49,
+    36.31,
+    2.32
+   ],
+   "bboxMm": {
+    "min": [
+     -12.95,
+     11.51,
+     -13.84
+    ],
+    "max": [
+     -0.55,
+     46.28,
+     19.33
+    ]
+   },
+   "neighbours": [
+    "lh_caudal_anterior_cingulate",
+    "lh_medial_orbitofrontal",
+    "lh_posterior_cingulate",
+    "lh_superior_frontal",
+    "rh_rostral_anterior_cingulate"
+   ]
+  },
+  {
+   "id": "rh_rostral_anterior_cingulate",
+   "name": "Rostral Anterior Cingulate",
+   "side": "right",
+   "group": "insula_cingulate",
+   "volumeCm3": 3.832,
+   "centroidMm": [
+    5.42,
+    36.24,
+    2.17
+   ],
+   "bboxMm": {
+    "min": [
+     -0.08,
+     11.44,
+     -13.86
+    ],
+    "max": [
+     12.92,
+     46.28,
+     19.42
+    ]
+   },
+   "neighbours": [
+    "lh_medial_orbitofrontal",
+    "lh_rostral_anterior_cingulate",
+    "rh_caudal_anterior_cingulate",
+    "rh_medial_orbitofrontal",
+    "rh_posterior_cingulate",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_rostral_middle_frontal",
+   "name": "Rostral Middle Frontal",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 21.742,
+   "centroidMm": [
+    -38.54,
+    42.75,
+    17.67
+   ],
+   "bboxMm": {
+    "min": [
+     -55.29,
+     13.97,
+     -18.27
+    ],
+    "max": [
+     -21.49,
+     66.8,
+     49.14
+    ]
+   },
+   "neighbours": [
+    "lh_caudal_middle_frontal",
+    "lh_lateral_orbitofrontal",
+    "lh_pars_opercularis",
+    "lh_pars_orbitalis",
+    "lh_pars_triangularis",
+    "lh_precentral",
+    "lh_superior_frontal"
+   ]
+  },
+  {
+   "id": "rh_rostral_middle_frontal",
+   "name": "Rostral Middle Frontal",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 21.742,
+   "centroidMm": [
+    38.54,
+    42.75,
+    17.67
+   ],
+   "bboxMm": {
+    "min": [
+     21.48,
+     13.94,
+     -18.24
+    ],
+    "max": [
+     55.29,
+     66.8,
+     49.18
+    ]
+   },
+   "neighbours": [
+    "rh_caudal_middle_frontal",
+    "rh_lateral_orbitofrontal",
+    "rh_pars_opercularis",
+    "rh_pars_orbitalis",
+    "rh_pars_triangularis",
+    "rh_precentral",
+    "rh_superior_frontal"
+   ]
+  },
+  {
+   "id": "lh_superior_frontal",
+   "name": "Superior Frontal",
+   "side": "left",
+   "group": "frontal",
+   "volumeCm3": 52.819,
+   "centroidMm": [
+    -13.24,
+    33.82,
+    37.37
+   ],
+   "bboxMm": {
+    "min": [
+     -33.86,
+     -16.09,
+     -15.83
+    ],
+    "max": [
+     -0.58,
+     73.43,
+     78.03
+    ]
+   },
+   "neighbours": [
+    "lh_caudal_anterior_cingulate",
+    "lh_caudal_middle_frontal",
+    "lh_lateral_orbitofrontal",
+    "lh_medial_orbitofrontal",
+    "lh_paracentral",
+    "lh_posterior_cingulate",
+    "lh_precentral",
+    "lh_rostral_anterior_cingulate",
+    "lh_rostral_middle_frontal"
+   ]
+  },
+  {
+   "id": "rh_superior_frontal",
+   "name": "Superior Frontal",
+   "side": "right",
+   "group": "frontal",
+   "volumeCm3": 52.819,
+   "centroidMm": [
+    13.24,
+    33.82,
+    37.37
+   ],
+   "bboxMm": {
+    "min": [
+     0.58,
+     -16.07,
+     -15.82
+    ],
+    "max": [
+     33.87,
+     73.43,
+     78.0
+    ]
+   },
+   "neighbours": [
+    "rh_caudal_anterior_cingulate",
+    "rh_caudal_middle_frontal",
+    "rh_lateral_orbitofrontal",
+    "rh_medial_orbitofrontal",
+    "rh_paracentral",
+    "rh_posterior_cingulate",
+    "rh_precentral",
+    "rh_rostral_anterior_cingulate",
+    "rh_rostral_middle_frontal"
+   ]
+  },
+  {
+   "id": "lh_superior_parietal",
+   "name": "Superior Parietal",
+   "side": "left",
+   "group": "parietal",
+   "volumeCm3": 19.333,
+   "centroidMm": [
+    -25.87,
+    -61.93,
+    52.4
+   ],
+   "bboxMm": {
+    "min": [
+     -45.28,
+     -92.43,
+     17.28
+    ],
+    "max": [
+     -6.74,
+     -36.8,
+     75.62
+    ]
+   },
+   "neighbours": [
+    "lh_cuneus",
+    "lh_inferior_parietal",
+    "lh_lateral_occipital",
+    "lh_postcentral",
+    "lh_precuneus",
+    "lh_supramarginal"
+   ]
+  },
+  {
+   "id": "rh_superior_parietal",
+   "name": "Superior Parietal",
+   "side": "right",
+   "group": "parietal",
+   "volumeCm3": 19.333,
+   "centroidMm": [
+    25.87,
+    -61.93,
+    52.4
+   ],
+   "bboxMm": {
+    "min": [
+     6.74,
+     -92.39,
+     17.3
+    ],
+    "max": [
+     45.26,
+     -36.74,
+     75.59
+    ]
+   },
+   "neighbours": [
+    "rh_cuneus",
+    "rh_inferior_parietal",
+    "rh_lateral_occipital",
+    "rh_postcentral",
+    "rh_precuneus",
+    "rh_supramarginal"
+   ]
+  },
+  {
+   "id": "lh_superior_temporal",
+   "name": "Superior Temporal",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 25.351,
+   "centroidMm": [
+    -51.06,
+    -8.09,
+    -8.6
+   ],
+   "bboxMm": {
+    "min": [
+     -71.46,
+     -50.98,
+     -45.48
+    ],
+    "max": [
+     -18.92,
+     26.14,
+     21.24
+    ]
+   },
+   "neighbours": [
+    "lh_entorhinal",
+    "lh_inferior_parietal",
+    "lh_inferior_temporal",
+    "lh_insula",
+    "lh_lateral_occipital",
+    "lh_lateral_orbitofrontal",
+    "lh_middle_temporal",
+    "lh_pars_opercularis",
+    "lh_postcentral",
+    "lh_precentral",
+    "lh_supramarginal",
+    "lh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "rh_superior_temporal",
+   "name": "Superior Temporal",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 25.351,
+   "centroidMm": [
+    51.06,
+    -8.09,
+    -8.6
+   ],
+   "bboxMm": {
+    "min": [
+     18.88,
+     -50.96,
+     -45.39
+    ],
+    "max": [
+     71.48,
+     26.18,
+     21.25
+    ]
+   },
+   "neighbours": [
+    "rh_entorhinal",
+    "rh_inferior_parietal",
+    "rh_inferior_temporal",
+    "rh_insula",
+    "rh_lateral_occipital",
+    "rh_lateral_orbitofrontal",
+    "rh_middle_temporal",
+    "rh_pars_opercularis",
+    "rh_postcentral",
+    "rh_precentral",
+    "rh_supramarginal",
+    "rh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "lh_supramarginal",
+   "name": "Supramarginal",
+   "side": "left",
+   "group": "parietal",
+   "volumeCm3": 16.033,
+   "centroidMm": [
+    -55.15,
+    -35.15,
+    35.98
+   ],
+   "bboxMm": {
+    "min": [
+     -69.36,
+     -52.26,
+     14.98
+    ],
+    "max": [
+     -32.21,
+     -16.8,
+     59.15
+    ]
+   },
+   "neighbours": [
+    "lh_inferior_parietal",
+    "lh_insula",
+    "lh_postcentral",
+    "lh_superior_parietal",
+    "lh_superior_temporal",
+    "lh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "rh_supramarginal",
+   "name": "Supramarginal",
+   "side": "right",
+   "group": "parietal",
+   "volumeCm3": 16.033,
+   "centroidMm": [
+    55.15,
+    -35.15,
+    35.98
+   ],
+   "bboxMm": {
+    "min": [
+     32.21,
+     -52.19,
+     15.0
+    ],
+    "max": [
+     69.36,
+     -16.76,
+     59.17
+    ]
+   },
+   "neighbours": [
+    "rh_inferior_parietal",
+    "rh_insula",
+    "rh_postcentral",
+    "rh_superior_parietal",
+    "rh_superior_temporal",
+    "rh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "lh_transverse_temporal",
+   "name": "Transverse Temporal",
+   "side": "left",
+   "group": "temporal",
+   "volumeCm3": 1.882,
+   "centroidMm": [
+    -45.66,
+    -19.81,
+    8.26
+   ],
+   "bboxMm": {
+    "min": [
+     -57.99,
+     -32.55,
+     0.1
+    ],
+    "max": [
+     -34.22,
+     -6.37,
+     17.01
+    ]
+   },
+   "neighbours": [
+    "lh_insula",
+    "lh_postcentral",
+    "lh_superior_temporal",
+    "lh_supramarginal"
+   ]
+  },
+  {
+   "id": "rh_transverse_temporal",
+   "name": "Transverse Temporal",
+   "side": "right",
+   "group": "temporal",
+   "volumeCm3": 1.882,
+   "centroidMm": [
+    45.66,
+    -19.81,
+    8.26
+   ],
+   "bboxMm": {
+    "min": [
+     34.18,
+     -32.54,
+     0.07
+    ],
+    "max": [
+     58.02,
+     -6.34,
+     17.04
+    ]
+   },
+   "neighbours": [
+    "rh_insula",
+    "rh_postcentral",
+    "rh_superior_temporal",
+    "rh_supramarginal"
+   ]
+  },
+  {
+   "id": "lh_insula",
+   "name": "Insula",
+   "side": "left",
+   "group": "insula_cingulate",
+   "volumeCm3": 9.521,
+   "centroidMm": [
+    -37.14,
+    1.77,
+    0.43
+   ],
+   "bboxMm": {
+    "min": [
+     -45.27,
+     -27.65,
+     -17.46
+    ],
+    "max": [
+     -27.14,
+     28.77,
+     20.77
+    ]
+   },
+   "neighbours": [
+    "lh_lateral_orbitofrontal",
+    "lh_pars_opercularis",
+    "lh_pars_orbitalis",
+    "lh_pars_triangularis",
+    "lh_postcentral",
+    "lh_precentral",
+    "lh_superior_temporal",
+    "lh_supramarginal",
+    "lh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "rh_insula",
+   "name": "Insula",
+   "side": "right",
+   "group": "insula_cingulate",
+   "volumeCm3": 9.521,
+   "centroidMm": [
+    37.14,
+    1.77,
+    0.43
+   ],
+   "bboxMm": {
+    "min": [
+     27.16,
+     -27.63,
+     -17.48
+    ],
+    "max": [
+     45.27,
+     28.81,
+     20.73
+    ]
+   },
+   "neighbours": [
+    "rh_lateral_orbitofrontal",
+    "rh_pars_opercularis",
+    "rh_pars_orbitalis",
+    "rh_pars_triangularis",
+    "rh_postcentral",
+    "rh_precentral",
+    "rh_superior_temporal",
+    "rh_supramarginal",
+    "rh_transverse_temporal"
+   ]
+  },
+  {
+   "id": "brainstem",
+   "name": "Brainstem",
+   "side": "midline",
+   "group": "brainstem",
+   "volumeCm3": 32.593,
+   "centroidMm": [
+    0.0,
+    -31.44,
+    -36.27
+   ],
+   "bboxMm": {
+    "min": [
+     -17.95,
+     -51.47,
+     -78.43
+    ],
+    "max": [
+     17.94,
+     -12.54,
+     -1.04
+    ]
+   },
+   "neighbours": [
+    "fourth_ventricle",
+    "lh_cerebellum_gray_matter",
+    "lh_cerebellum_white_matter",
+    "lh_parahippocampal",
+    "lh_thalamus",
+    "lh_ventral_diencephalon",
+    "optic_chiasm",
+    "rh_cerebellum_gray_matter",
+    "rh_cerebellum_white_matter",
+    "rh_parahippocampal",
+    "rh_thalamus",
+    "rh_ventral_diencephalon",
+    "third_ventricle",
+    "vermal_lobules_i_v",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "third_ventricle",
+   "name": "Third Ventricle",
+   "side": "midline",
+   "group": "ventricles",
+   "volumeCm3": 1.713,
+   "centroidMm": [
+    0.0,
+    -13.22,
+    -0.4
+   ],
+   "bboxMm": {
+    "min": [
+     -3.02,
+     -31.64,
+     -16.73
+    ],
+    "max": [
+     3.03,
+     2.65,
+     13.14
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_lateral_ventricle",
+    "lh_thalamus",
+    "lh_ventral_diencephalon",
+    "optic_chiasm",
+    "rh_lateral_ventricle",
+    "rh_thalamus",
+    "rh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "fourth_ventricle",
+   "name": "Fourth Ventricle",
+   "side": "midline",
+   "group": "ventricles",
+   "volumeCm3": 1.384,
+   "centroidMm": [
+    0.0,
+    -44.15,
+    -31.12
+   ],
+   "bboxMm": {
+    "min": [
+     -6.96,
+     -52.34,
+     -40.74
+    ],
+    "max": [
+     6.93,
+     -37.28,
+     -17.87
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_cerebellum_gray_matter",
+    "lh_cerebellum_white_matter",
+    "rh_cerebellum_gray_matter",
+    "rh_cerebellum_white_matter",
+    "vermal_lobules_i_v",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "optic_chiasm",
+   "name": "Optic Chiasm",
+   "side": "midline",
+   "group": "other",
+   "volumeCm3": 1.534,
+   "centroidMm": [
+    0.0,
+    3.28,
+    -19.59
+   ],
+   "bboxMm": {
+    "min": [
+     -14.8,
+     -8.64,
+     -30.55
+    ],
+    "max": [
+     14.8,
+     20.56,
+     -11.32
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_amygdala",
+    "lh_basal_forebrain",
+    "lh_lateral_orbitofrontal",
+    "lh_medial_orbitofrontal",
+    "lh_ventral_diencephalon",
+    "rh_amygdala",
+    "rh_basal_forebrain",
+    "rh_lateral_orbitofrontal",
+    "rh_medial_orbitofrontal",
+    "rh_ventral_diencephalon",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "lh_lateral_ventricle",
+   "name": "Lateral Ventricle",
+   "side": "left",
+   "group": "ventricles",
+   "volumeCm3": 9.57,
+   "centroidMm": [
+    -14.68,
+    -17.84,
+    14.17
+   ],
+   "bboxMm": {
+    "min": [
+     -33.84,
+     -78.48,
+     -1.13
+    ],
+    "max": [
+     -0.55,
+     29.06,
+     28.11
+    ]
+   },
+   "neighbours": [
+    "lh_caudate",
+    "lh_hippocampus",
+    "lh_inferior_lateral_ventricle",
+    "lh_lingual",
+    "lh_pericalcarine",
+    "lh_precuneus",
+    "lh_thalamus",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "rh_lateral_ventricle",
+   "name": "Lateral Ventricle",
+   "side": "right",
+   "group": "ventricles",
+   "volumeCm3": 9.57,
+   "centroidMm": [
+    14.68,
+    -17.84,
+    14.17
+   ],
+   "bboxMm": {
+    "min": [
+     0.55,
+     -78.57,
+     -1.17
+    ],
+    "max": [
+     33.82,
+     29.04,
+     28.11
+    ]
+   },
+   "neighbours": [
+    "rh_caudate",
+    "rh_hippocampus",
+    "rh_inferior_lateral_ventricle",
+    "rh_lingual",
+    "rh_pericalcarine",
+    "rh_precuneus",
+    "rh_thalamus",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "lh_inferior_lateral_ventricle",
+   "name": "Inferior Lateral Ventricle",
+   "side": "left",
+   "group": "ventricles",
+   "volumeCm3": 1.059,
+   "centroidMm": [
+    -31.65,
+    -16.84,
+    -16.2
+   ],
+   "bboxMm": {
+    "min": [
+     -38.2,
+     -38.54,
+     -29.55
+    ],
+    "max": [
+     -19.79,
+     -4.54,
+     -4.42
+    ]
+   },
+   "neighbours": [
+    "lh_amygdala",
+    "lh_hippocampus",
+    "lh_lateral_ventricle",
+    "lh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "rh_inferior_lateral_ventricle",
+   "name": "Inferior Lateral Ventricle",
+   "side": "right",
+   "group": "ventricles",
+   "volumeCm3": 1.059,
+   "centroidMm": [
+    31.65,
+    -16.84,
+    -16.2
+   ],
+   "bboxMm": {
+    "min": [
+     19.81,
+     -38.46,
+     -29.57
+    ],
+    "max": [
+     38.2,
+     -4.59,
+     -4.38
+    ]
+   },
+   "neighbours": [
+    "rh_amygdala",
+    "rh_hippocampus",
+    "rh_lateral_ventricle",
+    "rh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "lh_cerebellum_gray_matter",
+   "name": "Cerebellum Gray Matter",
+   "side": "left",
+   "group": "cerebellum",
+   "volumeCm3": 71.229,
+   "centroidMm": [
+    -26.81,
+    -63.27,
+    -38.8
+   ],
+   "bboxMm": {
+    "min": [
+     -56.78,
+     -92.91,
+     -67.39
+    ],
+    "max": [
+     -0.55,
+     -29.23,
+     -6.26
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "fourth_ventricle",
+    "lh_cerebellum_white_matter",
+    "lh_fusiform",
+    "lh_lingual",
+    "lh_parahippocampal",
+    "vermal_lobules_i_v",
+    "vermal_lobules_vi_vii",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "rh_cerebellum_gray_matter",
+   "name": "Cerebellum Gray Matter",
+   "side": "right",
+   "group": "cerebellum",
+   "volumeCm3": 71.229,
+   "centroidMm": [
+    26.81,
+    -63.27,
+    -38.8
+   ],
+   "bboxMm": {
+    "min": [
+     0.54,
+     -92.9,
+     -67.34
+    ],
+    "max": [
+     56.77,
+     -29.24,
+     -6.27
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "fourth_ventricle",
+    "rh_cerebellum_white_matter",
+    "rh_fusiform",
+    "rh_lingual",
+    "rh_parahippocampal",
+    "vermal_lobules_i_v",
+    "vermal_lobules_vi_vii",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "lh_cerebellum_white_matter",
+   "name": "Cerebellum White Matter",
+   "side": "left",
+   "group": "cerebellum",
+   "volumeCm3": 12.998,
+   "centroidMm": [
+    -18.65,
+    -52.04,
+    -36.22
+   ],
+   "bboxMm": {
+    "min": [
+     -35.71,
+     -72.18,
+     -48.49
+    ],
+    "max": [
+     -6.22,
+     -26.4,
+     -20.57
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "fourth_ventricle",
+    "lh_cerebellum_gray_matter",
+    "vermal_lobules_i_v",
+    "vermal_lobules_vi_vii",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "rh_cerebellum_white_matter",
+   "name": "Cerebellum White Matter",
+   "side": "right",
+   "group": "cerebellum",
+   "volumeCm3": 12.999,
+   "centroidMm": [
+    18.65,
+    -52.04,
+    -36.22
+   ],
+   "bboxMm": {
+    "min": [
+     6.22,
+     -72.14,
+     -48.49
+    ],
+    "max": [
+     35.74,
+     -26.41,
+     -20.52
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "fourth_ventricle",
+    "rh_cerebellum_gray_matter",
+    "vermal_lobules_i_v",
+    "vermal_lobules_vi_vii",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "lh_thalamus",
+   "name": "Thalamus",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 10.037,
+   "centroidMm": [
+    -11.74,
+    -18.1,
+    6.75
+   ],
+   "bboxMm": {
+    "min": [
+     -25.31,
+     -35.49,
+     -4.99
+    ],
+    "max": [
+     -0.5,
+     -0.07,
+     20.15
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_caudate",
+    "lh_lateral_ventricle",
+    "lh_ventral_diencephalon",
+    "rh_thalamus",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "rh_thalamus",
+   "name": "Thalamus",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 10.038,
+   "centroidMm": [
+    11.74,
+    -18.1,
+    6.75
+   ],
+   "bboxMm": {
+    "min": [
+     0.52,
+     -35.48,
+     -5.02
+    ],
+    "max": [
+     25.31,
+     -0.08,
+     20.16
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_thalamus",
+    "rh_caudate",
+    "rh_lateral_ventricle",
+    "rh_ventral_diencephalon",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "lh_caudate",
+   "name": "Caudate",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 5.643,
+   "centroidMm": [
+    -13.92,
+    9.58,
+    10.43
+   ],
+   "bboxMm": {
+    "min": [
+     -20.75,
+     -26.21,
+     -8.93
+    ],
+    "max": [
+     -4.99,
+     26.05,
+     26.49
+    ]
+   },
+   "neighbours": [
+    "lh_accumbens_area",
+    "lh_lateral_ventricle",
+    "lh_putamen",
+    "lh_thalamus"
+   ]
+  },
+  {
+   "id": "rh_caudate",
+   "name": "Caudate",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 5.643,
+   "centroidMm": [
+    13.92,
+    9.58,
+    10.43
+   ],
+   "bboxMm": {
+    "min": [
+     4.99,
+     -26.19,
+     -8.93
+    ],
+    "max": [
+     20.76,
+     26.05,
+     26.55
+    ]
+   },
+   "neighbours": [
+    "rh_accumbens_area",
+    "rh_lateral_ventricle",
+    "rh_putamen",
+    "rh_thalamus"
+   ]
+  },
+  {
+   "id": "lh_putamen",
+   "name": "Putamen",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 6.626,
+   "centroidMm": [
+    -25.52,
+    2.58,
+    0.24
+   ],
+   "bboxMm": {
+    "min": [
+     -33.27,
+     -20.56,
+     -12.56
+    ],
+    "max": [
+     -13.02,
+     20.08,
+     13.94
+    ]
+   },
+   "neighbours": [
+    "lh_accumbens_area",
+    "lh_caudate",
+    "lh_pallidum"
+   ]
+  },
+  {
+   "id": "rh_putamen",
+   "name": "Putamen",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 6.626,
+   "centroidMm": [
+    25.52,
+    2.58,
+    0.24
+   ],
+   "bboxMm": {
+    "min": [
+     13.03,
+     -20.5,
+     -12.56
+    ],
+    "max": [
+     33.28,
+     20.14,
+     13.93
+    ]
+   },
+   "neighbours": [
+    "rh_accumbens_area",
+    "rh_caudate",
+    "rh_pallidum"
+   ]
+  },
+  {
+   "id": "lh_pallidum",
+   "name": "Pallidum",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 1.701,
+   "centroidMm": [
+    -18.68,
+    -2.33,
+    -1.93
+   ],
+   "bboxMm": {
+    "min": [
+     -26.18,
+     -13.53,
+     -7.93
+    ],
+    "max": [
+     -10.22,
+     7.68,
+     5.68
+    ]
+   },
+   "neighbours": [
+    "lh_putamen"
+   ]
+  },
+  {
+   "id": "rh_pallidum",
+   "name": "Pallidum",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 1.701,
+   "centroidMm": [
+    18.68,
+    -2.33,
+    -1.93
+   ],
+   "bboxMm": {
+    "min": [
+     10.23,
+     -13.55,
+     -7.91
+    ],
+    "max": [
+     26.19,
+     7.73,
+     5.7
+    ]
+   },
+   "neighbours": [
+    "rh_putamen"
+   ]
+  },
+  {
+   "id": "lh_hippocampus",
+   "name": "Hippocampus",
+   "side": "left",
+   "group": "limbic",
+   "volumeCm3": 4.694,
+   "centroidMm": [
+    -25.89,
+    -22.5,
+    -14.48
+   ],
+   "bboxMm": {
+    "min": [
+     -36.2,
+     -41.96,
+     -30.09
+    ],
+    "max": [
+     -13.47,
+     -4.91,
+     4.83
+    ]
+   },
+   "neighbours": [
+    "lh_amygdala",
+    "lh_entorhinal",
+    "lh_inferior_lateral_ventricle",
+    "lh_lateral_ventricle",
+    "lh_parahippocampal",
+    "lh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "rh_hippocampus",
+   "name": "Hippocampus",
+   "side": "right",
+   "group": "limbic",
+   "volumeCm3": 4.694,
+   "centroidMm": [
+    25.89,
+    -22.5,
+    -14.48
+   ],
+   "bboxMm": {
+    "min": [
+     13.5,
+     -41.91,
+     -30.11
+    ],
+    "max": [
+     36.2,
+     -4.93,
+     4.81
+    ]
+   },
+   "neighbours": [
+    "rh_amygdala",
+    "rh_entorhinal",
+    "rh_inferior_lateral_ventricle",
+    "rh_lateral_ventricle",
+    "rh_parahippocampal",
+    "rh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "lh_amygdala",
+   "name": "Amygdala",
+   "side": "left",
+   "group": "limbic",
+   "volumeCm3": 1.65,
+   "centroidMm": [
+    -23.39,
+    -4.44,
+    -20.66
+   ],
+   "bboxMm": {
+    "min": [
+     -32.09,
+     -11.53,
+     -30.62
+    ],
+    "max": [
+     -13.56,
+     0.47,
+     -11.19
+    ]
+   },
+   "neighbours": [
+    "lh_entorhinal",
+    "lh_fusiform",
+    "lh_hippocampus",
+    "lh_inferior_lateral_ventricle",
+    "lh_parahippocampal",
+    "lh_ventral_diencephalon",
+    "optic_chiasm"
+   ]
+  },
+  {
+   "id": "rh_amygdala",
+   "name": "Amygdala",
+   "side": "right",
+   "group": "limbic",
+   "volumeCm3": 1.65,
+   "centroidMm": [
+    23.39,
+    -4.44,
+    -20.66
+   ],
+   "bboxMm": {
+    "min": [
+     13.41,
+     -11.52,
+     -30.61
+    ],
+    "max": [
+     32.09,
+     0.45,
+     -11.18
+    ]
+   },
+   "neighbours": [
+    "optic_chiasm",
+    "rh_entorhinal",
+    "rh_fusiform",
+    "rh_hippocampus",
+    "rh_inferior_lateral_ventricle",
+    "rh_parahippocampal",
+    "rh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "lh_accumbens_area",
+   "name": "Accumbens Area",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 0.553,
+   "centroidMm": [
+    -8.99,
+    11.8,
+    -7.26
+   ],
+   "bboxMm": {
+    "min": [
+     -13.14,
+     6.8,
+     -12.09
+    ],
+    "max": [
+     -5.61,
+     16.98,
+     -2.44
+    ]
+   },
+   "neighbours": [
+    "lh_basal_forebrain",
+    "lh_caudate",
+    "lh_medial_orbitofrontal",
+    "lh_putamen"
+   ]
+  },
+  {
+   "id": "rh_accumbens_area",
+   "name": "Accumbens Area",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 0.553,
+   "centroidMm": [
+    8.99,
+    11.8,
+    -7.26
+   ],
+   "bboxMm": {
+    "min": [
+     5.58,
+     6.83,
+     -12.09
+    ],
+    "max": [
+     13.13,
+     16.92,
+     -2.38
+    ]
+   },
+   "neighbours": [
+    "rh_basal_forebrain",
+    "rh_caudate",
+    "rh_medial_orbitofrontal",
+    "rh_putamen"
+   ]
+  },
+  {
+   "id": "lh_ventral_diencephalon",
+   "name": "Ventral Diencephalon",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 6.102,
+   "centroidMm": [
+    -10.34,
+    -16.77,
+    -10.31
+   ],
+   "bboxMm": {
+    "min": [
+     -26.71,
+     -27.91,
+     -20.47
+    ],
+    "max": [
+     -0.52,
+     1.02,
+     0.53
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_amygdala",
+    "lh_basal_forebrain",
+    "lh_hippocampus",
+    "lh_inferior_lateral_ventricle",
+    "lh_thalamus",
+    "optic_chiasm",
+    "rh_ventral_diencephalon",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "rh_ventral_diencephalon",
+   "name": "Ventral Diencephalon",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 6.104,
+   "centroidMm": [
+    10.34,
+    -16.77,
+    -10.31
+   ],
+   "bboxMm": {
+    "min": [
+     0.52,
+     -27.9,
+     -20.49
+    ],
+    "max": [
+     26.69,
+     1.04,
+     0.53
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "lh_ventral_diencephalon",
+    "optic_chiasm",
+    "rh_amygdala",
+    "rh_basal_forebrain",
+    "rh_hippocampus",
+    "rh_inferior_lateral_ventricle",
+    "rh_thalamus",
+    "third_ventricle"
+   ]
+  },
+  {
+   "id": "lh_basal_forebrain",
+   "name": "Basal Forebrain",
+   "side": "left",
+   "group": "deep",
+   "volumeCm3": 0.192,
+   "centroidMm": [
+    -7.09,
+    4.04,
+    -11.88
+   ],
+   "bboxMm": {
+    "min": [
+     -11.45,
+     1.92,
+     -14.08
+    ],
+    "max": [
+     -3.24,
+     6.04,
+     -9.84
+    ]
+   },
+   "neighbours": [
+    "lh_accumbens_area",
+    "lh_medial_orbitofrontal",
+    "lh_ventral_diencephalon",
+    "optic_chiasm"
+   ]
+  },
+  {
+   "id": "rh_basal_forebrain",
+   "name": "Basal Forebrain",
+   "side": "right",
+   "group": "deep",
+   "volumeCm3": 0.192,
+   "centroidMm": [
+    7.09,
+    4.04,
+    -11.88
+   ],
+   "bboxMm": {
+    "min": [
+     3.18,
+     1.93,
+     -14.1
+    ],
+    "max": [
+     11.25,
+     6.05,
+     -9.86
+    ]
+   },
+   "neighbours": [
+    "optic_chiasm",
+    "rh_accumbens_area",
+    "rh_medial_orbitofrontal",
+    "rh_ventral_diencephalon"
+   ]
+  },
+  {
+   "id": "vermal_lobules_i_v",
+   "name": "Vermal lobules I-V",
+   "side": "midline",
+   "group": "cerebellum",
+   "volumeCm3": 8.463,
+   "centroidMm": [
+    0.0,
+    -53.36,
+    -13.89
+   ],
+   "bboxMm": {
+    "min": [
+     -8.5,
+     -67.94,
+     -27.49
+    ],
+    "max": [
+     8.5,
+     -40.89,
+     2.16
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "fourth_ventricle",
+    "lh_cerebellum_gray_matter",
+    "lh_cerebellum_white_matter",
+    "rh_cerebellum_gray_matter",
+    "rh_cerebellum_white_matter",
+    "vermal_lobules_vi_vii",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "vermal_lobules_vi_vii",
+   "name": "Vermal lobules VI-VII",
+   "side": "midline",
+   "group": "cerebellum",
+   "volumeCm3": 4.247,
+   "centroidMm": [
+    0.0,
+    -69.61,
+    -22.19
+   ],
+   "bboxMm": {
+    "min": [
+     -7.51,
+     -79.64,
+     -35.21
+    ],
+    "max": [
+     7.53,
+     -57.36,
+     -9.93
+    ]
+   },
+   "neighbours": [
+    "lh_cerebellum_gray_matter",
+    "lh_cerebellum_white_matter",
+    "rh_cerebellum_gray_matter",
+    "rh_cerebellum_white_matter",
+    "vermal_lobules_i_v",
+    "vermal_lobules_viii_x"
+   ]
+  },
+  {
+   "id": "vermal_lobules_viii_x",
+   "name": "Vermal lobules VIII-X",
+   "side": "midline",
+   "group": "cerebellum",
+   "volumeCm3": 4.687,
+   "centroidMm": [
+    0.0,
+    -61.12,
+    -37.65
+   ],
+   "bboxMm": {
+    "min": [
+     -8.47,
+     -75.23,
+     -48.9
+    ],
+    "max": [
+     8.45,
+     -46.84,
+     -27.19
+    ]
+   },
+   "neighbours": [
+    "brainstem",
+    "fourth_ventricle",
+    "lh_cerebellum_gray_matter",
+    "lh_cerebellum_white_matter",
+    "rh_cerebellum_gray_matter",
+    "rh_cerebellum_white_matter",
+    "vermal_lobules_i_v",
+    "vermal_lobules_vi_vii"
+   ]
+  }
+ ]
+}
