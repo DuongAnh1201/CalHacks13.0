@@ -218,7 +218,8 @@ function validateAnchor(scan: Doc<"scans">, anchor: Anchor): Anchor {
       return { kind: "structure", id };
     }
     case "tumor": {
-      // Same rule and wording as `setTumorVisible` in lib/viewCommands.ts.
+      // Same rule as `setTumorVisible` in lib/viewCommands.ts; the "no tumor"
+      // wording is shared (SPEC §7.3), the unsegmented one is annotation-specific.
       if (scan.tumor === undefined) {
         throw appError("INVALID_ARGUMENT", "This scan has not been segmented yet.");
       }
