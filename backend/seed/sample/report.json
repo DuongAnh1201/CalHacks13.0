@@ -1,0 +1,77 @@
+{
+  "jobId": "sample",
+  "coordinateFrame": "RAS_mm",
+  "model": {
+    "name": "BraTS MRI segmentation",
+    "arch": "SegResNet",
+    "version": "0.5.4"
+  },
+  "segmentationSource": "model",
+  "tumorDetected": true,
+  "side": "right",
+  "lesionCount": 1,
+  "centroidMm": [
+    157.91702377458174,
+    114.27944672732609,
+    67.59605958321103
+  ],
+  "bboxMm": {
+    "min": [
+      127.0,
+      68.0,
+      29.0
+    ],
+    "max": [
+      182.0,
+      157.0,
+      102.0
+    ]
+  },
+  "volumesCm3": {
+    "whole": 136.28,
+    "core": 61.562000000000005,
+    "enhancing": 34.261
+  },
+  "brain": {
+    "centroidMm": [
+      120.7311969560994,
+      104.99278686981745,
+      76.27876966720783
+    ],
+    "bboxMm": {
+      "min": [
+        53.0,
+        21.0,
+        10.0
+      ],
+      "max": [
+        188.0,
+        196.0,
+        141.0
+      ]
+    }
+  },
+  "input": {
+    "shape": [
+      240,
+      240,
+      155
+    ],
+    "spacingMm": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "sequences": [
+      "t1c",
+      "t1",
+      "t2",
+      "flair"
+    ]
+  },
+  "expertDice": {
+    "whole": 0.89,
+    "core": 0.96,
+    "enhancing": 0.884
+  }
+}
