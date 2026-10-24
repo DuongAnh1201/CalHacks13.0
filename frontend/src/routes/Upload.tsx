@@ -7,7 +7,7 @@ import uploadIcon from '../assets/figma/47363.svg';
 import flaskIcon from '../assets/figma/d5c9a.svg';
 import checkIcon from '../assets/figma/f8d34.svg';
 import { BackendBanner } from '../components/BackendBanner';
-import { saveWorkspace } from '../home/workspaces';
+import { saveWorkspace, scanName } from '../home/workspaces';
 import { FlowPage } from '../components/FlowPage';
 import css from './Upload.module.css';
 
@@ -55,7 +55,7 @@ export default function Upload() {
     setBusy(true); setError(null);
     try {
       const jobId = await createJob(slots as Record<Sequence, File>);
-      saveWorkspace({ id: jobId, kind: 'mri', name: slots.flair!.name.replace(/\.nii(\.gz)?$/, ''), openedAt: Date.now() });
+      saveWorkspace({ id: jobId, kind: 'mri', name: scanName(slots.flair!.name, jobId), openedAt: Date.now() });
       navigate(`/jobs/${jobId}/processing`);
     }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Backend offline — start docker compose up'); }

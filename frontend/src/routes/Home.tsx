@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import brainIcon from '../assets/figma/664bf.svg';
+import learnIcon from '../assets/figma/73f19.svg';
 import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { ago, hrefOf, listWorkspaces, saveWorkspace, type Workspace, type WorkspaceKind } from '../home/workspaces';
@@ -53,7 +55,9 @@ export default function Home() {
               {shown.map((w) => (
                 <li key={w.id}>
                   <Link className={css.card} to={hrefOf(w)} onClick={() => open(w)}>
-                    <div className={`${css.thumb} ${css[w.kind]}`} />
+                    <div className={`${css.thumb} ${css[w.kind]}`}>
+                      <img src={w.kind === 'mri' ? brainIcon : learnIcon} alt="" width={40} height={40} />
+                    </div>
                     <div className={css.meta}>
                       <p className={css.name}>{w.name}</p>
                       <p className={css.when}>{KIND[w.kind].label} · opened {ago(w.openedAt)}</p>

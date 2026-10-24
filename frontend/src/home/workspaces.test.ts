@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ago, hrefOf, listWorkspaces, saveWorkspace, type Workspace } from './workspaces';
+import { ago, hrefOf, listWorkspaces, saveWorkspace, scanName, type Workspace } from './workspaces';
 
 const fake = () => {
   const m = new Map<string, string>();
@@ -27,6 +27,13 @@ describe('workspaces', () => {
   it('links each kind to its page', () => {
     expect(hrefOf(w('j1', 0))).toBe('/jobs/j1/mri');
     expect(hrefOf(w('l1', 0, 'learn'))).toBe('/learn/l1');
+  });
+  it('names an upload from the file stem without the sequence suffix', () => {
+    expect(scanName('BraTS_0042_flair.nii.gz', 'job-ab12')).toBe('BraTS_0042');
+    expect(scanName('patient7-FLAIR.nii', 'job-ab12')).toBe('patient7');
+  });
+  it('falls back to the job id when the stem is only a sequence name', () => {
+    expect(scanName('flair.nii.gz', 'job-ab12')).toBe('Scan job-ab12');
   });
   it('relative time', () => {
     const now = 1_000_000_000;

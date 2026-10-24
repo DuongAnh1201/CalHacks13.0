@@ -28,6 +28,12 @@ export function saveWorkspace(w: Workspace, s: Store | null = local()): void {
 
 export const hrefOf = (w: Workspace) => (w.kind === 'mri' ? `/jobs/${w.id}/mri` : `/learn/${w.id}`);
 
+/** Card name for an upload: the FLAIR file stem minus a trailing sequence tag, else the job id. */
+export function scanName(fileName: string, jobId: string): string {
+  const stem = fileName.replace(/\.nii(\.gz)?$/i, '').replace(/[_\-. ]*(flair|t1ce|t1c|t1|t2)$/i, '');
+  return stem ? stem : `Scan ${jobId}`;
+}
+
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 export function ago(t: number, now = Date.now()): string {
   const min = Math.round((t - now) / 60_000);

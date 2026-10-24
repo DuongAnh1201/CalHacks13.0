@@ -127,7 +127,8 @@
   text-decoration: none;
 }
 
-.thumb { aspect-ratio: 16 / 9; }
+.thumb { aspect-ratio: 16 / 9; display: grid; place-items: center; }
+.thumb img { width: 40px; height: 40px; opacity: .7; }
 
 .mri { background: var(--nv-canvas-bg); }
 
