@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>NeuroVision — Convex Phase 1 test harness</title>
+<title>NeuroVision — Convex test harness</title>
 <style>
   /* Deliberately bare-bones: this page exists to prove reactivity, not to look
      like the product. The real UI is the frontend team's React app. */
@@ -21,13 +21,18 @@
   #invite-box { background: #eef6ff; border-radius: 6px; padding: 0.5rem; margin-top: 0.5rem; }
   #invite-code-text { font-family: ui-monospace, monospace; font-weight: 700; }
   #raw-state { background: #0d1117; color: #c9d1d9; font-family: ui-monospace, monospace; font-size: 0.75rem; padding: 0.75rem; border-radius: 6px; overflow-x: auto; max-height: 300px; }
+  #chat-list { list-style: none; padding: 0; max-height: 220px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
+  #chat-list li, #annotation-list li { padding: 0.25rem 0.5rem; border-bottom: 1px solid #f3f3f3; }
+  #chat-list .who, #annotation-list .who { font-weight: 600; }
+  #annotation-list { padding-left: 0; list-style: none; }
+  #annotation-list code { font-size: 0.8rem; }
   .danger { background: #fff3cd; border-color: #ffe69c; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 
-<h1>NeuroVision — Convex Phase 1 test harness</h1>
+<h1>NeuroVision — Convex test harness (Phases 1–2)</h1>
 <p class="hint">
   Not the real frontend. A plain <code>convex/browser</code> client (no React),
   bundled with esbuild, to prove live reactivity across two tabs.
@@ -109,6 +114,30 @@
       <button id="get-invite-btn">Try to read the invite code (should fail)</button>
     </div>
   </div>
+
+  <h3>Chat (subscribed to <code>messages.list</code>)</h3>
+  <ul id="chat-list"></ul>
+  <div class="row">
+    <input id="chat-input" placeholder="Say something to the room" style="flex:1" maxlength="2000" />
+    <button id="chat-send-btn">Send</button>
+  </div>
+  <div id="chat-error" class="error" hidden></div>
+
+  <h3>Annotations (subscribed to <code>annotations.list</code>)</h3>
+  <p class="hint">
+    Point anchors are RAS millimetres. The sample volume spans roughly
+    x, y in [-119.5, 119.5] and z in [-77, 77]; try z = 200 to see the server
+    reject it.
+  </p>
+  <ul id="annotation-list"></ul>
+  <div class="row">
+    <input id="annotation-text" placeholder="Note text" style="flex:2" maxlength="280" />
+    <input id="annotation-x" type="number" value="0" step="0.5" style="width:5rem" title="x (mm)" />
+    <input id="annotation-y" type="number" value="0" step="0.5" style="width:5rem" title="y (mm)" />
+    <input id="annotation-z" type="number" value="0" step="0.5" style="width:5rem" title="z (mm)" />
+    <button id="annotation-add-btn">Pin note</button>
+  </div>
+  <div id="annotation-error" class="error" hidden></div>
 
   <h3>Raw <code>sessions.get</code> payload</h3>
   <p class="hint">Confirm no <code>inviteCode</code> or <code>token</code> field ever appears here.</p>

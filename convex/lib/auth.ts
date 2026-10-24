@@ -58,6 +58,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { appError } from "./errors";
+import { MAX_CREDENTIAL_LENGTH } from "./tokens";
 
 /** A participant row with its secret stripped, safe to return to any client. */
 export type PublicParticipant = {
@@ -103,9 +104,16 @@ export async function requireParticipant(
   ctx: QueryCtx,
   participantToken: string,
 ): Promise<Doc<"sessionParticipants">> {
-  // Cheap shape check first, so an empty string never reaches the index.
+  // Cheap shape checks first, so an empty or oversized string never reaches the
+  // index. Oversized gets the same code as unknown: it simply is not a token.
   if (participantToken.length === 0) {
     throw appError("NOT_AUTHENTICATED", "Missing participant token. Join the session again.");
+  }
+  if (participantToken.length > MAX_CREDENTIAL_LENGTH) {
+    throw appError(
+      "NOT_AUTHENTICATED",
+      "This participant token is not valid. Join the session again.",
+    );
   }
 
   const participant = await ctx.db

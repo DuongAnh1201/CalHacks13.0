@@ -88,9 +88,27 @@ const el = {
   tumorToggleBtn: document.getElementById("tumor-toggle-btn"),
   resetBtn: document.getElementById("reset-btn"),
   getInviteBtn: document.getElementById("get-invite-btn"),
+
+  chatList: document.getElementById("chat-list"),
+  chatInput: document.getElementById("chat-input"),
+  chatSendBtn: document.getElementById("chat-send-btn"),
+  chatError: document.getElementById("chat-error"),
+
+  annotationList: document.getElementById("annotation-list"),
+  annotationText: document.getElementById("annotation-text"),
+  annotationX: document.getElementById("annotation-x"),
+  annotationY: document.getElementById("annotation-y"),
+  annotationZ: document.getElementById("annotation-z"),
+  annotationAddBtn: document.getElementById("annotation-add-btn"),
+  annotationError: document.getElementById("annotation-error"),
 };
 
-let unsubscribe = null;
+// One unsubscribe function per live query (session state, chat, annotations).
+let unsubscribers = [];
+
+// The harness shows only the newest page of chat; the React app would use
+// usePaginatedQuery to load older pages on scroll.
+const CHAT_PAGE = { numItems: 50, cursor: null };
 
 // --- Convex error formatting -------------------------------------------------
 // Convex throws a plain Error wrapping a ConvexError for most client-side call
@@ -202,14 +220,114 @@ function enterRoom() {
   // query reads (the session row, the scan row, or any participant row)
   // changes — in this tab or in any other tab/device talking to the same
   // deployment.
-  unsubscribe = client.onUpdate(
-    api.sessions.get,
-    { sessionId: membership.sessionId, participantToken: membership.participantToken },
-    (state) => render(state, membership),
-    (err) => setError(el.actionError, describeError(err)),
-  );
+  const auth = { sessionId: membership.sessionId, participantToken: membership.participantToken };
+  unsubscribers = [
+    client.onUpdate(
+      api.sessions.get,
+      auth,
+      (state) => render(state, membership),
+      (err) => setError(el.actionError, describeError(err)),
+    ),
+    // Phase 2: same mechanism, two more subscriptions. A message or note
+    // written in the other tab re-runs these and the lists redraw themselves.
+    client.onUpdate(
+      api.messages.list,
+      { ...auth, paginationOpts: CHAT_PAGE },
+      (result) => renderChat(result.page),
+      (err) => setError(el.chatError, describeError(err)),
+    ),
+    client.onUpdate(
+      api.annotations.list,
+      auth,
+      (notes) => renderAnnotations(notes, auth),
+      (err) => setError(el.annotationError, describeError(err)),
+    ),
+  ];
 
   wireActions(membership);
+  wireCollaboration(auth);
+}
+
+function renderChat(page) {
+  setError(el.chatError, "");
+  el.chatList.innerHTML = "";
+  // The server returns newest first; show oldest at the top like a chat.
+  for (const m of [...page].reverse()) {
+    const li = document.createElement("li");
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = `${m.authorName}${m.author === "agent" ? " (agent)" : ""}: `;
+    li.append(who, document.createTextNode(m.text));
+    el.chatList.appendChild(li);
+  }
+  el.chatList.scrollTop = el.chatList.scrollHeight;
+}
+
+function renderAnnotations(notes, auth) {
+  setError(el.annotationError, "");
+  el.annotationList.innerHTML = "";
+  for (const n of notes) {
+    const li = document.createElement("li");
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = `${n.authorName}${n.status === "suggested" ? " (suggested)" : ""}: `;
+    const where = document.createElement("code");
+    where.textContent = ` @ ${describeAnchor(n.anchor)} `;
+    li.append(who, document.createTextNode(n.text), where);
+    // canRemove comes from the server, but the server re-checks on remove:
+    // hiding the button is a courtesy, not the security boundary.
+    if (n.canRemove) {
+      const btn = document.createElement("button");
+      btn.textContent = "Remove";
+      btn.onclick = async () => {
+        setError(el.annotationError, "");
+        try {
+          await client.mutation(api.annotations.remove, { ...auth, annotationId: n.annotationId });
+        } catch (err) {
+          setError(el.annotationError, describeError(err));
+        }
+      };
+      li.appendChild(btn);
+    }
+    el.annotationList.appendChild(li);
+  }
+}
+
+function describeAnchor(anchor) {
+  if (anchor.kind === "point") return `RAS (${anchor.ras_mm.join(", ")}) mm`;
+  if (anchor.kind === "structure") return `structure ${anchor.id}`;
+  return "tumor";
+}
+
+function wireCollaboration(auth) {
+  el.chatSendBtn.onclick = async () => {
+    setError(el.chatError, "");
+    try {
+      await client.mutation(api.messages.send, { ...auth, text: el.chatInput.value });
+      el.chatInput.value = "";
+      // No manual append: the messages.list subscription redraws on its own.
+    } catch (err) {
+      setError(el.chatError, describeError(err));
+    }
+  };
+  el.chatInput.onkeydown = (e) => {
+    if (e.key === "Enter") el.chatSendBtn.click();
+  };
+
+  el.annotationAddBtn.onclick = async () => {
+    setError(el.annotationError, "");
+    const ras_mm = [el.annotationX, el.annotationY, el.annotationZ].map((input) => Number(input.value));
+    try {
+      await client.mutation(api.annotations.create, {
+        ...auth,
+        text: el.annotationText.value,
+        anchor: { kind: "point", ras_mm },
+      });
+      el.annotationText.value = "";
+    } catch (err) {
+      setError(el.annotationError, describeError(err));
+    }
+  };
 }
 
 function render(state, membership) {
@@ -298,7 +416,8 @@ function wireActions(membership) {
 }
 
 el.leaveBtn.addEventListener("click", () => {
-  if (unsubscribe) unsubscribe();
+  for (const stop of unsubscribers) stop();
+  unsubscribers = [];
   clearMembership();
   el.roomPanel.hidden = true;
   el.setupPanel.hidden = false;

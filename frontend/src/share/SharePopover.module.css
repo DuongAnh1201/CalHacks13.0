@@ -28,5 +28,10 @@
 .code, .note { margin: 0; font-size: 12px; }
 .mono { font-family: var(--nv-mono); letter-spacing: 1px; }
 .h { margin: 4px 0 0; font-size: 12px; }
-.roster { margin: 0; padding-left: 16px; font-size: 12px; }
+.roster { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.roster li { display: flex; align-items: center; gap: 6px; }
+.on, .off { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.on { background: var(--nv-success); }
+.off { background: transparent; border: 1px solid var(--nv-text-3); }
+.qr { justify-self: center; padding: 8px; background: #fff; border-radius: var(--nv-radius-control); }
 .banner { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--nv-primary); }
