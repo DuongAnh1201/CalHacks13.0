@@ -10,7 +10,7 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 import type { AppErrorCode, AppErrorData } from "../lib/errors";
-import { centredAxisAlignedAffine, type Dimensions, type Vec3 } from "../lib/transform";
+import { centredAxisAlignedAffine, sliceIndexFromCursor, type Dimensions, type Vec3 } from "../lib/transform";
 import {
   applyCommand,
   defaultSharedView,
@@ -21,7 +21,7 @@ import {
 
 const DIMS: Dimensions = { i: 240, j: 240, k: 155 };
 
-/** A case with no segmentation at all — exactly what `seed.ts` creates. */
+/** A case with no segmentation at all. */
 const UNSEGMENTED: ScanForView = {
   dimensions: DIMS,
   affineRowMajor: centredAxisAlignedAffine([1, 1, 1], DIMS),
@@ -221,6 +221,7 @@ describe("immutability", () => {
     // before and after views to decide whether to write.
     const start = defaultSharedView(UNSEGMENTED);
     const snapshot: SharedView = {
+      scene: structuredClone(start.scene),
       plane: start.plane,
       cursorRasMm: [...start.cursorRasMm] as Vec3,
       tumorVisible: start.tumorVisible,
@@ -246,5 +247,46 @@ describe("viewsEqual", () => {
     const a = defaultSharedView(UNSEGMENTED);
     const b: SharedView = { ...a, cursorRasMm: [a.cursorRasMm[0] + 0.01, a.cursorRasMm[1], a.cursorRasMm[2]] };
     expect(viewsEqual(a, b)).toBe(false);
+  });
+});
+
+describe("Phase B scene commands", () => {
+  const base = () => defaultSharedView(WITH_TUMOR);
+
+  it("starts from the frontend's initial scene", () => {
+    expect(base().scene).toEqual({
+      page: "mri", mode: "whole", brainOpacity: 0.3, explodeAmount: 0,
+      hidden: { left: false, right: false }, layers: { edema: true, core: true, enhancing: true }, cameraTarget: "brain",
+    });
+  });
+  it("setCursor moves all three planes at once and clamps", () => {
+    const next = applyCommand(WITH_TUMOR, base(), { type: "setCursor", sliceIndices: { axial: 10, coronal: 20, sagittal: 999 } });
+    expect(sliceIndexFromCursor(WITH_TUMOR, "axial", next.cursorRasMm)).toBe(10);
+    expect(sliceIndexFromCursor(WITH_TUMOR, "coronal", next.cursorRasMm)).toBe(20);
+    expect(sliceIndexFromCursor(WITH_TUMOR, "sagittal", next.cursorRasMm)).toBe(239);
+    expectAppError(() => applyCommand(WITH_TUMOR, base(), { type: "setCursor", sliceIndices: { axial: 1.5, coronal: 0, sagittal: 0 } }), "INVALID_ARGUMENT");
+  });
+  it("setOpacity / setExplosion clamp to 0..1 and reject non-finite", () => {
+    expect(applyCommand(WITH_TUMOR, base(), { type: "setOpacity", value: 2 }).scene.brainOpacity).toBe(1);
+    expect(applyCommand(WITH_TUMOR, base(), { type: "setExplosion", value: -1 }).scene.explodeAmount).toBe(0);
+    expectAppError(() => applyCommand(WITH_TUMOR, base(), { type: "setExplosion", value: Number.NaN }), "INVALID_ARGUMENT");
+  });
+  it("page, mode, hemisphere", () => {
+    let v = applyCommand(WITH_TUMOR, base(), { type: "setPage", page: "3d" });
+    v = applyCommand(WITH_TUMOR, v, { type: "setMode", mode: "exploded" });
+    v = applyCommand(WITH_TUMOR, v, { type: "setHemisphereVisible", side: "left", visible: false });
+    expect(v.scene).toMatchObject({ page: "3d", mode: "exploded", hidden: { left: true, right: false } });
+  });
+  it("layers and the tumor camera need a tumor; hiding a layer never does", () => {
+    expectAppError(() => applyCommand(UNSEGMENTED, defaultSharedView(UNSEGMENTED), { type: "setLayerVisible", layer: "core", visible: true }), "INVALID_ARGUMENT");
+    expectAppError(() => applyCommand(NO_TUMOR_FOUND, defaultSharedView(NO_TUMOR_FOUND), { type: "setCameraTarget", target: "tumor" }), "INVALID_ARGUMENT");
+    expect(applyCommand(UNSEGMENTED, defaultSharedView(UNSEGMENTED), { type: "setLayerVisible", layer: "core", visible: false }).scene.layers.core).toBe(false);
+    expect(applyCommand(WITH_TUMOR, base(), { type: "setCameraTarget", target: "tumor" }).scene.cameraTarget).toBe("tumor");
+  });
+  it("resetView resets the scene; viewsEqual sees scene changes", () => {
+    const moved = applyCommand(WITH_TUMOR, base(), { type: "setExplosion", value: 0.5 });
+    expect(viewsEqual(base(), moved)).toBe(false);
+    expect(applyCommand(WITH_TUMOR, moved, { type: "resetView" }).scene.explodeAmount).toBe(0);
+    expect(viewsEqual(base(), { ...base() })).toBe(true);
   });
 });

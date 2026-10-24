@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dispatch } from '../actions/dispatch';
 import type { Axis } from '../actions/types';
 import { flairUrl, segUrl } from '../api/client';
+import { fracsOf, indicesOf } from '../share/mprSync';
+import type { SliceIndices } from '../share/types';
 import { AXIS_INDEX, labelColormap, PRESETS, sliceOf, windowFor, type Preset } from './slices';
 import css from './MprPanel.module.css';
 
@@ -20,7 +22,7 @@ const VIEWS: readonly View[] = [
 const AXES: readonly Axis[] = ['sagittal', 'coronal', 'axial'];
 
 // shortcut: 3 instances load the NIfTIs 3×, share one NVImage when load time hurts
-function SliceView({ jobId, view, onNv }: { jobId: string; view: View; onNv: (axis: Axis, nv: Niivue | null) => void }) {
+function SliceView({ jobId, view, onNv, onCross }: { jobId: string; view: View; onNv: (axis: Axis, nv: Niivue | null) => void; onCross: (idx: SliceIndices) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const nvRef = useRef<Niivue | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -54,6 +56,7 @@ function SliceView({ jobId, view, onNv }: { jobId: string; view: View; onNv: (ax
           const mm = (d as { mm: ArrayLike<number> }).mm;
           // Keep the store cursor in step (SPEC §7.3); the 3D crosshair (C2) reads it later.
           for (const a of AXES) dispatch({ type: 'setSlice', axis: a, offsetMm: mm[AXIS_INDEX[a]] }, 'pointer');
+          onCross(indicesOf(nv.scene.crosshairPos, nv.volumes[0].dimsRAS!));
         };
         update();
         nvRef.current = nv;
@@ -73,7 +76,7 @@ function SliceView({ jobId, view, onNv }: { jobId: string; view: View; onNv: (ax
       nvRef.current = null;
       onNv(view.axis, null);
     };
-  }, [jobId, view, i, attempt, onNv]);
+  }, [jobId, view, i, attempt, onNv, onCross]);
 
   const go = (n: number) => {
     const nv = nvRef.current;
@@ -105,17 +108,41 @@ function SliceView({ jobId, view, onNv }: { jobId: string; view: View; onNv: (ax
   );
 }
 
-export function MprPanel({ jobId }: { jobId: string }) {
+export function MprPanel({ jobId, onCrosshair, onMaskVisible, remote }: { jobId: string; onCrosshair?: (idx: SliceIndices) => void; onMaskVisible?: (visible: boolean) => void; remote?: { indices: SliceIndices; tumorVisible: boolean } | null }) {
   const [nvs, setNvs] = useState<Partial<Record<Axis, Niivue>>>({});
   const onNv = useCallback((axis: Axis, nv: Niivue | null) => setNvs((m) => {
     const next = { ...m };
     if (nv) next[axis] = nv; else delete next[axis];
     return next;
   }), []);
+  // A ref, so a new onCrosshair from the parent never reloads the NiiVue views.
+  const cross = useRef(onCrosshair);
+  useEffect(() => { cross.current = onCrosshair; });
+  const onCross = useCallback((idx: SliceIndices) => cross.current?.(idx), []);
+
+  // Following a host: move every view to the shared indices. createOnLocationChange refreshes the slice labels;
+  // the echo it sends to onCrosshair equals `remote`, and useMprShare ignores it.
+  // Keyed on the indices only, so a mask-only change does not move the crosshair.
+  const remoteIdx = remote?.indices;
+  useEffect(() => {
+    if (!remoteIdx) return;
+    for (const nv of Object.values(nvs)) {
+      nv.scene.crosshairPos = fracsOf(remoteIdx, nv.volumes[0].dimsRAS!);
+      nv.createOnLocationChange();
+      nv.drawScene();
+    }
+  }, [nvs, remoteIdx]);
+
   const [preset, setPreset] = useState<Preset>('Brain');
   const [gamma, setGamma] = useState(1);
   const [mask, setMask] = useState(60);
   const [caliper, setCaliper] = useState(false);
+
+  const maskRef = useRef(onMaskVisible);
+  useEffect(() => { maskRef.current = onMaskVisible; });
+  const maskOn = mask > 0;
+  useEffect(() => { maskRef.current?.(maskOn); }, [maskOn]); // fires on mount too, so a new session learns the host's overlay state
+  const hideMask = !!remote && !remote.tumorVisible;
 
   // One crosshair across the three views (#11).
   useEffect(() => {
@@ -130,11 +157,11 @@ export function MprPanel({ jobId }: { jobId: string }) {
       const v = nv.volumes[0];
       [v.cal_min, v.cal_max] = windowFor(preset, v.robust_min ?? v.cal_min ?? 0, v.robust_max ?? v.cal_max ?? 1);
       nv.setGamma(gamma);
-      nv.setOpacity(1, mask / 100);
+      nv.setOpacity(1, hideMask ? 0 : mask / 100);
       nv.opts.dragMode = caliper ? DRAG_MODE.measurement : DRAG_MODE.contrast;
       nv.updateGLVolume();
     }
-  }, [nvs, preset, gamma, mask, caliper]);
+  }, [nvs, preset, gamma, mask, caliper, hideMask]);
 
   const locked = Object.keys(nvs).length === 3;
   return (
@@ -146,7 +173,7 @@ export function MprPanel({ jobId }: { jobId: string }) {
         </div>
       </header>
       <div className={css.views}>
-        {VIEWS.map((v) => <SliceView key={`${jobId}:${v.axis}`} jobId={jobId} view={v} onNv={onNv} />)}
+        {VIEWS.map((v) => <SliceView key={`${jobId}:${v.axis}`} jobId={jobId} view={v} onNv={onNv} onCross={onCross} />)}
       </div>
       <div className={css.tools}>
         <button type="button" aria-pressed={caliper} title="Right-drag on a slice to measure." className={css.tool} onClick={() => setCaliper((c) => !c)}><img src={caliperIcon} alt="" />Electronic Caliper</button>

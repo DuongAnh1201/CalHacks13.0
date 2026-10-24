@@ -1,0 +1,32 @@
+.pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  width: 300px;
+  padding: 16px;
+  background: var(--nv-surface);
+  border: 1px solid var(--nv-border);
+  border-radius: var(--nv-radius-header);
+  box-shadow: var(--nv-shadow);
+}
+.label { display: grid; gap: 4px; font-size: 11px; font-weight: 600; }
+.link { width: 100%; padding: 5px 8px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); font: inherit; font-size: 12px; }
+.btn, .end {
+  justify-self: start;
+  padding: 5px 13px;
+  background: var(--nv-primary-soft);
+  border: 1px solid var(--nv-border);
+  border-radius: var(--nv-radius-control);
+  color: var(--nv-primary);
+  font-weight: 600;
+  font-size: 11px;
+}
+.end { justify-self: end; }
+.code, .note { margin: 0; font-size: 12px; }
+.mono { font-family: var(--nv-mono); letter-spacing: 1px; }
+.h { margin: 4px 0 0; font-size: 12px; }
+.roster { margin: 0; padding-left: 16px; font-size: 12px; }
+.banner { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--nv-primary); }

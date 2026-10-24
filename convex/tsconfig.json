@@ -18,6 +18,7 @@
   "compilerOptions": {
     /* These settings are not required by Convex and can be modified. */
     "allowJs": true,
+    "resolveJsonModule": true,
 
     /* All strict checks on. The most valuable one here is `strictNullChecks`:
      * `ctx.db.get()` returns `T | null`, and strict mode is what forces every
