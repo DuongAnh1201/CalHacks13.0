@@ -1,6 +1,6 @@
 # Backend ↔ Frontend Contract (Tom's AI backend)
 
-**Status: DRAFT v0.1 — proposed, pending team approval. Owner: Tom (`lane:ml-backend`).**
+**Status: APPROVED v1.0 (2026-10-23) — Tom to sign off in the contract sign-off issue. Owner: Tom (`lane:ml-backend`).**
 
 Tom's pipeline (MONAI `brats_mri_segmentation` SegResNet → masks → meshes → FastAPI jobs) is the backend. The frontend builds against **exactly** what this file specifies.
 
@@ -93,11 +93,20 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
 | `INVALID_FORMAT` | Not NIfTI |
 | `SEQUENCE_MISMATCH` | The 4 sequences don't share shape / affine (tolerance 1e-3) |
 | `BAD_SPACING` | Not ≈ 1 mm isotropic (if not resampled) |
+| `NOT_3D` | A sequence has fewer than 3 spatial dims, or any dim < 32 (e.g. a JPG converted to NIfTI) |
+| `LOW_DYNAMIC_RANGE` | Integer data with ≤ 256 distinct values in the 0–255 range: likely a converted screenshot, not scanner intensities |
 | `TOO_LARGE` | File > 200 MB |
 | `INFERENCE_ERROR` | Exception during inference |
 | `MESH_ERROR` | Exception during meshing |
 
 - [ ] Input validation errors return **422 from `POST /jobs`** before a job is queued, with the same `{code, message}` body.
+
+### Input guard: no JPG/PNG, ever
+
+- JPG/PNG/screenshots lack raw intensities, sequence identity, spacing and depth. No preprocessing can recover these, so they never reach the model.
+- [ ] `POST /jobs` rejects any file not ending in `.nii`/`.nii.gz`, or not parseable by nibabel, with `INVALID_FORMAT`. Message: *"Images and screenshots don't contain 3D scan data. Upload 4 NIfTI sequences (T1c, T1, T2, FLAIR) or use a sample case."*
+- [ ] `NOT_3D` and `LOW_DYNAMIC_RANGE` catch images that were converted to NIfTI.
+- The frontend also blocks non-NIfTI files before upload (same message). The backend check is still required: it is the trust boundary.
 
 ### 2.2 Report (`GET /jobs/{id}/report`)
 
@@ -106,6 +115,7 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
   "jobId": "abc123",
   "coordinateFrame": "RAS_mm",
   "model": { "name": "brats_mri_segmentation", "arch": "SegResNet", "version": "x.y.z" },
+  "segmentationSource": "model | expert",
   "tumorDetected": true,
   "side": "left | right | bilateral | null",
   "lesionCount": 1,
@@ -120,6 +130,7 @@ Base URL comes from `VITE_API_URL` (e.g. `http://localhost:8000`). Routes have n
 - [ ] `centroidMm` / `bboxMm` are the **whole tumor**, in the same RAS mm frame as the GLB. `null` when there's no tumor.
 - [ ] `side` is computed against the **brain midline** (same x as the §1.1 split). Use `bilateral` when the whole tumor crosses it substantially. `+x` = patient **Right**.
 - [ ] `lesionCount` = connected components of WT **above a minimum size**, so stray specks don't count. Tom picks the threshold and documents it here.
+- [ ] `segmentationSource` is `"model"` for SegResNet output and `"expert"` for the expert-mask fallback. The UI badge reads only this field.
 - [ ] `brain` block is included. The frontend uses it for centering, camera framing and clamping the cut plane.
 
 ## 3. `seg.nii.gz` label values

@@ -2,6 +2,7 @@
 
 **Source of truth:**
 - [`docs/SPEC.md`](docs/SPEC.md): *what* we build.
+- [`docs/BACKEND_CONTRACT.md`](docs/BACKEND_CONTRACT.md): the backend ↔ frontend interface. A change goes through a PR plus a heads-up to the other lanes.
 - [GitHub Issues](https://github.com/DuongAnh1201/CalHacks13.0/issues): *who builds what, when*.
 
 If it's not in an issue, nobody is working on it.
@@ -10,7 +11,7 @@ If it's not in an issue, nobody is working on it.
 
 | Label | Owns |
 |-------|------|
-| `lane:ml-backend` | FastAPI, NIfTI validation, mesh/measurement pipeline, sample precompute, 2D classifier |
+| `lane:ml-backend` | **Tom.** FastAPI jobs API, input guard, SegResNet inference, five-node `model.glb`, report, Docker, seeded sample jobs. Contract: [`docs/BACKEND_CONTRACT.md`](docs/BACKEND_CONTRACT.md) |
 | `lane:viewer` | R3F scene, `transform.ts`, four modes, NiiVue slice panel, alignment check |
 | `lane:app` | Routes/pages, action dispatcher + store, keyboard, gestures, Jarvis, error states, demo/pitch |
 

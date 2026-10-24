@@ -1,8 +1,11 @@
 # NeuroVision — Product & Technical Spec
 
-**Version 1.1 · 2026-10-23 · Status: LOCKED for the hackathon**
+**Version 1.2 · 2026-10-23 · Status: LOCKED for the hackathon**
 
-This is the single source of truth. If code, a ticket, or a conversation disagrees with this file, this file wins until someone changes it through a PR (see [CONTRIBUTING.md](../CONTRIBUTING.md#changing-the-spec)). Every change adds a line to the [Decision Log](#14-decision-log).
+This is the single source of truth for *what* we build.
+- The **backend API and `model.glb` format** are in [`BACKEND_CONTRACT.md`](BACKEND_CONTRACT.md); this spec points to it rather than repeating it.
+- If code, a ticket, or a conversation disagrees with these two files, the files win until changed through a PR (see [CONTRIBUTING.md](../CONTRIBUTING.md#changing-the-spec)).
+- Every change adds a line to the [Decision Log](#14-decision-log).
 
 Work items live in [GitHub Issues](https://github.com/DuongAnh1201/CalHacks13.0/issues). Each ticket cites the spec section (`§`) it implements.
 
@@ -10,219 +13,180 @@ Work items live in [GitHub Issues](https://github.com/DuongAnh1201/CalHacks13.0/
 
 ## 1. What we are building
 
-NeuroVision lets a user upload a brain MRI, read the result in linked 2D slice views, then explore the tumor inside a 3D brain in four modes. They drive it with mouse/keyboard, hand gestures, and a voice assistant ("Jarvis").
+NeuroVision takes a brain MRI (4 standard sequences), segments the tumor with a pretrained AI model, and shows the result in linked 2D slices and a 3D brain the user can explore in four modes. Everything is driven by mouse/keyboard, hand gestures, and a voice assistant ("Jarvis").
 
-**The core promise is an honest link between the scan and the 3D scene.**
-- **Volumetric scan + segmentation mask → *Measured* placement.** Real millimetres, real location.
-- **Single 2D image → *Illustrative* placement.** The user picks the depth. No measurements.
-
-The UI must never let a user confuse the two.
+**Core promise:** the tumor is shown **where the model segmented it, in the scan's own coordinates**.
+- Brain and tumor meshes come from the same scan and the same affine.
+- This guarantees the brain and tumor line up with each other. It does **not** guarantee the segmentation is correct, and the UI never claims that it does.
 
 **Audience:** hackathon judges, students, people learning brain anatomy.
 
-**Non-goals:** this is an educational visualization. It does **not**:
+**Non-goals:** this is an educational visualization; it is **not clinically validated**. It does not:
 - diagnose
 - plan surgery
 - estimate risk
 - handle patient care
 
 **Demo success:**
-- One known case runs end to end with no developer touching anything.
-- The source and certainty badge is always visible.
+- A sample case runs end to end with no developer touching anything.
+- The segmentation-source badge is always visible.
 - All four modes work.
 - A judge can follow the explanation unaided.
 
 ## 2. Locked decisions
 
-These replace the "open decisions" from the v1.0 doc.
-
 | # | Decision | Why |
 |---|----------|-----|
-| D1 | **Primary path = volumetric.** NIfTI scan + matching segmentation mask. **Fallback = 2D** classifier + Grad-CAM, always badged *Illustrative*. | Only a mask gives real location and size. |
-| D2 | **Demo data = Medical Segmentation Decathlon Task01_BrainTumour**, one case. FLAIR channel for display. Whole tumor = mask label > 0. License verified in ticket A1 before use. | Public, NIfTI, ships with tumor labels. |
-| D3 | **The brain surface is built from the same scan as the tumor.** So `T_register = I` (identity). No template brain, no registration step. | Removes the hardest coordinate risk entirely. |
-| D4 | **Mask source in P0 = segmentation that comes with the dataset or upload.** A segmentation *model* is P2. The UI labels this as "Segmentation: dataset label", never as model output. | Honest about what is computed. |
-| D5 | **Renderer = one Three.js scene via React Three Fiber.** Brain + tumor live in it. 2D slices = NiiVue panel beside it. No WonderSnap renderer fork. Its gesture code may be reused only if its license allows. | One camera, one transform, no cross-engine clipping mismatch. |
-| D6 | **Exploded mode = left/right hemispheres only**, split at the midline. Named atlas structures are P2. | Atlas needs registration (see D3). |
-| D7 | **Stack:** frontend = Vite + React + TypeScript, R3F + drei, Zustand, NiiVue, MediaPipe Tasks Vision. Backend = FastAPI + nibabel + numpy + scikit-image + trimesh. | Fast to build; every library is well known. |
-| D8 | **Jarvis = deterministic.** Speech → rule-based parser → typed `Action` → dispatcher. `explainFinding` = text templated from case measurements. LLM intent fallback is P1 (text only). RAG medical answers are P2. | Works offline, can't hallucinate a diagnosis. |
-| D9 | **Uploaded imagery never leaves our backend.** No imagery goes to any third-party model service. | Data policy. |
+| D1 | **Input = 4 NIfTI sequences (T1c, T1, T2, FLAIR), BraTS-style preprocessed** (co-registered, skull-stripped, 1 mm). **JPG / PNG / screenshots are rejected** at the frontend and the backend. The 2D classifier path is P2 stretch. | A JPG has no raw intensities, no sequence identity, no spacing, no depth. No preprocessing recovers them. |
+| D2 | **Demo data = 2–3 cases from Medical Segmentation Decathlon Task01_BrainTumour.** Sequences are reordered into the model's channel order. The expert mask is kept for comparison and as the fallback. License and training-set overlap are verified in ticket A1. | Public NIfTI with all 4 sequences plus expert labels. |
+| D3 | **The brain surface is built from the same scan as the tumor** (backend), so `T_register = I` (identity). | No registration step, no coordinate drift. |
+| D4 | **Segmentation = MONAI `brats_mri_segmentation` (SegResNet), owned by Tom.** **Fallback** if inference isn't working by hour 8: the expert mask goes through the same mesh script, badged "Expert segmentation (dataset label)". **Never** fall back to 2D. | A real 3D segmentation is the AI story. The fallback leaves the frontend unchanged. |
+| D5 | **Renderer = one Three.js scene via React Three Fiber.** Brain + tumor live in it. 2D slices = NiiVue panel beside it. | One camera, one transform. |
+| D6 | **Exploded mode = left/right hemispheres**, split by the backend into `brain_left` / `brain_right` nodes. Named atlas structures are P2. | An atlas would need registration. |
+| D7 | **Stack:** frontend = Vite + React + TS, R3F + drei, Zustand, NiiVue, MediaPipe Tasks Vision. Backend = Tom's FastAPI + MONAI + PyTorch (CPU) in Docker, with jobs on a mounted volume. | Matches the backend Tom is building. |
+| D8 | **Jarvis = deterministic.** Speech → rule-based parser → typed `Action` → dispatcher. `explainFinding` = template over the report. LLM intent fallback is P1 (text only). RAG medical answers are P2. | Works offline, can't invent a diagnosis. |
+| D9 | **Uploaded imagery never leaves our backend.** No imagery goes to a third-party model service. | Data policy. |
 | D10 | **Feature freeze at hour 29.** After that, only P0 bugs get fixed. | Rehearsal and submission buffer. |
+| D11 | **`model.glb` has exactly five named nodes:** `brain_left`, `brain_right`, `edema`, `core`, `enhancing` (details in the contract §1). The frontend finds meshes by name. | One file, one loader, one contract. |
 
 ## 3. Screens and routes
 
 | Route | Purpose | Must show |
 |-------|---------|-----------|
-| `/` Upload | Pick a scan or the bundled sample | Accepted types (`.nii`, `.nii.gz`, + mask; `.png/.jpg` for 2D), **"Use sample case"** button, educational-scope notice, Start |
-| `/cases/:id/processing` | Show real pipeline progress | Stages from the backend `status`: validating → meshing → ready / failed. Error message + Retry. No fake progress bars, no fake percentages |
-| `/cases/:id/results` | Read the result before 3D | **Volume:** 3 orthogonal NiiVue views + mask overlay, measurements (volume mm³, centroid RAS mm, bounding box mm), source badge, limitations, **Place in 3D**. **2D:** the single image + heatmap, predicted class, "score not calibrated", *Illustrative* badge, **Place in 3D** |
-| `/cases/:id/explore` | Shared 2D + 3D workspace | 3D canvas, linked slice panel, 4 mode tabs, opacity / explode / cut controls, Reset, source badge, Jarvis transcript + text box, gesture status indicator |
+| `/` Upload | Pick 4 sequences or a sample case | **Sample cases listed first.** 4 labelled slots (T1c, T1, T2, FLAIR), `.nii`/`.nii.gz` only, the note "BraTS-style preprocessed MRI only", educational-scope notice, Start. Non-NIfTI files are rejected before upload with the contract §2 message |
+| `/jobs/:id/processing` | Show real progress | Backend `status` + `stage` (validating → inferring → meshing). On failure: `error.message`, Retry, Use sample case. No fake percentages |
+| `/jobs/:id/results` | Read the result before 3D | Header **"Tumor detected"** or **"No tumor detected"** (never "healthy"). Volumes in cm³ (whole / core / enhancing), side, lesion count. 3 NiiVue views (FLAIR + 3-colour overlay) + legend. Source badge. On sample cases: model-vs-expert Dice. Limitations. **Place in 3D** |
+| `/jobs/:id/explore` | Shared 2D + 3D workspace | 3D canvas, linked slice panel, 4 mode tabs, layer toggles + legend, opacity / explode / cut controls, Reset, source badge, report panel, Jarvis transcript + text box, gesture status |
 
 ## 4. Exploration modes
 
-All modes share one `ViewerState` (§7.3). Switching mode never changes the case, the tumor position, the cursor, or the selection. Explode and clip change **appearance only**. They never rewrite MRI-derived coordinates.
+All modes share one `ViewerState` (§7.2). Switching mode never changes the job, the tumor position, the cursor, layer visibility, or the selection. Explode and clip change **appearance only**.
 
 | Mode | Behaviour | Release gate |
 |------|-----------|--------------|
-| **1 Whole Brain** | Opaque brain. The tumor starts hidden. Orbit/zoom. "Reveal" / `focusTumor` moves the camera to the tumor; the tumor itself does not move. | One stable scene; Reset restores the initial view exactly |
-| **2 X-Ray** | Brain opacity 0–100% (default 30%). Tumor stays opaque, legible, and in place. | Opacity works from pointer, keyboard, gesture and voice |
-| **3 Exploded** | Hemispheres slide apart along the RAS x axis by `explodeAmount` × 40 mm. The tumor moves with the hemisphere that contains its centroid. The slice crosshair keeps showing the *true* RAS position. | `explodeAmount = 0` restores exact alignment |
-| **4 Cutaway** | A clipping plane on the chosen axis (default sagittal) at `offsetMm`. Either hemisphere can be hidden. **In this mode the cut plane and the matching 2D slice are the same plane:** moving one moves the other. | Plane, 2D cross-section and tumor agree; Reset works |
+| **1 Whole Brain** | Opaque hemispheres; tumor hidden until revealed. `focusTumor` points the camera at `report.centroidMm`; the tumor itself does not move | Reset restores the exact initial view |
+| **2 X-Ray** | Brain opacity 0–100% (default 30%). Tumor layers keep their own opacities (§7.4) and stay legible | Works from pointer, keyboard, gesture and voice |
+| **3 Exploded** | Hemispheres slide apart along RAS x by `explodeAmount` × 40 mm. Tumor layers ride with the hemisphere in `report.side`; if `bilateral`, they stay centred. The crosshair keeps the true RAS position | `explodeAmount = 0` restores exact alignment |
+| **4 Cutaway** | Clip plane on the brain nodes only (tumor never clipped), on the chosen axis (default sagittal), at `offsetMm`, limited to `report.brain.bboxMm`. Either hemisphere can be hidden. **The cut plane and the matching 2D slice are the same plane** | Plane, slice and tumor agree; Reset works |
+
+**No tumor detected:** brain-only scene. Tumor controls are disabled with the reason shown; all modes still work.
 
 ## 5. Imaging and coordinate contract
 
-### 5.1 Volumetric path (P0)
+### 5.1 Input and model
 
-**Ingest**
-- Accept `.nii` / `.nii.gz`.
-- A 4D file is reduced to channel 0.
-- Record shape, voxel spacing, affine, and provenance (filename, dataset name, license).
+- Input rules and validation errors: contract §2.
+- Model checks (channel order, output channels, training overlap, Dice attribution): contract §4.
+- Ticket A1 verifies the channel order **before** anything else is built on the model. A wrong order still produces a confident-looking mask, so this fails silently.
 
-**Validate**
-- The mask has the same shape as the scan.
-- `allclose(mask.affine, scan.affine, atol=1e-3)`.
-- Mask values are integers.
-- The mask has at least one voxel > 0.
-
-**Geometry (backend)**
-- `tumor.glb`: marching cubes on `mask > 0` in voxel space, vertices mapped through the affine into **RAS+ mm**, light smoothing.
-- `brain_left.glb` and `brain_right.glb`: marching cubes on `scan > threshold`. MSD data is skull-stripped; the threshold value is set in ticket A1. The mesh is then split at `x_RAS = brain centroid x` and decimated to under 150k triangles per hemisphere.
-
-**Measurements** come only from the mask and voxel spacing:
-- `volume_mm3 = count(mask>0) × prod(spacing)`
-- `centroid_ras` = affine × (mean voxel index)
-- `bbox_mm` = extent of the mask in RAS
-
-Units are always shown.
-
-**Transform — defined exactly once, in `frontend/src/viewer/transform.ts`:**
+### 5.2 Transform — defined once, in `frontend/src/viewer/transform.ts`
 
 ```
-p_scene = R_yup · T_center · A_mri · p_voxel        (homogeneous 4×4)
+p_scene = R_yup · T_center · p_ras         (homogeneous 4×4)
 ```
 
 | Term | Meaning |
 |------|---------|
-| `A_mri` | NIfTI affine (voxel → RAS mm). Applied **on the backend** when exporting meshes, so meshes ship in RAS mm. |
-| `T_register` | Identity, by D3. It is not in the code. |
-| `T_center` | Translate by −brain centroid (RAS). Visual only; never used for reported numbers. |
-| `R_yup` | RAS is Z-up, Three.js is Y-up: `(x, y, z)_RAS → (x, z, −y)_three`. |
+| `p_ras` | GLB vertices and every report coordinate are already RAS+ mm. The backend applies the NIfTI affine; `T_register = I` (D3) |
+| `T_center` | Translate by `−report.brain.centroidMm`. Visual only; never used for reported numbers |
+| `R_yup` | −90° about X: `(x, y, z)_RAS → (x, z, −y)_three` |
 
+- The GLB node transforms are identity. The frontend never edits vertices.
 - NiiVue works in RAS mm natively.
 - The **physical cursor is stored in RAS mm** and is the single shared position.
 - The 3D marker = `R_yup · T_center · cursor`.
-- Slice indices are **derived** from the cursor, never stored.
+- Slice indices are derived from the cursor, never stored.
+- Scene units are mm (a brain is about 170 units across); camera near/far are set to match.
 
-**Alignment check (ticket C3):**
-- The tumor centroid and 3 landmarks agree between the NiiVue crosshair and the 3D marker within 2 mm. The landmarks are the brain's most anterior, most superior and most left points.
-- This holds under orbit, clip, mode switch, and explode = 0.
+### 5.3 Alignment check (ticket C3)
 
-If the check fails, stop building new modes. Fix the transform, or switch the badge to *Illustrative*.
+These must agree within 2 mm between the NiiVue crosshair and the 3D marker:
+- `report.centroidMm`, which must also sit inside the `edema` mesh and on the overlay in all 3 views
+- 3 landmarks taken from `report.brain.bboxMm`: the most anterior, most superior and most left points
 
-### 5.2 2D fallback path (P1)
+This must hold under orbit, clip, mode switch, and explode = 0. If it fails, stop building new modes until it's fixed.
 
-- Model: the existing Kaggle binary classifier (tumor / no tumor) plus Grad-CAM.
-- Before *any* metric is quoted: deduplicate the train/val split with perceptual hashing and hold out a test set. **Do not quote the notebook's 0.97 F1.**
-- Output: class, raw score (shown as "not calibrated", no %), heatmap PNG.
-- Placement:
-  - The heatmap peak gives normalized (u, v) in the image.
-  - The user picks a plane (default axial) and a depth slider.
-  - A synthetic irregular blob (fixed size, no mm shown) is placed in the **sample case's brain** and badged *Illustrative placement*.
-- No measurements, no anatomy or risk claims.
-- A single image is **never** shown as three reconstructed views.
+### 5.4 Stretch: 2D path (P2)
+
+The Kaggle classifier + Grad-CAM path (tickets E4/E5) runs only after the demo is stable. If built:
+- it is badged *Illustrative*
+- it gives no mm measurements
+- it rejects colour images
+- it never feeds Tom's model
 
 ## 6. Architecture
 
 ```
-Browser (Vite/React)                                 FastAPI (local)
-┌──────────────────────────────────────────┐        ┌───────────────────────────────┐
-│ routes/  Upload → Processing → Results → Explore  │ POST /api/cases     (upload)  │
-│ api/client.ts ── fetch / poll 1 s ─────────────────│ POST /api/cases/sample        │
-│ store (Zustand ViewerState)                       │ GET  /api/cases/{id}           │
-│   ▲                                               │ GET  /api/cases/{id}/files/*   │
-│ actions/dispatch.ts  ◄── pointer · keyboard       │ DELETE /api/cases/{id}         │
-│                      ◄── gestures (MediaPipe)     │   └ pipeline (BackgroundTask): │
-│                      ◄── jarvis (Web Speech/text) │     validate → mesh → measure  │
-│ viewer/ R3F Scene + NiiVue panel ◄── store        │ data/cases/{id}/  (local disk) │
-└──────────────────────────────────────────┘        └───────────────────────────────┘
+Browser (Vite/React, VITE_API_URL)                     Docker: Tom's FastAPI (CPU PyTorch)
+┌───────────────────────────────────────────┐         ┌──────────────────────────────────────┐
+│ routes/ Upload → Processing → Results → Explore     │ POST /jobs  (4 NIfTI)  → 422 guard    │
+│ api/client.ts ── poll 1 s ───────────────────────────│ GET  /jobs/{id}        status+stage   │
+│ viewer/loadCase.ts ◄── report + model.glb ───────────│ GET  /jobs/{id}/report                │
+│ viewer/layers.ts  (shared colours / opacities)      │ GET  /jobs/{id}/model.glb  (5 nodes) │
+│ store (Zustand ViewerState)                         │ GET  /jobs/{id}/seg.nii.gz            │
+│   ▲  actions/dispatch.ts ◄── pointer · keyboard     │ GET  /jobs/{id}/flair.nii.gz          │
+│                          ◄── gestures · Jarvis      │ predict.py → pipeline.py →            │
+│ viewer/ R3F Scene + NiiVue SlicePanel ◄── store     │   mask_to_mesh.py ; jobs/ (volume)    │
+└───────────────────────────────────────────┘         │ jobs/sample*/ seeded, no inference    │
+                                                       └──────────────────────────────────────┘
+```
+
+**Scene graph** (built by `loadCase.ts`, ticket B6):
+
+```
+world   ← R_yup · T_center
+ ├─ hemiLeft    (x −explode·40 mm) ── brain_left  [+ tumor layers if side = left]
+ ├─ hemiRight   (x +explode·40 mm) ── brain_right [+ tumor layers if side = right]
+ ├─ tumorCenter (no offset)        ── tumor layers if side = bilateral
+ └─ cursorMarker
 ```
 
 **Repo layout**
 
 ```
 frontend/src/{routes,viewer,actions,api}/
-backend/app/{main,api,pipeline,validate,geometry,classifier2d}.py
-backend/scripts/precompute_sample.py
-backend/tests/
-data/sample/          # bundled demo case + precomputed artifacts (license in data/sample/LICENSE)
-docs/SPEC.md
+backend/                 # Tom: predict.py, pipeline.py, mask_to_mesh.py, app/, tests/, Dockerfile
+docker-compose.yml
+jobs/sample*/            # seeded sample jobs (license in data/sample/LICENSE)
+docs/SPEC.md · docs/BACKEND_CONTRACT.md
 ```
 
-- The sample case is precomputed and served by `POST /api/cases/sample`. So the demo works even if the pipeline breaks.
-- Upload storage: `data/cases/{id}/`. Removed by `DELETE`. The server start-up purges every case except the sample.
-- Frontend types in `frontend/src/api/types.ts` mirror the backend Pydantic models by hand. No codegen.
+- Frontend types in `frontend/src/api/types.ts` mirror contract §2 by hand. No codegen.
+- No Vite `/api` proxy. The client calls `VITE_API_URL` directly; CORS is set on the backend.
 
 ## 7. Contracts
 
-### 7.1 Case (`GET /api/cases/{id}`)
+### 7.1 Backend
+
+See [`BACKEND_CONTRACT.md`](BACKEND_CONTRACT.md):
+- §1 GLB
+- §2 endpoints, status, input guard, report
+- §3 `seg.nii.gz` labels
+
+The frontend renders only what the contract provides. Missing optional data hides the matching UI; it never gets faked.
+
+### 7.2 ViewerState (Zustand)
 
 ```ts
-type CaseStatus = 'validating' | 'meshing' | 'inferring2d' | 'ready' | 'failed';
-interface Case {
-  caseId: string;
-  kind: 'volume' | 'image2d';
-  status: CaseStatus;
-  stages: { name: CaseStatus; startedAt: string; endedAt?: string }[];
-  error?: { code: ErrorCode; message: string };
-  provenance: { filename: string; dataset?: string; license?: string; isSample: boolean };
-  volume?: { shape: number[]; spacingMm: number[]; affine: number[][] };      // kind = volume
-  result?: VolumeResult | Image2DResult;
-  files: Record<string, string>;   // name → URL: scan, mask, brain_left, brain_right, tumor, heatmap
-}
-interface VolumeResult {
-  locationSource: 'measured';
-  segmentationSource: 'dataset_label' | 'uploaded_mask';
-  volumeMm3: number; centroidRas: [number, number, number];
-  bboxMm: { min: [number, number, number]; max: [number, number, number] };
-}
-interface Image2DResult {
-  locationSource: 'illustrative';
-  model: { name: string; version: string };
-  predictedClass: 'tumor' | 'no_tumor';
-  rawScore: number;                // never shown as a percentage
-  heatmapPeakUv: [number, number]; // 0..1
-}
-type ErrorCode = 'INVALID_FORMAT' | 'NOT_3D' | 'NO_MASK' | 'MASK_MISMATCH'
-               | 'EMPTY_MASK' | 'TOO_LARGE' | 'PIPELINE_ERROR';
-```
-
-### 7.2 Upload (`POST /api/cases`, multipart)
-
-- Fields: `scan` (required), `mask` (required when `scan` is NIfTI).
-- Max 200 MB per file.
-- Returns `201 {caseId}` right away. Processing runs in the background.
-- Validation failures **return 422 with `{code, message}` before any processing starts**. Errors that happen during processing set `status = failed` instead.
-
-### 7.3 ViewerState (Zustand)
-
-```ts
-type Axis = 'sagittal' | 'coronal' | 'axial';     // RAS x, y, z
+type Axis = 'sagittal' | 'coronal' | 'axial';       // RAS x, y, z
 type Mode = 'whole' | 'xray' | 'exploded' | 'cutaway';
+type Layer = 'edema' | 'core' | 'enhancing';
 interface ViewerState {
-  caseId: string;
+  jobId: string;
   mode: Mode;
-  cursorRas: [number, number, number];   // the single shared position, mm
+  cursorRas: [number, number, number];     // the single shared position, mm
   tumorRevealed: boolean;
   selected: 'tumor' | 'left' | 'right' | null;
-  brainOpacity: number;                  // 0..1
-  explodeAmount: number;                 // 0..1
+  brainOpacity: number;                    // 0..1
+  explodeAmount: number;                   // 0..1
   cut: { axis: Axis; offsetMm: number; enabled: boolean };
   hidden: { left: boolean; right: boolean };
+  layers: Record<Layer, boolean>;          // visibility; absent layers stay false + disabled
   cameraTarget: 'brain' | 'tumor';
 }
 ```
 
-### 7.4 Action interface — one schema for every input
+### 7.3 Action interface — one schema for every input
 
 ```ts
 type Action =
@@ -232,6 +196,7 @@ type Action =
   | { type: 'setExplosion'; value: number }         // clamp 0..1
   | { type: 'setCutPlane'; axis?: Axis; offsetMm?: number; deltaMm?: number; enabled?: boolean }
   | { type: 'setHemisphereVisible'; side: 'left' | 'right'; visible: boolean }
+  | { type: 'setLayerVisible'; layer: Layer; visible: boolean }
   | { type: 'setSlice'; axis: Axis; offsetMm: number }   // writes cursorRas[axis]
   | { type: 'select'; target: 'tumor' | 'left' | 'right' | null }
   | { type: 'resetView' }
@@ -241,11 +206,24 @@ type Source = 'pointer' | 'keyboard' | 'gesture' | 'voice';
 function dispatch(a: Action, source: Source): { ok: boolean; message: string };
 ```
 
-- The dispatcher validates and clamps every value, clamping `offsetMm` to the brain's bounding box.
-- `message` is shown as Jarvis confirmation text.
-- In Cutaway, `setCutPlane` also writes the matching `cursorRas` component (§4).
-- `resetView` restores the initial state for the current case.
+- The dispatcher validates and clamps every value; `offsetMm` is clamped to `report.brain.bboxMm`.
+- Tumor actions on a no-tumor job return `{ok: false, message: "No tumor detected in this scan"}`.
+- In Cutaway, `setCutPlane` also writes the matching `cursorRas` component.
 - Nothing outside `dispatch` mutates the store, except camera orbit damping.
+
+### 7.4 Layer table — `frontend/src/viewer/layers.ts` (ticket L1)
+
+One table drives the NiiVue overlay colours, the 3D materials and the legend. The GLB's own materials are ignored.
+
+| Layer | GLB node | seg value | Colour | 3D opacity | Render order |
+|-------|----------|-----------|--------|-----------|--------------|
+| Edema (whole tumor) | `edema` | 1 | `#F2C94C` | 0.35 | 3 |
+| Tumor core | `core` | 2 | `#F2994A` | 0.70 | 2 |
+| Enhancing | `enhancing` | 3 | `#EB5757` | 1.00 | 1 |
+| Brain | `brain_left` / `brain_right` | — | `#D9D4CF` | `brainOpacity` | 4 |
+
+- Transparent materials use `depthWrite: false`.
+- Render order goes innermost first, so the nested shells don't flicker.
 
 ## 8. Interactions
 
@@ -260,21 +238,23 @@ function dispatch(a: Action, source: Source): { ok: boolean; message: string };
 | `↑` / `↓` | cut `deltaMm` +2 / −2 |
 | `S` `C` `A` | cut axis sagittal / coronal / axial |
 | `L` / `R` | toggle left / right hemisphere |
+| `7` `8` `9` | toggle edema / core / enhancing |
 | `0` or `Esc` | `resetView` |
 | hold `Space` | push-to-talk |
 | `/` | focus the Jarvis text box |
+| `?` | help overlay |
 
-Mouse: orbit / zoom / pan (drei `OrbitControls`). Click a mesh = `select`. Every control in the UI has a matching on-screen widget.
+Mouse: orbit / zoom / pan (drei `OrbitControls`). Click a mesh = `select`. Every action also has an on-screen control.
 
 ### 8.2 Gestures (MediaPipe HandLandmarker)
 
 | Gesture | Action | Guardrail |
 |---------|--------|-----------|
-| One hand, open palm, move | Orbit | Smoothed cursor (EMA). Tracking status always visible |
-| Pinch (thumb tip ↔ index tip) | Select / drag the focused control (incl. cut handle) | Hysteresis: enter < 0.30 × palm width, exit > 0.45 × palm width (tune in E1) |
-| Two hands, after both pinch (P1) | Distance → explosion or zoom | Values bounded; disabled when landmarks are lost |
+| One hand, open palm, move | Orbit (camera controls; the camera is not part of ViewerState) | Smoothed (EMA); tracking status always visible |
+| Pinch (thumb tip ↔ index tip) | Select / drag the focused control (incl. cut handle) | Hysteresis: enter < 0.30, exit > 0.45 × palm width (tune in E1) |
+| Two hands, after both pinch (P1) | Distance → explosion or zoom | Values bounded; off when landmarks are lost |
 
-Gestures emit `Action`s through `dispatch(…, 'gesture')`. They never touch the store directly.
+Gestures emit `Action`s through `dispatch(…, 'gesture')`.
 
 ### 8.3 Jarvis
 
@@ -287,19 +267,22 @@ Gestures emit `Action`s through `dispatch(…, 'gesture')`. They never touch the
 - "move the cut deeper"
 - "focus on the tumor"
 - "reset everything"
+- "show the enhancing tumor"
+- "hide the edema"
 
 **Display:** the transcript and the dispatch `message` are always visible. Unrecognized input gets: "I can't do that yet — try: …".
 
-**`explainFinding`:** template over `VolumeResult`, for example:
-> "This is a segmented region of about 42 cm³ in the right hemisphere, from the dataset's label. This is an educational view, not a diagnosis."
+**`explainFinding`:** a template over the report, for example:
+> "The model segmented one region of about 42 cm³ in the right hemisphere: 30 cm³ edema, 12 cm³ core, 6 cm³ enhancing. This is an educational view, not a diagnosis."
 
-The 2D path says the location is illustrative.
+With no tumor:
+> "The model did not detect a tumor in this scan."
 
 **Not allowed:**
 - diagnosis
 - prognosis
 - surgical-risk statements
-- any medical claim not in a curated source (RAG is P2)
+- calling a scan "healthy"
 
 **Risk:** Chrome's Web Speech API uses a network service, and the hall will be noisy. The text box is the fallback and must always work.
 
@@ -307,43 +290,48 @@ The 2D path says the location is illustrative.
 
 | Situation | Behaviour |
 |-----------|-----------|
-| Invalid file, mask mismatch, empty mask | 422 → Upload page shows the message and keeps the selected files. "Use sample case" stays one click away |
-| Pipeline exception | `status=failed`, `PIPELINE_ERROR` + message → Processing page shows Retry and "Use sample case" |
-| Backend unreachable | Frontend banner: "Backend offline". The backend runs locally on the demo laptop, so the demo needs no venue network for the sample path |
-| Camera / mic denied or lost | Status chip shows "Gestures off" / "Voice off". Keyboard and text keep working. No modal dialogs |
+| JPG / PNG / other non-NIfTI picked | Rejected client-side before upload with the contract §2 message + Use sample case. The backend also rejects it (`INVALID_FORMAT`) |
+| 422 from `POST /jobs` (`BAD_SEQUENCE_COUNT`, `SEQUENCE_MISMATCH`, `NOT_3D`, `LOW_DYNAMIC_RANGE`, `BAD_SPACING`, `TOO_LARGE`) | Upload page shows `message` and keeps the selected files |
+| Job `failed` (`INFERENCE_ERROR`, `MESH_ERROR`) | Processing page shows `message`, Retry, Use sample case |
+| Inference slow | Processing shows the live `stage`. Use sample case stays one click away |
+| No tumor detected | Not an error: "No tumor detected" header, brain-only scene |
+| GLB missing `brain_left`/`brain_right` | 3D panel error naming the missing node; slices still work |
+| Backend unreachable | Banner "Backend offline — start `docker compose up`". No venue network needed |
+| Camera / mic denied or lost | Chip shows "Gestures off" / "Voice off". Keyboard and text keep working. No modal dialogs |
 | WebGL context lost | Message + reload button |
 
 ## 10. Testing
 
 | Layer | Test |
 |-------|------|
-| Backend (pytest) | Synthetic 10×10×10 cube mask at 1 mm spacing → `volume_mm3 == 1000`, centroid == affine × center. Mismatched-affine mask → `MASK_MISMATCH`. Empty mask → `EMPTY_MASK` |
-| Frontend (vitest) | `transform.ts` maps a known RAS point correctly. Dispatcher clamps out-of-range values. `parseIntent` covers the 6 phrases in §8.3 |
-| Alignment | §5.1 alignment check, recorded in ticket C3 with screenshots |
-| Demo | Full script (§11) run twice in a row on the demo laptop, with network off for the sample path |
+| Backend (pytest, Tom) | One test per contract error code. Channel-order assertion. Synthetic cube mask → known volume. Load `model.glb` with trimesh and assert the five node names, identity transforms, and no tumor nodes when the mask is empty. `seg.nii.gz` values ⊂ {0, 1, 2, 3} |
+| Frontend (vitest) | `transform.ts` known-point + round trip. Dispatcher clamps values, and tumor actions are refused on no-tumor jobs. `parseIntent` covers the 8 phrases in §8.3. `loadCase` reports missing nodes |
+| Alignment | §5.3, recorded in ticket C3 with screenshots |
+| Demo | Full §11 script run twice in a row on the demo laptop, Wi-Fi off, on the seeded sample job |
 
 ## 11. Acceptance criteria — first complete demo
 
-- [ ] The sample case runs Upload → Processing → Results → Place in 3D with no manual developer step.
-- [ ] The source badge reads **Measured · dataset segmentation** or **Illustrative 2D placement**. The two paths can't be confused.
-- [ ] A volume shows 3 linked orthogonal views. A 2D image never does.
-- [ ] All 4 modes work on the same case, each with visible controls and Reset. Cutaway gives a straight-on internal view.
-- [ ] The tumor marker and the slice crosshair stay aligned under orbit, clip, explode = 0, and mode changes.
+- [ ] A sample case runs Upload → Processing → Results → Place in 3D with no manual developer step.
+- [ ] The badge reads **"Model segmentation · SegResNet (MONAI) · not clinically validated"** or **"Expert segmentation (dataset label)"**, driven only by `report.segmentationSource`.
+- [ ] A JPG upload is refused with guidance. Nothing non-NIfTI reaches the model.
+- [ ] 3 linked orthogonal views with the 3-colour overlay and legend. 3D colours match the 2D overlay.
+- [ ] All 4 modes work on the same job, with visible controls and Reset. Cutaway gives a straight-on internal view.
+- [ ] The tumor centroid, the 3D marker and the slice crosshair stay aligned under orbit, clip, explode = 0, and mode changes.
 - [ ] At least 1 gesture and 2 Jarvis commands change the scene. Keyboard/pointer can do the same.
-- [ ] The Results screen and the pitch state the educational scope and data source.
+- [ ] Results and pitch state the educational scope, the data source, and that the sample may be a training case.
 
 ## 12. Timeline (elapsed hours from kickoff)
 
-Milestones on GitHub = Checkpoints A–H. Lanes: **ML/Backend**, **Viewer**, **App/Interaction**.
+Milestones on GitHub = Checkpoints A–H. Lanes: **ML/Backend (Tom)**, **Viewer**, **App/Interaction**.
 
 | Hours | Checkpoint | Gate | Stop rule |
 |-------|-----------|------|-----------|
-| 0–3 | **A** Location contract | Demo case licensed and loaded; renderer spike passes; transform module written | No valid volume + mask → lock the 2D fallback as primary and badge it |
-| 3–8 | **B** Case flows to viewer | Sample case reaches `/explore` and shows the brain + tumor | Networking h6–7 (keep one integrator on call) |
-| 8–14 | **C** Same target in 2D and 3D | Linked slices, X-Ray, alignment check passes | Alignment fails → stop new modes, fix it |
-| 14–20 | **D** Four modes by pointer | Exploded + Cutaway + keyboard map | Food/rest rotation; networking h18–19 |
-| 20–26 | **E** Judge can run the script | Gestures, Jarvis, error states | RAG / LLM stays frozen if not validated |
-| 26–31 | **F** Reliable twice | Hardening, offline sample, backup recording | **Feature freeze h29** |
+| 0–3 | **A** Location contract | Tom signs off the contract; channel order verified on a demo case; renderer spike passes; transform written | Channel order unresolved → expert-mask fallback is the plan for B |
+| 3–8 | **B** Job flows to viewer | Seeded `jobs/sample` serves the five-node `model.glb`; `/explore` shows brain + tumor layers | Inference not working by h8 → switch to the expert-mask fallback (D4). Networking h6–7 (one integrator on call) |
+| 8–14 | **C** Same target in 2D and 3D | Linked slices with overlay, X-Ray, alignment check passes | Alignment fails → no new modes until fixed |
+| 14–20 | **D** Four modes by pointer | Exploded + Cutaway + layer toggles + keyboard map | Food/rest rotation; networking h18–19 |
+| 20–26 | **E** Judge can run the script | Gestures, Jarvis, error states | LLM / RAG frozen unless validated |
+| 26–31 | **F** Reliable twice | Hardening, Wi-Fi-off run, backup recording | **Feature freeze h29** |
 | 31–34 | **G** Timed pitch | Script, slides, Devpost, credits | Networking h31–32 (rotate) |
 | 34–36 | **H** Submitted | Submission with ≥ 1 h buffer | — |
 
@@ -351,15 +339,18 @@ Milestones on GitHub = Checkpoints A–H. Lanes: **ML/Backend**, **Viewer**, **A
 
 | Risk | Trigger | Response |
 |------|---------|----------|
-| 2D read as 3D | Only the classifier works | Illustrative badge, user-chosen depth, no mm |
-| Coordinates drift | Alignment check fails | Stop features; fix `transform.ts`; worst case, badge *Illustrative* |
-| Pipeline down | Bug, slow server, venue network | `POST /api/cases/sample` serves precomputed artifacts, labelled "Sample data" |
+| Wrong channel order | Dice vs the expert mask is near zero on the demo case | Fix in `predict.py`. Ticket A1 asserts the order |
+| Inference too slow or broken | CPU time > ~2 min, or it crashes | Demo the seeded sample; if still broken at h8, use the expert-mask fallback |
+| Judge wants to upload their own image | They have a JPG or a DICOM | Polite refusal message + sample cases; explain why on the pitch slide |
+| Sample is a training case | Decathlon ⊂ BraTS training | Disclose in Results + pitch; prefer a confirmed held-out case |
+| Coordinates drift | Alignment check fails | Stop features; fix `transform.ts` or the backend affine |
+| Docker slow on the demo laptop | amd64 image under emulation | Native-arch image, prebuilt before the venue (contract §6) |
 | Gesture / mic failure | Lighting, permissions, noise | Keyboard + text cover the whole pitch |
-| Mesh too heavy | < 30 fps on the demo laptop | Decimate harder in `precompute_sample.py` |
-| Scope creep | Ideas mid-hackathon | Idea issue → triage at the checkpoint (CONTRIBUTING). Freeze at h29 |
+| Scope creep | Ideas mid-hackathon | Idea issue → checkpoint triage; freeze at h29 |
 
 ## 14. Decision Log
 
 Append-only. Format: `date · hour · decision · why · PR`.
 
-- 2026-10-23 · h0 · v1.1: locked D1–D10 (volume primary + 2D fallback, brain from same scan, R3F, hemispheres only, deterministic Jarvis) · resolves the v1.0 open decisions · initial PR
+- 2026-10-23 · h0 · v1.1: locked D1–D10 (volume primary + 2D fallback, brain from same scan, R3F, hemispheres only, deterministic Jarvis) · resolves the v1.0 open decisions · #32
+- 2026-10-23 · h0 · v1.2: adopt Tom's SegResNet backend + `BACKEND_CONTRACT.md`. Five-node `model.glb` (D11); 4-sequence NIfTI input only, JPG rejected (D1); expert-mask fallback replaces the 2D fallback (D4); routes renamed to `/jobs/:id/*`; layer table + `setLayerVisible` added · real 3D segmentation; a JPG cannot carry the data the model needs · #32
