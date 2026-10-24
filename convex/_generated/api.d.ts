@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as annotations from "../annotations.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_author from "../lib/author.js";
@@ -27,6 +28,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  annotations: typeof annotations;
   exportRecords: typeof exportRecords;
   "lib/auth": typeof lib_auth;
   "lib/author": typeof lib_author;
