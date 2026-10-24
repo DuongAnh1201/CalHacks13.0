@@ -23,6 +23,17 @@ function attribution(row: { author: "human" | "agent"; authorName: string }) {
 }
 function quote(text: string) { return exportText(text).split(/\r?\n/).map((line) => `> ${line}`).join("\n"); }
 
+/** Tool inputs may include pairing capabilities: never put those in a document. */
+function documentArgs(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(documentArgs);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
+      /token|secret|authorization|password|api[_-]?key/i.test(key) ? "[redacted]" : documentArgs(item)]));
+  }
+  return value;
+}
+
+
 /** Deterministic builder shared by the button and MCP: no model-generated facts. */
 export function buildMarkdown(jobId: string, sections: readonly string[], report: ExportReport | null, data: ExportSnapshot): string {
   const parts = ["# NeuroVision export"];
@@ -61,7 +72,7 @@ export function buildMarkdown(jobId: string, sections: readonly string[], report
   }
   if (sections.includes("tool_steps")) {
     const steps = data.messages.flatMap((row) => (row.toolSteps ?? []).map((step) =>
-      `**${attribution(row)}** · tool ${exportText(step.tool)} · ${step.ok ? "succeeded" : "failed"}\n\n${quote(step.message)}\n\nArguments (data):\n\n${quote(JSON.stringify(step.args))}\n\nRecorded latency: ${step.ms} ms.`));
+      `**${attribution(row)}** · tool ${exportText(step.tool)} · ${step.ok ? "succeeded" : "failed"}\n\n${quote(step.message)}\n\nArguments (data):\n\n${quote(JSON.stringify(documentArgs(step.args)))}\n\nRecorded latency: ${step.ms} ms.`));
     parts.push("## Tool steps\n\n" + (steps.join("\n\n") || "No tool steps available."));
   }
   parts.push(`---\n\n${EXPORT_NOTICE}`);

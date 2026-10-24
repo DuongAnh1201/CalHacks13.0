@@ -633,8 +633,9 @@ only when explicitly asked: it includes accepted plus suggested notes, never
 dismissed ones. Every note, message, summary and tool step shows Human/AI and the
 server-stamped display label; summaries use the latest appended row. User text,
 labels and tool arguments are escaped/quoted as data, never instructions. The
-builder redacts the contract's banned words from those fields before writing the
-file; raw chat records are unchanged.
+builder redacts the contract's banned words and credential-like tool argument
+fields (tokens/authorization/secrets) before writing the file; raw chat records
+are unchanged.
 
 `convex/mcp/exportTools.ts` exports `registerExportTools(server, deps)`, matching
 #68's module registration pattern. `deps` needs its authenticated service caller

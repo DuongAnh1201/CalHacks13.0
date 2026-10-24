@@ -161,7 +161,7 @@ describe("Markdown safety and provenance", () => {
     await t.run(async (ctx) => {
       await ctx.db.insert("messages", { jobId: "sample", sessionId: room.sessionId, role: "user", text: forbidden + "\n<script>untrusted</script>",
         ...authorFor(human), authorName: forbidden,
-        toolSteps: [{ id: "redact", tool: forbidden, args: { text: forbidden }, ok: false, message: forbidden, ms: 0 }] });
+        toolSteps: [{ id: "redact", tool: forbidden, args: { text: forbidden, participant_token: "private-capability", nested: { authorization: "private-header" } }, ok: false, message: forbidden, ms: 0 }] });
       await ctx.db.insert("sessionSummaries", { jobId: "sample", sessionId: room.sessionId, text: forbidden, coversUpTo: 3, version: 3, ...authorFor(agent) });
       await ctx.db.insert("annotations", { jobId: "sample", sessionId: room.sessionId, text: forbidden, anchor: { kind: "structure", id: forbidden }, ...annotationFor(human) });
     });
@@ -170,6 +170,8 @@ describe("Markdown safety and provenance", () => {
     const text = await storedText(t, result.exportId);
     expect(text).not.toMatch(BANNED_EXPORT_WORDS);
     expect(text).not.toContain("<script>");
+    expect(text).not.toContain("private-capability");
+    expect(text).not.toContain("private-header");
     expect(text).toContain("redacted");
   });
 });
