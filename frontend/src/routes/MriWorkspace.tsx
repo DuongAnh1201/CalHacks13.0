@@ -11,6 +11,7 @@ import { AgentPanel } from '../components/agent/AgentPanel';
 import { demoMessages } from '../components/agent/demo';
 import type { AgentMessage } from '../components/agent/types';
 import { useMprShare } from '../share/useMprShare';
+import { useShareSync } from '../share/useShareSync';
 import { MprPanel } from '../viewer/MprPanel';
 import { Footer } from '../components/Footer';
 import { Legend } from '../components/Legend';
@@ -41,6 +42,7 @@ export default function MriWorkspace() {
   const [attempt, setAttempt] = useState(0);
   const [ticket, setTicket] = useState({ id, attempt });
   const share = useMprShare(id);
+  useShareSync(id, 'mri', phase === 'ready');
   if (ticket.id !== id || ticket.attempt !== attempt) {
     setTicket({ id, attempt });
     setReport(null);
@@ -122,7 +124,7 @@ export default function MriWorkspace() {
               onConfirm={() => navigate(`/jobs/${id}/3d`)}
               onDismiss={() => setMessages((m) => m.filter((x) => x.kind !== 'confirm'))} />
           </div>
-          <MprPanel jobId={id} onCrosshair={share.onCrosshair} remote={share.remote} />
+          <MprPanel jobId={id} onCrosshair={share.onCrosshair} onMaskVisible={share.onMaskVisible} remote={share.remote} />
           <div className={css.right}>
             <article className={css.card}>
               <div data-slot="source-badge" />
