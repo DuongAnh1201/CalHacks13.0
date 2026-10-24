@@ -10,7 +10,7 @@ After an upload, the user lands in an **MRI workspace** that copies Figma frame 
 
 ## Non-goals (W1)
 
-- Shared or saved workspaces, share links, live cursors, a workspace list (W2).
+- Shared workspaces, share links, live cursors, a server-side workspace list (W2). W1 keeps a per-browser list (section 8).
 - Chat between people, `/agent` in chat, annotation approval (W3 UI, designed in Figma first).
 - Any agent behaviour: parser, dispatch from text, LLM, voice. Tom owns it (#64, #65, #67, #19).
 - Push-to-talk and full voice (#19), gestures and webcam (#18), Cutaway mode (#16).
@@ -24,14 +24,15 @@ Copy the Figma layout and visuals. **Never copy its placeholder data.** Every nu
 
 | Route | Page | Replaces |
 |---|---|---|
-| `/` | Upload (unchanged) | |
+| `/` | Workspace dashboard (section 8) | Upload |
+| `/upload` | Upload (unchanged page) | `/` |
 | `/jobs/:id/processing` | Processing; on done → `/jobs/:id/mri` | |
 | `/jobs/:id/mri` | MRI workspace (frame 03) | `/jobs/:id/results` |
 | `/jobs/:id/3d` | 3D page (frame 04) | `/jobs/:id/explore` |
-| `/learn` | Learning Mode (unchanged) | |
+| `/learn`, `/learn/:wsId` | Learning Mode (unchanged page; `wsId` unused in W1) | |
 
 - `/jobs/:id/results` and `/jobs/:id/explore` stay as `<Navigate replace>` redirects to `/mri` and `/3d`, so old links work.
-- Top nav tabs: **MRI Workspace**, **Learning Mode**. The Explore tab is deleted. MRI Workspace links to the job in the URL when there is one, else `sample`.
+- Top nav tabs: **MRI Workspace**, **Learning Mode**. The Explore tab is deleted. MRI Workspace links to the job in the URL when there is one, else `/upload`.
 - `/3d` has no tab. It is reached from **Place in 3D** (CTA, agent confirm bubble, `place in 3d` command) and links back with **Analyze Cross-Sections**.
 - W2 later adds `/jobs/:id/3d/:sessionId`; W1 does not reserve or stub it.
 - SPEC §3 route table and the Decision Log get updated in the same change.
@@ -41,7 +42,7 @@ Copy the Figma layout and visuals. **Never copy its placeholder data.** Every nu
 Header and footer: existing `TopNavBar` and `Footer`. Three columns, 3 / 6 / 3 like the frame.
 
 **Left column**
-- **Patient Dataset card:** subject = job id ("Sample case" for `sample`), modality "FLAIR", matrix `i × j × k` and voxel spacing from the NIfTI header (NiiVue exposes it), badge "Verified NIfTI".
+- **Patient Dataset card:** subject = job id ("Sample case" for `sample`), modality "FLAIR", matrix `i × j × k` and voxel spacing from `report.input` (same values as the header; keeps the card out of the NiiVue load path), badge "Verified NIfTI".
 - **Neuro Agent panel** (section 4).
 
 **Center column**
@@ -58,7 +59,7 @@ Header and footer: existing `TopNavBar` and `Footer`. Three columns, 3 / 6 / 3 l
 
 ## 3. 3D page — `/jobs/:id/3d` (frame 04)
 
-- **Left:** pathology card from the report (volume, side, regions); **spatial toggles** wired to existing store actions: Brain Opacity (`setOpacity`, #12), Slices Intersect shown disabled with the title "Needs Cutaway (#16)" (no slice-plane layer exists yet), Hide Healthy (`setHemisphereVisible` both false), Focus Tumor (`focusTumor`); **Analyze Cross-Sections** → `/jobs/:id/mri`.
+- **Left:** pathology card from the report (volume, side, regions); **spatial toggles** wired to existing store actions: Brain Opacity (`setOpacity`, #12), Slices Intersect shown disabled with the title "Needs Cutaway (#16)" (no slice-plane layer exists yet), **Hide Brain** (`setHemisphereVisible` both false; Figma says "Hide Healthy", renamed because `copy.test.ts` bans the word), Focus Tumor (`focusTumor`); **Analyze Cross-Sections** → `/jobs/:id/mri`.
 - **Center:** `CaseCanvas`; status pill ("Brain exploded · 75%" etc.); toast "Tumor placed on the 3D brain · <side> · <volume> cm³" with **Undo** (`resetView`); **Dispersion / explode slider** (`setExplosion`, #15); **structures bar** of layer chips (`setLayerVisible`).
 - **Right:** gesture telemetry card in a fixed "Webcam off" state that names #18; the **Neuro Agent panel** (section 4).
 - No-tumor case: tumor toggles disabled with the reason shown (SPEC §4).
@@ -125,3 +126,15 @@ New milestone **W1 · MRI workspace**:
 | #12 X-Ray, #15 Exploded | moved into W1 | |
 
 Done 2026-10-24: milestone #9 created; #11, #12, #15 moved in; #11 rescoped; #22 wording fixed (#13 had none); comments on #19, #65, #71 (#71 not retitled: AG epic, owned by Tom). Later the same day #86 became UI only; the parser stays with Tom (#64/#65), corrected on #19 and #65. Issues #53–#74 are not edited in W1.
+
+## 8. Home dashboard — `/` (added 2026-10-24)
+
+User request, with the Figma file browser (Drafts grid + **New** menu) as the reference. No Figma frame for it yet; the screenshots stand in.
+
+- **Sidebar:** **New workspace** button opening a menu with two kinds:
+  - **MRI Workspace** → `/upload` (first-time upload flow). The workspace is recorded when the job is created (name = FLAIR file stem) or a sample is picked (name = sample title).
+  - **Learning Mode** → creates a learn workspace (`id` = 8 chars of a UUID) and opens `/learn/:wsId`.
+- Filters: All / MRI / Learning.
+- **Main:** "Workspaces" grid of cards (thumbnail tint per kind, name, "<kind> · opened <relative time>"), newest first; opening a card bumps it. Empty state: "Upload your first MRI" + "Open Learning Mode".
+- Storage: `localStorage` key `nv.workspaces`, invalid rows dropped, blocked storage = empty list. W2 replaces it with Convex.
+- Issue: #88 (W1-1), plan Task 8.
