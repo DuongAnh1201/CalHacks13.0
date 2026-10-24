@@ -368,6 +368,16 @@ export default defineSchema({
   })
     .index("by_job", ["jobId"])
     .index("by_session", ["sessionId"]),
+  // Personal Desktop credentials: raw tokens are returned once by the issue action.
+  mcpTokens: defineTable({
+    tokenHash: v.string(),
+    label: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    lastUsedAt: v.number(), // 0 until first successful authentication.
+  }).index("by_hash", ["tokenHash"]),
+
   // MCP fixed-window counters. Only SHA-256 token hashes are stored.
   mcpRateLimits: defineTable({
     tokenHash: v.string(),

@@ -37,6 +37,7 @@ import type * as mcp_knowledge from "../mcp/knowledge.js";
 import type * as mcp_rateLimit from "../mcp/rateLimit.js";
 import type * as mcp_server from "../mcp/server.js";
 import type * as mcp_types from "../mcp/types.js";
+import type * as mcpTokens from "../mcpTokens.js";
 import type * as scans from "../scans.js";
 import type * as seed from "../seed.js";
 import type * as sessionParticipants from "../sessionParticipants.js";
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   "mcp/rateLimit": typeof mcp_rateLimit;
   "mcp/server": typeof mcp_server;
   "mcp/types": typeof mcp_types;
+  mcpTokens: typeof mcpTokens;
   scans: typeof scans;
   seed: typeof seed;
   sessionParticipants: typeof sessionParticipants;
