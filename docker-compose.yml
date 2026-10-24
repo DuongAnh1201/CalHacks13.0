@@ -1,0 +1,12 @@
+services:
+  api:
+    platform: linux/arm64
+    build: ./backend
+    image: brain3d-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:5173
+    volumes:
+      - ./jobs:/app/jobs
+    restart: unless-stopped
