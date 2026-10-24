@@ -23,6 +23,8 @@ describe('buildCaseScene', () => {
   it('puts tumor layers under the hemisphere named by report.side', () => {
     const s = buildCaseScene(glb(...ALL), report({ side: 'right' }));
     expect(s.tumor.edema?.parent).toBe(s.hemiRight);
+    expect(s.brainLeft.name).toBe('brain_left');
+    expect(s.brainRight.parent).toBe(s.hemiRight);
     expect(buildCaseScene(glb(...ALL), report({ side: 'left' })).tumor.core?.parent?.name).toBe('hemiLeft');
     expect(buildCaseScene(glb(...ALL), report({ side: 'bilateral' })).tumor.enhancing?.parent?.name).toBe('tumorCenter');
   });
