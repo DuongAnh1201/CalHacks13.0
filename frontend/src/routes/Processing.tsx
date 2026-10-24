@@ -86,7 +86,7 @@ export default function Processing() {
         {job?.status === 'failed' && (
           <div className={css.alert} role="alert">
             <p>{job.error?.message ?? 'Segmentation failed.'}</p>
-            <Link className={css.ghost} to="/">Retry</Link>
+            <Link className={css.ghost} to="/upload">Retry</Link>
             <Link className={css.ghost} to="/jobs/sample/processing">Use sample case</Link>
           </div>
         )}

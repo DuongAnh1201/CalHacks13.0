@@ -5,7 +5,7 @@ import css from './TopNavBar.module.css';
 type Active = 'workspace' | 'learn' | null;
 
 export function TopNavBar({ active }: { active: Active }) {
-  const { id = 'sample' } = useParams();
+  const { id } = useParams();
   const cls = (k: Active) => (k === active ? `${css.link} ${css.active}` : css.link);
   return (
     <header className={css.bar}>
@@ -14,7 +14,7 @@ export function TopNavBar({ active }: { active: Active }) {
         NeuroVision
       </NavLink>
       <nav className={css.nav} aria-label="Main">
-        <NavLink to={`/jobs/${id}/mri`} className={cls('workspace')}>MRI Workspace</NavLink>
+        <NavLink to={id ? `/jobs/${id}/mri` : '/upload'} className={cls('workspace')}>MRI Workspace</NavLink>
         <NavLink to="/learn" className={cls('learn')}>Learning Mode</NavLink>
       </nav>
       <div className={css.chips}>
