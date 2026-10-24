@@ -23,10 +23,11 @@ Strict object schemas (unknown properties rejected), snake_case names:
 | `get_tumor_metrics` | optional `job_id`, `page`, `fields[]` | original volumesCm3, side, lesionCount, centroid/bbox, source, expertDice, certainty; sizeCm derives bbox extent / 10 |
 | `get_report` | optional `job_id`, `page` | original scan facts/report with model metadata |
 | `search` | `query`, optional `sources: [atlas,report]`, `job_id`, `page` | atlas name/group and report field/value matches with source URIs |
+| `export_document` | `job_id`, `format: md`, `sections[]`, optional `session_id`, `participant_token` | shared Markdown builder, storage download URL, export id and version |
 
 `page: "learn"` or `"/learn"` always suppresses report access, even with a job ID. No job also means no patient report; the server never silently chooses a sample. A missing case says there is no report. No tumor says **"No tumor detected in this scan"**. `certainty` is outline certainty, uncalibrated, and is never synthesized from expertDice. Missing/null certainty is explicitly unavailable. Educational wording is guarded on tool/resource outputs.
 
-Resources: `atlas://structures` is listed; `report://{jobId}` is a resource template. There is no chat search, viewer mutation, summary or export placeholder in this issue.
+Resources: `atlas://structures` is listed; `report://{jobId}` is a resource template. The HTTP adapter registers the shared export module alongside the knowledge tools. Private export sections require matching session_id and participant_token; a service token alone is not membership. Case/report-only exports need no participant capability. Suggested notes require explicit suggested_annotations selection; dismissed notes are excluded. PDF and auto-export are deferred. Pairing to obtain the Desktop participant capability is #70. There is no chat-search, viewer-mutation or summary-generation tool here.
 
 ## Claude Desktop / Claude Code
 
@@ -54,6 +55,8 @@ Claude Code can use the same stdio command and environment. The proxy requires H
 This first endpoint uses the deployment's MCP_TOKEN for both in-app and Desktop access. Dedicated per-user token issuance/rotation is not implemented here. A future per-user authenticator must resolve the author to Claude Desktop and ignore service run headers.
 
 ## Module integration and author identity
+
+The HTTP adapter supplies `[registerExportTools]` to the handler's module list; this is the same server, service authentication, and quota used by knowledge tools.
 
 New modules export `registerExportTools(server: McpServer, deps: McpDependencies): void` (or `registerAnnotations`, `registerMessages`, `registerSummaries`) and are added to `createServer(deps, modules)`. Shared types are in `convex/mcp/types.ts`. `deps.data` reads reports, and `deps.ctx` is the actual Convex HTTP `ActionCtx` providing `runQuery`, `runMutation`, `runAction` and storage. No extra server is created by a tool module.
 

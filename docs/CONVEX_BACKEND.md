@@ -644,9 +644,11 @@ for a per-user token, specialist name for the app). The current env-token fallba
 is `Scribe`. The tool accepts `job_id`, `format`, `sections`, optional `session_id`
 and `participant_token`, and returns `{ exportId, url, version }`. It defaults to
 case/report sections. PDF is explicitly rejected; auto-export triggers are deferred.
-Until #68 lands, import the module into that server and pass it through its
-`createServer(deps, [registerExportTools])` extension list; this standalone module
-does not add a second HTTP server or bypass #68's authentication/rate limit.
+The connected HTTP adapter passes `[registerExportTools]` to the handler, which
+uses the `createServer(deps, modules)` extension list. `/api/mcp` serves knowledge
+tools and export_document through the same bearer authentication and rate limit;
+there is no second HTTP server. The app router remains `/mcp`; defineApp supplies
+the `/api` prefix before that router.
 
 Validation: full Convex typecheck/tests, including actual SDK Client tool listing
 and calls over an in-memory transport, exact metrics from both seeds, human/MCP
@@ -657,3 +659,10 @@ Local smoke: applied this builder to an isolated anonymous deployment, invoked
 `exportDoc:request` for sample case/report sections, and fetched the returned
 storage URL with curl while `convex dev` was running. HTTP 200 served Markdown
 with the exact seed volumes and certainty plus the required notice.
+
+Connected endpoint smoke (agents/mcp-connect): an actual SDK Client connected
+to the isolated `/api/mcp` URL and listed all six knowledge/export tools. It
+read sample metrics, called export_document, and downloaded HTTP 200 Markdown
+with exact seed values. Private conversation without participant capabilities
+was refused; an incorrect bearer token returned 401. The dummy token was removed
+and the isolated test server stopped. No cloud/shared deployment was changed.
