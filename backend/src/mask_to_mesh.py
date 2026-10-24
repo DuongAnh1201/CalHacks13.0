@@ -6,7 +6,7 @@ from skimage.measure import marching_cubes
 from scipy import ndimage
 
 
-def to_mesh(binary, affine, rgba, smooth_iters=0, step_size=1, max_faces=None):
+def to_mesh(binary, affine, rgba, smooth_iters=10, step_size=1, max_faces=None):
     """
     binary : 3D bool array (H, W, D), True = inside the region
     affine : 4x4 matrix from the MRI file (voxel index → mm, RAS)
@@ -41,16 +41,17 @@ def to_mesh(binary, affine, rgba, smooth_iters=0, step_size=1, max_faces=None):
 
     if max_faces is not None and len(mesh.faces) > max_faces:
         original = mesh
-        mesh = mesh.simplify_quadric_decimation(face_count=max_faces)
-        # Collapsed voxel-grid triangles can leave duplicate/degenerate faces.
-        # Weld their vertices and remove those faces before checking closure.
-        mesh.process(validate=True)
-        if not mesh.is_watertight:
-            # A small Taubin pass avoids coplanar collapse without shrinking.
-            mesh = original.copy()
-            trimesh.smoothing.filter_taubin(mesh, iterations=2)
-            mesh = mesh.simplify_quadric_decimation(face_count=max_faces)
-            mesh.process(validate=True)
+        # A lower aggression preserves thin enhancing-shell features when the
+        # default quadric collapse opens them. Keep already-closed candidates:
+        # validation can remove tiny triangles that still close a thin shell.
+        for aggression in (7, 3):
+            mesh = original.simplify_quadric_decimation(
+                face_count=max_faces, aggression=aggression
+            )
+            if not mesh.is_watertight:
+                mesh.process(validate=True)
+            if mesh.is_watertight and len(mesh.faces) <= max_faces:
+                break
         if len(mesh.faces) > max_faces:
             raise ValueError("Mesh exceeds triangle budget after decimation")
 

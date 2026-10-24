@@ -70,7 +70,7 @@ def build_glb(brain, wt, tc, et, affine, path):
     scene = trimesh.Scene()
     for name, mask in layers.items():
         is_brain = name.startswith("brain_")
-        mesh = to_mesh(mask, affine, COLORS[name], step_size=2 if is_brain else 1,
+        mesh = to_mesh(mask, affine, COLORS[name], smooth_iters=10, step_size=2 if is_brain else 1,
                        max_faces=150_000 if is_brain else 50_000)
         if mesh is not None:
             scene.add_geometry(mesh, node_name=name, geom_name=name, transform=np.eye(4))
