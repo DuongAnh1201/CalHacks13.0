@@ -129,7 +129,7 @@ hiddenStructures: Record<string, boolean>;
 | { type: 'setIsolate'; on: boolean }                     // on without a selection → ok:false
 ```
 
-- Reused unchanged: `setMode` (`whole` = Solid, `xray`, `exploded`), `setOpacity`, `setExplosion`, `setHemisphereVisible`, `resetView`.
+- Reused unchanged: `setMode` (`whole` = Solid, `xray`; `/learn` never sets `exploded` or `cutaway`), `setOpacity`, `setExplosion`, `setHemisphereVisible`, `resetView`. The Explode slider works in both Solid and X-Ray.
 - `dispatch` clamps every value, validates ids against the loaded atlas, and refuses tumor actions when the case has no tumor (the atlas case has none).
 - Camera fly-to is a view effect driven by `selectedStructure`. The camera is not stored, matching the SPEC.
 - Nothing outside `dispatch` mutates the store.
