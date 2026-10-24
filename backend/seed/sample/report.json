@@ -69,6 +69,11 @@
       "flair"
     ]
   },
+  "certainty": {
+    "whole": 0.94,
+    "core": 0.97,
+    "enhancing": 0.92
+  },
   "expertDice": {
     "whole": 0.89,
     "core": 0.96,
