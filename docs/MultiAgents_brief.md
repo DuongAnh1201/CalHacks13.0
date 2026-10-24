@@ -170,7 +170,7 @@ The Figma frame already designs the chat and voice UI. Mapping each part to code
 
 **Where the panel goes (D5):**
 - **Explore:** the right column, as in Figma.
-- **`/learn`:** the right column already holds the structure info panel. Proposed: right column tabs **Info | Agent**. `explain_structure` switches to Info.
+- **`/learn`:** the right column already holds the structure info panel. **Decided (D5):** right column tabs **Info | Agent**. `explain_structure` switches to Info.
 
 The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: "Voice off").
 
@@ -340,7 +340,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 | D2 ✅ #76 | LLM model and API key | `claude-opus-5-5`, effort `low`, for every agent; Haiku for the Router only if latency or cost needs it later. Key: Convex env var `ANTHROPIC_API_KEY` (Tom provides it before #67) |
 | D3 ✅ #77 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
 | D4 ✅ #78 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
-| D5 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
+| D5 ✅ #79 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
 | D6 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
 | D7 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
 | D8 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
