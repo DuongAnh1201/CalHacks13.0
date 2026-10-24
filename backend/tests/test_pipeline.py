@@ -111,3 +111,14 @@ def test_decimation_budget(masks):
     mesh = to_mesh(masks[0], np.eye(4), [217, 212, 207, 255], step_size=2, max_faces=100)
     assert len(mesh.faces) <= 100
     assert mesh.is_watertight
+
+
+def test_ambiguous_voxel_contacts_are_closed():
+    from skimage.measure import marching_cubes
+    from src.mask_to_mesh import to_mesh
+
+    mask = np.pad(np.random.default_rng(0).random((12, 12, 12)) > 0.5, 2)
+    vertices, faces, _, _ = marching_cubes(mask.astype(np.float32), level=0.5)
+    assert not trimesh.Trimesh(vertices, faces, process=False).is_watertight
+    mesh = to_mesh(mask, np.eye(4), [242, 201, 76, 255])
+    assert mesh.is_watertight
