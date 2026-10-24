@@ -1,0 +1,14 @@
+Sample MRI data: Medical Segmentation Decathlon, Task01 BrainTumour (BRATS)
+
+License: CC-BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+Source:  dataset.json of Task01_BrainTumour: "licence": "CC-BY-SA 4.0", release 2.0 04/05/2018,
+         reference https://www.med.upenn.edu/sbia/brats2017.html
+Data:    http://medicaldecathlon.com/
+
+Attribution (please cite):
+  Antonelli M. et al. "The Medical Segmentation Decathlon." Nature Communications 13, 4128 (2022).
+  Simpson A.L. et al. "A large annotated medical image dataset for the development and
+  evaluation of segmentation algorithms." arXiv:1902.09063 (2019).
+
+Any sample files derived from this dataset (split sequences, masks, meshes) are shared under the
+same CC-BY-SA 4.0 license. They are for demonstration only, not for diagnostic use.

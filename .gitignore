@@ -219,6 +219,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Backend: job outputs (seeded samples are added in #7), local datasets
+jobs/
+Task01_BrainTumour/
+.DS_Store
+
 .env.local
 
 # ---------------------------------------------------------------------------
