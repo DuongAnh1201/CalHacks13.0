@@ -25,6 +25,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as FormUploadFile
 
 SEQUENCES = ("t1c", "t1", "t2", "flair")
@@ -181,7 +182,7 @@ async def create_job(request: Request):
                 path = job_dir / (name + suffix)
                 (job_dir / name).rename(path)
                 paths.append(path)
-            validate(paths)
+            await run_in_threadpool(validate, paths)
             for name, path in zip(SEQUENCES, paths):
                 if path.suffix == ".nii":
                     nib.save(nib.load(path), job_dir / f"{name}.nii.gz")
