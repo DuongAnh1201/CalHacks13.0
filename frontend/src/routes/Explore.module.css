@@ -1,0 +1,30 @@
+.page { display: flex; flex-direction: column; height: 100vh; }
+.grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px; }
+.stage { position: relative; min-height: 0; border-radius: var(--nv-radius-card); background: var(--nv-canvas-bg); overflow: hidden; }
+.bottom { position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+.bottom > * { pointer-events: auto; }
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px;
+  background: var(--nv-surface-warm); backdrop-filter: blur(var(--nv-blur));
+  border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); box-shadow: var(--nv-shadow-card);
+  font: 600 13px var(--nv-font); color: var(--nv-text-2);
+}
+.chip {
+  padding: 4px 12px; font: 600 13px var(--nv-font); color: var(--nv-text-2);
+  background: var(--nv-muted-bg); border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill); cursor: pointer;
+}
+.chip:disabled { opacity: .4; cursor: not-allowed; }
+.chip:focus-visible, .link:focus-visible, .retry:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 2px; }
+.status { margin: 0; min-height: 1.2em; font: 600 13px var(--nv-font); color: var(--nv-text-2); }
+.loading, .error { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; color: var(--nv-text-3); }
+.retry, .link {
+  padding: 8px 16px; border: 0; border-radius: var(--nv-radius-control); background: var(--nv-primary); color: #fff;
+  font: 600 13px var(--nv-font); text-decoration: none; cursor: pointer;
+}
+.side { display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: var(--nv-radius-card); background: var(--nv-surface); color: var(--nv-text-2); }
+.side h2 { margin: 0; font: 700 20px var(--nv-font); color: var(--nv-text); }
+.rows { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font: 500 14px var(--nv-font); }
+.rows dt { color: var(--nv-text-3); }
+.rows dd { margin: 0; text-align: right; font-family: var(--nv-mono); color: var(--nv-text); }
+.back { margin-top: auto; color: var(--nv-primary); font: 600 14px var(--nv-font); }
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; grid-auto-rows: minmax(320px, auto); } }

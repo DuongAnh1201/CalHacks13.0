@@ -685,9 +685,9 @@ Behaviour (follow frame 04 `docs/figma/04-explore.png` for the stage + right pan
 - Stage bottom toolbar (style like `learn/LearnToolbar.module.css`): **"Show tumor"** → `dispatch({ type: 'focusTumor' }, 'pointer')` (disabled when `!report.tumorDetected`, title "No tumor detected in this scan"), **"Reset view"** → `dispatch({ type: 'resetView' }, 'pointer')`. Show the last `DispatchResult.message` in a `role="status"` line.
 - Right panel: h2 `headline(report)` (from T5 `routes/summary.ts`), `sideLabel`, whole volume `cm3`, `<Legend available={layers} />` from `onLayers`, link "Back to results" → `/jobs/${id}/results`.
 
-- [ ] **Step 1:** Implement. **Step 2:** tsc, test, lint, build.
-- [ ] **Step 3:** With the backend up, open `/jobs/sample/explore`: brain renders, tumor hidden; "Show tumor" reveals it and flies the camera; the two console logs match; "Reset view" returns to the first frame exactly and hides the tumor; `/jobs/sample-2/explore` puts the tumor on the left.
-- [ ] **Step 4: Commit** `feat(explore): job explore page with Whole Brain, Show tumor and Reset (#10)`. `hc send qa "T8 ready at <hash>"` and `hc send lead "T8 done at <hash>"`.
+- [x] **Step 1:** Implement. **Step 2:** tsc, test, lint, build.
+- [x] **Step 3:** With the backend up, open `/jobs/sample/explore`: brain renders, tumor hidden; "Show tumor" reveals it and flies the camera; the two console logs match; "Reset view" returns to the first frame exactly and hides the tumor; `/jobs/sample-2/explore` puts the tumor on the left.
+- [x] **Step 4: Commit** `feat(explore): job explore page with Whole Brain, Show tumor and Reset (#10)`. `hc send qa "T8 ready at <hash>"` and `hc send lead "T8 done at <hash>"`.
 
 ---
 

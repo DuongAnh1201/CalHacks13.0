@@ -69,12 +69,15 @@ function CaseScene({ jobId, report, onLayers }: Props) {
     if (target !== 'tumor' || !c || !centroid || !mesh) return;
     const log = () => {
       cs.world.updateMatrixWorld(true);
-      console.info('[case] tumor world position', mesh.localToWorld(new THREE.Vector3(...centroid)).toArray());
+      console.info('[case] tumor world position', mesh.localToWorld(new THREE.Vector3(...centroid)).toArray().map((n) => n.toFixed(2)).join(', '));
     };
     const { min, max } = report.bboxMm ?? { min: centroid, max: centroid };
     const radius = Math.max(new THREE.Vector3(...(max as Vec3)).distanceTo(new THREE.Vector3(...(min as Vec3))) / 2, MIN_FRAME_RADIUS_MM);
+    const center = new THREE.Vector3(...rasToScene(centroid, report.brain.centroidMm));
+    // Approach from the tumor's own side (brain centroid is the scene origin): from the home side an opaque hemisphere would hide it.
+    const eye = center.length() > 1 ? center.clone().normalize().multiplyScalar(c.getDistanceToFitSphere(radius)).add(center) : null;
     log();
-    void c.fitToSphere(new THREE.Sphere(new THREE.Vector3(...rasToScene(centroid, report.brain.centroidMm)), radius), true).then(log);
+    void (eye ? c.setLookAt(...eye.toArray(), ...center.toArray(), true) : c.fitToSphere(new THREE.Sphere(center, radius), true)).then(log);
   }, [target, cs, report]);
 
   return (
