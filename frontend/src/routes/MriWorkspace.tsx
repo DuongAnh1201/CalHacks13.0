@@ -7,7 +7,7 @@ import arrowIcon from '../assets/figma/b1141.svg';
 import { Footer } from '../components/Footer';
 import { Legend } from '../components/Legend';
 import { TopNavBar } from '../components/TopNavBar';
-import css from './Results.module.css';
+import css from './MriWorkspace.module.css';
 import { cm3, headline, sideLabel } from './summary';
 
 type Phase = 'loading' | 'ready' | 'redirect' | 'unknown' | 'offline' | 'api';
@@ -23,7 +23,7 @@ function dimensions(r: Report) {
   return `${parts[0]} × ${parts[1]} × ${parts[2]} cm`;
 }
 
-export default function Results() {
+export default function MriWorkspace() {
   const { id = '' } = useParams();
   const [report, setReport] = useState<Report | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
@@ -144,7 +144,7 @@ export default function Results() {
             </article>
             <article className={css.ctaCard}>
               <p className={css.ctaKicker}>Spatial pipeline action</p>
-              <Link className={css.cta} to={`/jobs/${id}/explore`}>
+              <Link className={css.cta} to={`/jobs/${id}/3d`}>
                 Place in 3D
                 <img src={arrowIcon} alt="" width={16} height={16} />
               </Link>

@@ -11,7 +11,7 @@ import { TopNavBar } from '../components/TopNavBar';
 import type { Layer } from '../viewer/layers';
 import { CaseCanvas } from '../viewer/CaseCanvas';
 import { cm3, headline, sideLabel } from './summary';
-import css from './Explore.module.css';
+import css from './Brain3D.module.css';
 
 type Result =
   | { kind: 'ready'; report: Report }
@@ -38,7 +38,7 @@ class LoadBoundary extends Component<{ id: string; onFail: (failed: boolean) => 
   }
 }
 
-export default function Explore() {
+export default function Brain3D() {
   const { id = '' } = useParams();
   const [attempt, setAttempt] = useState(0);
   const key = `${id}:${attempt}`;
@@ -72,14 +72,14 @@ export default function Explore() {
 
   return (
     <div className={css.page}>
-      <TopNavBar active="explore" />
+      <TopNavBar active="workspace" />
       <main className={css.grid}>
         <section className={css.stage} aria-label="3D brain">
           {!result && <p className={css.loading}>Loading results…</p>}
           {result?.kind === 'unknown' && (
             <div className={css.error} role="alert">
               <p>Unknown job.</p>
-              <Link className={css.link} to="/jobs/sample/explore">Use sample case</Link>
+              <Link className={css.link} to="/jobs/sample/3d">Use sample case</Link>
             </div>
           )}
           {(result?.kind === 'offline' || result?.kind === 'error') && (
@@ -115,7 +115,7 @@ export default function Explore() {
                 {report.tumorDetected && <><dt>Whole tumor</dt><dd>{cm3(report.volumesCm3.whole)}</dd></>}
               </dl>
               {!modelFailed && <Legend available={layers} />}
-              <Link className={css.back} to={`/jobs/${id}/results`}>Back to results</Link>
+              <Link className={css.back} to={`/jobs/${id}/mri`}>Analyze Cross-Sections</Link>
             </>
           )}
         </aside>
