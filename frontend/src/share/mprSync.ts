@@ -1,6 +1,6 @@
 import type { Axis } from '../actions/types';
 import { AXIS_INDEX, sliceOf } from '../viewer/slices';
-import type { SliceIndices, ViewerCommand } from './types';
+import type { SliceIndices } from './types';
 
 const AXES: readonly Axis[] = ['axial', 'coronal', 'sagittal'];
 
@@ -17,8 +17,3 @@ export const fracsOf = (idx: SliceIndices, dimsRAS: ArrayLike<number>): [number,
   [toFrac(idx.sagittal, dimsRAS[1]), toFrac(idx.coronal, dimsRAS[2]), toFrac(idx.axial, dimsRAS[3])];
 
 export const sameIndices = (a: SliceIndices, b: SliceIndices) => AXES.every((x) => a[x] === b[x]);
-
-/** Phase A: Sage's setSlice acts on the current plane, so each changed axis sends its plane first, every time. */
-export function commandsFor(prev: SliceIndices, next: SliceIndices): ViewerCommand[] {
-  return AXES.filter((a) => prev[a] !== next[a]).flatMap((a): ViewerCommand[] => [{ type: 'setPlane', plane: a }, { type: 'setSlice', index: next[a] }]);
-}
