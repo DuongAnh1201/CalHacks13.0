@@ -2,7 +2,7 @@
 """
 REST API for Brain3D.
 
-POST /jobs                 upload 4 MRI files → {"job_id": ...}
+POST /jobs                 upload 4 MRI files → {"jobId": ...}
 GET  /jobs/{id}            status: queued | running | done | failed
 GET  /jobs/{id}/report     report.json
 GET  /jobs/{id}/model.glb  3D meshes
@@ -10,34 +10,51 @@ GET  /jobs/{id}/seg.nii.gz label map
 GET  /health               server check
 """
 import json
+import os
+import re
+import tempfile
+from datetime import datetime, timezone
+import nibabel as nib
+import numpy as np
 import shutil
 import traceback
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.datastructures import UploadFile as FormUploadFile
 
-from src.pipeline import SEQUENCES, run
-from src.predict import get_net
+SEQUENCES = ("t1c", "t1", "t2", "flair")
+
+def run(job_dir, on_stage=None):
+    from src.pipeline import run as pipeline_run
+    return pipeline_run(job_dir, on_stage=on_stage)
 
 JOBS = Path("jobs")
 JOBS.mkdir(exist_ok=True)
 MAX_FILE_MB = 200
+SEED = Path("seed")
+INVALID_MESSAGE = "Images and screenshots don't contain 3D scan data. Upload 4 NIfTI sequences (T1c, T1, T2, FLAIR) or use a sample case."
 
-executor = ThreadPoolExecutor(max_workers=1)   # one job at a time: protects CPU/GPU memory
+executor = None  # Initialized for each application lifespan; one inference at a time.
 
 
-# ---------- status stored on disk, survives server restarts ----------
+# ---------- status stored atomically on disk ----------
 def _status_path(job_id: str) -> Path:
     return JOBS / job_id / "status.json"
 
 def set_status(job_id: str, **data):
-    _status_path(job_id).write_text(json.dumps(data))
+    path = _status_path(job_id)
+    current = json.loads(path.read_text()) if path.exists() else {
+        "jobId": job_id, "status": "running", "stage": "validating", "error": None,
+        "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+    current.update(data)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(current))
+    temporary.replace(path)
 
 def get_status_data(job_id: str) -> dict:
     p = _status_path(job_id)
@@ -46,32 +63,50 @@ def get_status_data(job_id: str) -> dict:
     return json.loads(p.read_text())
 
 def _check_id(job_id: str):
-    if not job_id.isalnum():                    # blocks paths like "../"
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", job_id):
         raise HTTPException(400, "Invalid job id")
 
 
 # ---------- background worker ----------
 def _work(job_id: str):
-    set_status(job_id, status="running")
+    stage = "inferring"
+    def on_stage(value):
+        nonlocal stage
+        stage = value
+        set_status(job_id, status="running", stage=value)
     try:
-        run(JOBS / job_id)
-        set_status(job_id, status="done")
-    except Exception as e:
+        on_stage("inferring")
+        run(JOBS / job_id, on_stage=on_stage)
+        set_status(job_id, status="done", stage=None)
+    except Exception as exc:
         traceback.print_exc()
-        set_status(job_id, status="failed", error=str(e))
+        set_status(job_id, status="failed", stage=None, error={
+            "code": "INFERENCE_ERROR" if stage == "inferring" else "MESH_ERROR", "message": str(exc)})
+
+
+def initialize_jobs():
+    JOBS.mkdir(parents=True, exist_ok=True)
+    for folder in JOBS.iterdir():
+        if folder.is_dir() and not folder.name.startswith("sample"):
+            shutil.rmtree(folder)
+    if SEED.exists():
+        for folder in SEED.iterdir():
+            if folder.is_dir() and not (JOBS / folder.name).exists():
+                shutil.copytree(folder, JOBS / folder.name)
 
 
 # ---------- app ----------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_net()                                   # load model once at startup, not on first request
+    global executor
+    initialize_jobs()
+    executor = ThreadPoolExecutor(max_workers=1)
     yield
-    executor.shutdown(wait=False)
+    executor.shutdown(wait=True)
 
 app = FastAPI(title="Brain3D API", lifespan=lifespan)
-import os
 
-origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -82,43 +117,84 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    metadata = Path(__file__).resolve().parents[1] / "brats_mri_segmentation/configs/metadata.json"
+    return {"ok": True, "model": "brats_mri_segmentation", "version": json.loads(metadata.read_text())["version"]}
 
 
-@app.post("/jobs", status_code=202)
-async def create_job(
-    t1c: UploadFile = File(...),
-    t1: UploadFile = File(...),
-    t2: UploadFile = File(...),
-    flair: UploadFile = File(...),
-):
-    files = {"t1c": t1c, "t1": t1, "t2": t2, "flair": flair}
+class InvalidInput(Exception):
+    def __init__(self, code, message):
+        self.code, self.message = code, message
 
-    # validate before saving anything
-    for name, f in files.items():
-        if not f.filename or not f.filename.endswith((".nii", ".nii.gz")):
-            raise HTTPException(400, f"{name}: expected a .nii or .nii.gz file")
-        if f.size and f.size > MAX_FILE_MB * 1024 * 1024:
-            raise HTTPException(413, f"{name}: larger than {MAX_FILE_MB} MB")
 
-    job_id = uuid.uuid4().hex[:12]
-    job_dir = JOBS / job_id
-    job_dir.mkdir()
+def reject(code, message):
+    raise InvalidInput(code, message)
 
-    for name in SEQUENCES:
-        f = files[name]
-        ext = ".nii.gz" if f.filename.endswith(".gz") else ".nii"
-        dest = job_dir / f"{name}{ext}"
-        with open(dest, "wb") as out:
-            shutil.copyfileobj(f.file, out)
-        if ext == ".nii":                       # pipeline reads <name>.nii.gz
-            import nibabel as nib
-            nib.save(nib.load(dest), job_dir / f"{name}.nii.gz")
-            dest.unlink()
 
-    set_status(job_id, status="queued")
-    executor.submit(_work, job_id)
-    return {"job_id": job_id}
+def validate(paths):
+    images = []
+    for path in paths:
+        try:
+            image = nib.load(path)
+            np.asanyarray(image.dataobj)
+            images.append(image)
+        except Exception:
+            reject("INVALID_FORMAT", INVALID_MESSAGE)
+    if any(len(im.shape) < 3 or any(d < 32 for d in im.shape) for im in images):
+        reject("NOT_3D", "Expected 3D scan data with every dimension at least 32 voxels")
+    ref = images[0]
+    if any(im.shape != ref.shape or not np.allclose(im.affine, ref.affine, atol=1e-3, rtol=0) for im in images[1:]):
+        reject("SEQUENCE_MISMATCH", "All 4 sequences must share shape and affine (tolerance 1e-3)")
+    if any(not np.allclose(im.header.get_zooms(), 1, atol=0.1, rtol=0) for im in images):
+        reject("BAD_SPACING", "Expected approximately 1 mm isotropic spacing (1 ± 0.1 mm)")
+    for im in images:
+        data = np.asanyarray(im.dataobj)
+        if np.issubdtype(im.get_data_dtype(), np.integer) and data.min() >= 0 and data.max() <= 255 and np.unique(data).size <= 256:
+            reject("LOW_DYNAMIC_RANGE", "Scan intensities resemble a converted screenshot; upload raw MRI NIfTI sequences")
+
+
+@app.post("/jobs", status_code=201)
+async def create_job(request: Request):
+    JOBS.mkdir(parents=True, exist_ok=True)
+    job_dir = Path(tempfile.mkdtemp(prefix="job-", dir=JOBS))
+    job_id = job_dir.name
+    try:
+        set_status(job_id)
+        async with request.form() as form:
+            entries = list(form.multi_items())
+            if len(entries) != 4 or sorted(k for k, _ in entries) != sorted(SEQUENCES) or any(not isinstance(f, FormUploadFile) for _, f in entries):
+                reject("BAD_SEQUENCE_COUNT", "Expected 4 files: t1c, t1, t2, flair")
+            files = dict(entries)
+            paths = []
+            for name in SEQUENCES:
+                size = 0
+                with (job_dir / name).open("wb") as output:
+                    while chunk := await files[name].read(1024 * 1024):
+                        size += len(chunk)
+                        if size > MAX_FILE_MB * 1024 * 1024:
+                            reject("TOO_LARGE", "File exceeds 200 MB")
+                        output.write(chunk)
+            for name in SEQUENCES:
+                filename = files[name].filename or ""
+                if not filename.endswith((".nii", ".nii.gz")):
+                    reject("INVALID_FORMAT", INVALID_MESSAGE)
+                suffix = ".nii.gz" if filename.endswith(".nii.gz") else ".nii"
+                path = job_dir / (name + suffix)
+                (job_dir / name).rename(path)
+                paths.append(path)
+            validate(paths)
+            for name, path in zip(SEQUENCES, paths):
+                if path.suffix == ".nii":
+                    nib.save(nib.load(path), job_dir / f"{name}.nii.gz")
+                    path.unlink()
+        set_status(job_id, status="queued", stage=None)
+        executor.submit(_work, job_id)
+    except InvalidInput as exc:
+        shutil.rmtree(job_dir)
+        return JSONResponse(status_code=422, content={"code": exc.code, "message": exc.message})
+    except Exception:
+        shutil.rmtree(job_dir)
+        raise
+    return {"jobId": job_id}
 
 
 @app.get("/jobs/{job_id}")
@@ -153,3 +229,12 @@ def job_seg(job_id: str):
     return FileResponse(_result(job_id, "seg.nii.gz"), media_type="application/gzip",
                         filename=f"{job_id}_seg.nii.gz")
 
+
+@app.get("/jobs/{job_id}/flair.nii.gz")
+def job_flair(job_id: str):
+    _check_id(job_id)
+    get_status_data(job_id)
+    path = JOBS / job_id / "flair.nii.gz"
+    if not path.exists():
+        raise HTTPException(404, "flair.nii.gz not found")
+    return FileResponse(path, media_type="application/gzip")

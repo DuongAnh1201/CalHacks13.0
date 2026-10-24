@@ -43,7 +43,7 @@ Brain and tumor meshes come from the **same scan and affine**, so they share one
 
 ## Quickstart
 
-> These commands go live once issues **A3** (frontend) and **B1** (backend Docker) are merged.
+Run the backend from the repository root: `docker compose up --build`.
 
 ```bash
 # backend (Docker, CPU PyTorch; build before the venue)
