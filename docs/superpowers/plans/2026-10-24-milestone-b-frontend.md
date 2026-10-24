@@ -94,7 +94,7 @@ All paths below are relative to `frontend/src/` unless they start with `docs/` o
   export const SAMPLES: readonly SampleCase[]
   ```
 
-- [ ] **Step 1: Types.** Replace `api/types.ts` with:
+- [x] **Step 1: Types.** Replace `api/types.ts` with:
 
 ```ts
 // Mirrors docs/BACKEND_CONTRACT.md §2 by hand (SPEC §6: no codegen).
@@ -125,7 +125,7 @@ export interface Report {
 }
 ```
 
-- [ ] **Step 2: Failing test** `api/upload.test.ts`:
+- [x] **Step 2: Failing test** `api/upload.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -154,9 +154,9 @@ describe('upload guards', () => {
 });
 ```
 
-- [ ] **Step 3:** `npm test -- src/api/upload.test.ts` → FAIL (module not found).
+- [x] **Step 3:** `npm test -- src/api/upload.test.ts` → FAIL (module not found).
 
-- [ ] **Step 4: Implement** `api/upload.ts`:
+- [x] **Step 4: Implement** `api/upload.ts`:
 
 ```ts
 export type Sequence = 't1c' | 't1' | 't2' | 'flair';
@@ -186,7 +186,7 @@ export const SAMPLES: readonly SampleCase[] = [
 ];
 ```
 
-- [ ] **Step 5: Client.** Replace `api/client.ts` with:
+- [x] **Step 5: Client.** Replace `api/client.ts` with:
 
 ```ts
 import type { Health, JobStatus, Report } from './types';
@@ -229,8 +229,8 @@ export async function createJob(files: Record<Sequence, File>): Promise<string> 
 
 `BackendBanner` already uses `getHealth().then(h => h.ok)`; behaviour is unchanged. Run `impact({target: "getHealth", direction: "upstream"})` first and report the result.
 
-- [ ] **Step 6:** `npm test` (all pass), `npx tsc -b`, `npm run lint`.
-- [ ] **Step 7: Commit** `api/types.ts api/client.ts api/upload.ts api/upload.test.ts` as `feat(api): contract types, job client, NIfTI guard (#9)`. Then `hc send fe "T1 done at <hash>"`, the same to `ai` and `qa`, and to `lead`.
+- [x] **Step 6:** `npm test` (all pass), `npx tsc -b`, `npm run lint`.
+- [x] **Step 7: Commit** `api/types.ts api/client.ts api/upload.ts api/upload.test.ts` as `feat(api): contract types, job client, NIfTI guard (#9)`. Then `hc send fe "T1 done at <hash>"`, the same to `ai` and `qa`, and to `lead`.
 
 ---
 
