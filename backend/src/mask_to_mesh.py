@@ -3,6 +3,7 @@ import nibabel as nib
 import numpy as np
 import trimesh
 from skimage.measure import marching_cubes
+from scipy import ndimage
 
 
 def to_mesh(binary, affine, rgba, smooth_iters=0, step_size=1, max_faces=None):
@@ -19,18 +20,20 @@ def to_mesh(binary, affine, rgba, smooth_iters=0, step_size=1, max_faces=None):
     # 1. Pad by a full sampling step to close surfaces at volume edges
     padded = np.pad(binary, step_size).astype(np.uint8)
 
-    # 2. Marching cubes: boundary between 0 and 1 → vertices + triangles (voxel units)
-    verts, faces, _, _ = marching_cubes(padded, level=0.5, step_size=step_size)
+    def surface(field):
+        verts, faces, _, _ = marching_cubes(field, level=0.5, step_size=step_size)
+        verts = nib.affines.apply_affine(affine, verts - step_size)
+        if np.linalg.det(affine[:3, :3]) < 0:
+            faces = faces[:, ::-1]
+        return trimesh.Trimesh(vertices=verts, faces=faces, process=False)
 
-    # 3. Undo the padding shift, then voxel index → mm with the MRI's affine
-    verts = nib.affines.apply_affine(affine, verts - step_size)
-
-    # 4. If the affine mirrors an axis, triangles are inside-out → reverse them
-    if np.linalg.det(affine[:3, :3]) < 0:
-        faces = faces[:, ::-1]
-
-    # 5. Build the mesh
-    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+    mesh = surface(padded)
+    if not mesh.is_watertight:
+        # Expert labels can have ambiguous edge/corner-only voxel contacts.
+        # Regularize only their display surface; segmentation/report masks stay
+        # unchanged, and already-closed surfaces retain their exact geometry.
+        field = ndimage.gaussian_filter(padded.astype(np.float32), sigma=0.5)
+        mesh = surface(field)
 
     # 6. Smooth the blocky voxel steps; Taubin keeps the volume (no shrinking)
     if smooth_iters > 0:
