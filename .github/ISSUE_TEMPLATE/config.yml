@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Spec (source of truth)
+    url: https://github.com/DuongAnh1201/CalHacks13.0/blob/main/docs/SPEC.md
+    about: Read the relevant section before filing.

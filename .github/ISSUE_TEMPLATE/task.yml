@@ -1,0 +1,52 @@
+name: Task
+description: A unit of planned work from the spec
+title: "[A] "
+labels: ["type:task"]
+body:
+  - type: markdown
+    attributes:
+      value: "Title prefix = checkpoint letter (A–H). Set lane + priority labels and the milestone."
+  - type: input
+    id: spec
+    attributes:
+      label: Spec section
+      description: Which part of docs/SPEC.md this implements
+      placeholder: "§4 Cutaway"
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One or two sentences. What is true when this is done?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      value: |
+        **In:**
+        -
+        **Out:**
+        -
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: input
+    id: deps
+    attributes:
+      label: Depends on
+      placeholder: "#3, #5 (or none)"
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate (hours)
+      placeholder: "2"
