@@ -8,7 +8,7 @@ The disabled **Share** button in `TopNavBar` starts a live session on Sage's Con
 
 The user hosts the Convex deployment. Setup, once, at the repo root:
 
-1. `npx convex login`, then `npx convex dev`. This writes the root `.env.local` with `CONVEX_URL`.
+1. `npm install`, then `npx convex login`, then `npx convex dev`. This writes the root `.env.local` with `CONVEX_URL`.
 2. `frontend/.env.local`: `VITE_CONVEX_URL=<CONVEX_URL>`.
 3. `npx convex run seed:seedSampleScan`.
 
@@ -16,11 +16,11 @@ The user hosts the Convex deployment. Setup, once, at the repo root:
 
 | Question | Decision |
 |---|---|
-| What mirrors | Phase A: the `/mri` crosshair (all 3 planes) and tumor overlay visibility. No Convex change. Phase B: `/3d` page state plus page follow, with Convex widened. |
+| What mirrors | Phase A: the `/mri` crosshair (all 3 planes). No Convex change. Phase B adds tumor overlay visibility, because the fixture has no `tumor`, so `setTumorVisible true` throws `INVALID_ARGUMENT` until B1 seeds it from the real report. Phase B: `/3d` page state plus page follow, with Convex widened. |
 | Which scans | The sample case (`jobs/sample`) only. Uploads aren't registered in Convex, and their affine needs M4 (Tom). |
 | Join | Link `/join/<inviteCode>` plus the code shown in the popover. The guest types a display name. |
 | Guest controls | Follow / Stop following, plus a roster of who joined (membership, not online status). The host can end the session. No presenter handoff, no presence. |
-| Phase A sync | Translate to the existing commands (`setPlane` + `setSlice` per changed axis). Phase B replaces this with an atomic `setCursor`. |
+| Phase A sync | Translate to the existing commands (`setPlane` + `setSlice` for every changed axis, always both, so an in-flight plane change can never misroute a slice). Phase B replaces this with an atomic `setCursor`. |
 | Phase B Convex code | Our be worker writes it in `convex/`. Sage reviews the PR before merge. |
 
 ## Non-goals
@@ -37,39 +37,39 @@ The user hosts the Convex deployment. Setup, once, at the repo root:
 
 The seeded fixture has a placeholder affine (`centredAxisAlignedAffine`, `convex/seed.ts:138`), so Convex's `cursorRasMm` does not match the mm that NiiVue reads from the real NIfTI header. The grid does match: 240 × 240 × 155 at 1 mm in both `convex/seed.ts:86` and `jobs/sample/report.json`. The frontend therefore syncs only through `view.sliceIndices` (`{axial, coronal, sagittal}`) and never reads or writes `cursorRasMm`.
 
-Mapping: `MprPanel` reads `nv.scene.crosshairPos[AXIS_INDEX[axis]]` (RAS-ordered fraction) and `dimsRAS`. Index = `Math.round(frac * (N - 1))`; frac = `index / (N - 1)`. `AXIS_INDEX` = sagittal 0, coronal 1, axial 2. That matches `planeToRasAxis` in `convex/lib/transform.ts`.
+Mapping: `MprPanel` reads `nv.scene.crosshairPos[AXIS_INDEX[axis]]` (RAS-ordered fraction) and `dimsRAS`. Index = `sliceOf(frac, N) - 1` (existing `viewer/slices.ts`); frac = `(index + 0.5) / N` (voxel centre). `AXIS_INDEX` = sagittal 0, coronal 1, axial 2. That matches `planeToRasAxis` in `convex/lib/transform.ts`.
 
 ## 2. Phase A — frontend only
 
-**Dependency:** `frontend/package.json` adds `convex` `^1.48.0` (same as root). The frontend imports `../../convex/_generated/api`, which is checked in.
+**Dependency:** `frontend/package.json` adds `convex` `^1.48.0` (same as root). The frontend uses `ConvexClient` (`convex/browser`) with untyped `anyApi` refs and hand-written types in `share/types.ts`. Importing `convex/_generated/api` would make the frontend `tsc` type-check `convex/` under the frontend tsconfig, and that needs the root `node_modules`. Mirrors SPEC §6 "No codegen", like `api/types.ts`.
 
 **New `frontend/src/share/`:**
 
 | File | Job |
 |---|---|
-| `client.ts` | Exports `convex: ConvexReactClient \| null`. `null` when `VITE_CONVEX_URL` is unset. |
+| `client.ts` | Exports `convex: ConvexClient \| null` (`null` when `VITE_CONVEX_URL` is unset) and `api = anyApi`. |
+| `types.ts` | Hand-written mirror of `SessionStateDto`, `PublicParticipant`, and `ViewerCommand`. |
+| `copy.ts` | `codeOf(e)` reads `ConvexError.data.code`, and `messageFor(e)` maps it to the copy in section 4. |
+| `store.ts` | Zustand `useShare` holding `{ stored, session, notice, syncNote }`, plus `startShare`, `joinShare`, `endShare`, `setFollowing`, `sendView`, `resume`. One `client.onUpdate(sessions.get)` subscription. Its error callback handles `SESSION_ENDED` and stale tokens. |
 | `stored.ts` | sessionStorage key `nv.share` = `{ sessionId, participantToken, role }`. Every read and write is in try/catch, and blocked storage means none is stored. A reload re-uses the token instead of calling `join` again, because a second `join` adds a duplicate participant. |
-| `useShare.ts` | Hook: `start()` (`sessions.create({ scanId, hostDisplayName })`), `join(code, name)`, `end()`, `setFollowing(bool)`, and `state` from `useQuery(api.sessions.get, { sessionId, participantToken })`. The sample scan id comes from `useQuery(api.scans.getByJobId, { jobId: 'sample' })`. Maps `ConvexError.data.code` to the copy in section 4. |
-| `mprSync.ts` | Pure functions: `commandsFor(prev: SliceIndices, next: SliceIndices, plane: Plane): ViewerCommand[]`. For each axis whose index changed, it emits `setPlane` (skipped when `plane` already matches), then `setSlice`. Also `toIdx(frac, n)` and `toFrac(idx, n)`. |
-| `SharePopover.tsx` | Host: link `${location.origin}/join/<code>` with **Copy link**, the code, the roster (`sessionParticipants.list`), and **End session**. |
+| `mprSync.ts` | Pure functions: `commandsFor(prev: SliceIndices, next: SliceIndices): ViewerCommand[]`. For each axis whose index changed, it emits `setPlane`, then `setSlice`. Also `toIdx(frac, n)` and `toFrac(idx, n)`. |
+| `SharePopover.tsx` | Host: link `${location.origin}/join/<code>` with **Copy link**, the code, the roster (`session.participants` from `sessions.get`), and **End session**. |
 | `FollowBanner.tsx` | Guest: "Following <host name>" with **Stop following** / **Follow**. |
 
 **New route** `/join/:code` → `routes/Join.tsx`: a display-name field and **Join**. It calls `join`, stores the token, and navigates to `/jobs/sample/mri`.
 
 **Wiring:**
-- `App.tsx` wraps the router in `ConvexProvider` only when `convex` is non-null.
 - `TopNavBar` Share:
   - Enabled on `/jobs/sample/*` and opens `SharePopover`; the host's display name is "Host".
   - Elsewhere it's disabled with the title "Sharing works on the sample case for now".
   - With no client it's disabled with the title "Sharing is not configured".
 - `MprPanel` gets two optional props:
   - `onCrosshair?: (idx: SliceIndices) => void`. Fires from `onLocationChange` on the host.
-  - `remote?: { indices: SliceIndices; tumorVisible: boolean }`. When it's set, each view sets `nv.scene.crosshairPos` from `toFrac`, and the overlay opacity is the viewer's own mask % if `tumorVisible`, else 0.
+  - `remote?: SliceIndices | null`. When it's set, each view sets `nv.scene.crosshairPos` from `toFrac`. Phase B widens this to `{ indices, tumorVisible }`.
 
 **Data flow:**
 - **Host.**
   - A crosshair change gives new indices. `commandsFor` turns them into commands, and the host sends them in order to `sessions.updateView`; Convex pushes `sessions.get` to all subscribers.
-  - Mask slider moved to 0 → `setTumorVisible false`; moved above 0 from 0 → `setTumorVisible true`.
 - **Guest.**
   - While `me.following`, `MprPanel` gets `remote` from `state.view`.
   - A guest click on a slice while following calls `setFollowMode(false)`, and the guest browses locally.
@@ -79,7 +79,8 @@ Known cost: a click that moves 2 axes sends up to 4 mutations, so the guest can 
 
 ## 3. Phase B — Convex widened, 3D mirrored
 
-**Convex (`convex/schema.ts`, `convex/lib/viewCommands.ts`, `convex/sessions.ts`):**
+**Convex (`convex/schema.ts`, `convex/lib/viewCommands.ts`, `convex/sessions.ts`, `convex/seed.ts`):**
+- `seed.ts`: the sample gets `segmentationSource: "model"` and `tumor: { detected: true, volumesCm3 }`, copied from `backend/seed/sample/report.json` (a real model run, so Sage's honesty rule holds). `isFixture` and the placeholder affine stay.
 - `sessions` gets an optional `scene`. A missing `scene` reads as the default below, so existing rows keep working.
   ```ts
   scene: {
@@ -112,6 +113,7 @@ Known cost: a click that moves 2 axes sends up to 4 mutations, so the guest can 
   - Guest side: applies `scene` through `dispatch(...)`, so the store keeps one mutation path (SPEC §7.3). Mapping: `cameraTarget 'tumor'` → `focusTumor`; `cameraTarget 'brain'` → no dispatch (the guest's own camera stays put).
 - Page follow: the host sends `setPage` on mount of `/mri` and `/3d`. A following guest whose route differs navigates to `/jobs/sample/<page>`.
 - The `/mri` crosshair switches from `commandsFor` to a single `setCursor`. `mprSync.commandsFor` is deleted.
+- Mask sync: host mask slider moved to 0 → `setTumorVisible false`; moved above 0 from 0 → `true`. The guest's overlay opacity is their own mask % if `tumorVisible`, else 0.
 
 ## 4. Errors and copy
 
@@ -121,7 +123,8 @@ Known cost: a click that moves 2 axes sends up to 4 mutations, so the guest can 
 | `SESSION_ENDED` | Banner "The host ended the session". The stored token is cleared and the view stays put. |
 | `NOT_A_MEMBER` / `NOT_AUTHENTICATED` (stale token) | The token is cleared and `/join/:code` shows the name form again. Elsewhere the banner disappears. |
 | `NOT_PRESENTER` | Not reachable from the UI (guests send no `updateView`). `console.error` only. |
-| `NOT_FOUND` for the sample scan | Share disabled with the title "Sample scan is not in Convex. Run seed:seedSampleScan". |
+| `scans.getByJobId('sample')` returns null | Share shows "Sample scan is not in Convex. Run seed:seedSampleScan". |
+| `NOT_FOUND` from `sessions.get` | Treated as a stale token: token cleared. |
 | `updateView` rejects | The host keeps the local view. Inline note in the popover: "Couldn't sync. Will try again on the next change." No retry loop. |
 | `VITE_CONVEX_URL` unset | Share disabled, "Sharing is not configured". Everything else works. |
 
@@ -134,7 +137,6 @@ Copy rules from W1 apply: no keyboard shortcuts or key names, no "heal"+"thy", n
   - one axis changed;
   - two axes changed;
   - no change → `[]`;
-  - plane already matching → no `setPlane`;
   - `toFrac`/`toIdx` round-trip at 0 and N − 1.
 - `stored`: read, write and clear; blocked storage returns null.
 - `Join`: `INVALID_INVITE` shows the copy above.
@@ -154,14 +156,13 @@ Copy rules from W1 apply: no keyboard shortcuts or key names, no "heal"+"thy", n
 1. On `/jobs/sample/mri`, Share shows the link, code and roster.
 2. The guest opens the link, enters a name, and lands following.
 3. A host click in the axial view moves the guest crosshair in all 3 views.
-4. Host mask at 0 hides the guest overlay.
-5. A guest click stops following. **Follow** snaps back.
-6. **End session** shows "The host ended the session".
-7. A guest reload keeps the session with no second roster entry.
+4. A guest click stops following. **Follow** snaps back.
+5. **End session** shows "The host ended the session".
+6. A guest reload keeps the session with no second roster entry.
 
 *Phase B:*
 1. Host to `/3d` → the guest follows.
-2. Explode, opacity, mode, layers, hemispheres and Focus Tumor mirror.
+2. Explode, opacity, mode, layers, hemispheres and Focus Tumor mirror. Host mask at 0 on `/mri` hides the guest overlay.
 3. The guest orbits their own camera freely.
 
 ## 6. Issues
@@ -170,11 +171,11 @@ New milestone **W2 · Share**:
 
 | Issue | Scope | Owner | Depends on |
 |---|---|---|---|
-| W2-A1 | `share/client`, `stored`, `useShare`, `SharePopover`, `FollowBanner`, `/join/:code`, `TopNavBar` Share, `ConvexProvider` | fe | user's Convex deployment |
-| W2-A2 | `mprSync`, `MprPanel` `onCrosshair` / `remote`, mask → `setTumorVisible` | ai | A1 |
+| W2-A1 | `share/client`, `types`, `copy`, `stored`, `store`, `SharePopover`, `FollowBanner`, `/join/:code`, `TopNavBar` Share | fe | user's Convex deployment (for qa only) |
+| W2-A2 | `mprSync`, `MprPanel` `onCrosshair` / `remote` | ai | A1 store interface |
 | W2-A3 | qa Phase A two-window pass | qa | A1, A2 |
-| W2-B1 | Convex `scene` + new commands + tests; Sage reviews | be | A3 green |
-| W2-B2 | `sceneSync`, page follow, `setCursor` replaces `commandsFor` | ai | B1 |
+| W2-B1 | Convex `scene` + new commands + seeded tumor + tests; Sage reviews | be | A3 green |
+| W2-B2 | `sceneSync`, page follow, `setCursor` replaces `commandsFor`, mask → `setTumorVisible` | ai | B1 |
 | W2-B3 | qa Phase B pass | qa | B2 |
 
 Conflict risk: #56 [AG-T] also edits `convex/schema.ts` (new tables). B1 adds one optional field to `sessions`, so a merge conflict there is trivial.
