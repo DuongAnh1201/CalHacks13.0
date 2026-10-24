@@ -26,6 +26,10 @@ export function saveWorkspace(w: Workspace, s: Store | null = local()): void {
   try { s?.setItem(KEY, JSON.stringify([w, ...listWorkspaces(s).filter((x) => x.id !== w.id)])); } catch { /* blocked or full: the list is a convenience */ }
 }
 
+export function removeWorkspace(id: string, s: Store | null = local()): void {
+  try { s?.setItem(KEY, JSON.stringify(listWorkspaces(s).filter((x) => x.id !== id))); } catch { /* blocked or full: the list is a convenience */ }
+}
+
 export const hrefOf = (w: Workspace) => (w.kind === 'mri' ? `/jobs/${w.id}/mri` : `/learn/${w.id}`);
 
 /** Card name for an upload: the FLAIR file stem minus a trailing sequence tag, else the job id. */
