@@ -4,7 +4,7 @@ import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NO_SAMPLE, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
-import type { SessionState, ViewerCommand } from './types';
+import type { ChatMessage, SessionState, ViewerCommand } from './types';
 
 type Client = Pick<ConvexClient, 'query' | 'mutation' | 'onUpdate'>;
 
@@ -103,4 +103,20 @@ export async function sendView(cmds: ViewerCommand[]): Promise<void> {
     console.error('[share]', e);
     useShare.setState({ syncNote: SYNC_FAILED });
   }
+}
+
+/** Newest page of session chat, oldest first. Returns an unsubscribe; a no-op outside a session. */
+export function watchChat(onMessages: (m: ChatMessage[]) => void, pageSize = 50): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.messages.list, { ...auth(s), paginationOpts: { numItems: pageSize, cursor: null } },
+    (r: { page: ChatMessage[] }) => onMessages([...r.page].reverse()), // server sends newest first
+    (e: Error) => console.error('[chat]', e)); // ended/stale sessions are handled by the sessions.get subscription
+}
+
+/** Posts a chat line as this tab's participant. Returns an error message, or null. */
+export async function sendChat(text: string): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.messages.send, { ...auth(s), text }); return null; } catch (e) { return messageFor(e); }
 }
