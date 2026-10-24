@@ -11,7 +11,7 @@
   display: grid;
   grid-template-columns: 350px 1fr 340px;
   gap: 16px;
-  padding: 16px 24px;
+  padding: 24px;
   align-items: start;
 }
 
