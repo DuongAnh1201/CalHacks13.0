@@ -9,4 +9,17 @@ services:
       - ALLOWED_ORIGINS=http://localhost:5173
     volumes:
       - ./jobs:/app/jobs
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/src
+          target: /app/src
+          ignore:
+            - "**/__pycache__/"
+        - action: rebuild
+          path: ./backend/pyproject.toml
+        - action: rebuild
+          path: ./backend/uv.lock
+        - action: rebuild
+          path: ./backend/Dockerfile
     restart: unless-stopped

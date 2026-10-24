@@ -14,15 +14,16 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
+RUN useradd --create-home appuser
+
 # 2. Application code, viewer, weights
-COPY src/ ./src/
+COPY --chown=appuser src/ ./src/
 COPY weights/ ./weights/
 COPY brats_mri_segmentation/configs/metadata.json ./brats_mri_segmentation/configs/metadata.json
 COPY seed/ ./seed/
 
 # 3. Run as non-root user
-RUN useradd --create-home appuser \
- && mkdir -p /app/jobs \
+RUN mkdir -p /app/jobs \
  && chown -R appuser /app/jobs
 USER appuser
 
