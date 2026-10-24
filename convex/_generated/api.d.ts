@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as exportRecords from "../exportRecords.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_author from "../lib/author.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_transform from "../lib/transform.js";
@@ -25,7 +27,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  exportRecords: typeof exportRecords;
   "lib/auth": typeof lib_auth;
+  "lib/author": typeof lib_author;
   "lib/errors": typeof lib_errors;
   "lib/tokens": typeof lib_tokens;
   "lib/transform": typeof lib_transform;
