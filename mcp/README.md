@@ -6,7 +6,7 @@ It uses the SDK's Web Standards Streamable HTTP transport in JSON-response mode;
 
 ## Configuration
 
-- `MCP_TOKEN`: required Convex environment secret. Missing/incorrect bearer credentials return 401. No actual token is supplied by this repository.
+- `MCP_TOKEN` on Convex: the in-app service secret only. It may supply a trusted run header. Desktop uses a separately issued personal token below. Missing, unknown, revoked or expired bearer credentials return 401. Personal tokens work independently of whether the service secret is configured. No actual token is supplied by this repository.
 - `IMAGING_API_URL`: optional Convex environment setting, the imaging backend root reachable **from Convex**, for example an HTTPS tunnel rather than a laptop's localhost. The server reads `/jobs/{job_id}/report` (the report.json endpoint) from this fixed base. It never accepts an arbitrary report URL from a tool.
 - Without `IMAGING_API_URL`, only `sample` and `sample-2` use their bundled `backend/seed/*/report.json` files. Other IDs explicitly have no report. With the setting present, the backend is authoritative even for samples; 404 does not silently substitute a bundled report.
 
@@ -43,7 +43,7 @@ Add a local Desktop MCP configuration (replace paths and configure your token lo
       "args": ["/absolute/path/to/CalHacks13.0/mcp/stdio.mjs"],
       "env": {
         "NEURO_MCP_URL": "https://<deployment>.convex.site/api/mcp",
-        "MCP_TOKEN": "<configure locally>"
+        "MCP_TOKEN": "<paste your once-issued personal token locally>"
       }
     }
   }
@@ -52,7 +52,43 @@ Add a local Desktop MCP configuration (replace paths and configure your token lo
 
 Claude Code can use the same stdio command and environment. The proxy requires HTTPS except for loopback testing. stdout is reserved for MCP; failures print a generic message to stderr without the token.
 
-This first endpoint uses the deployment's MCP_TOKEN for both in-app and Desktop access. Dedicated per-user token issuance/rotation is not implemented here. A future per-user authenticator must resolve the author to Claude Desktop and ignore service run headers.
+### Issue or revoke a Desktop token (Tom/admin CLI)
+
+Run against the intended configured Convex deployment (or use the CLI's explicit
+`--prod` option when administering production):
+
+```sh
+npx convex run mcpTokens:issue '{"label":"Tom Desktop","ttlDays":30}'
+```
+
+The **internal action** returns `{ id, token, expiresAt }`; copy the token into
+the Desktop proxy's local `MCP_TOKEN` setting above. This is a distinct token,
+not the deployment's in-app service secret. Save it when issued: there is no
+retrieval endpoint, and another issue call creates a new credential. Omitting
+`ttlDays` makes a non-expiring token; supplied values must be positive. Labels
+are administrative labels only and cannot choose the agent's name.
+
+To revoke (use the returned `id`):
+
+```sh
+npx convex run mcpTokens:revoke '{"id":"<mcpTokens id>"}'
+```
+
+Revocation is idempotent. Rotate by issuing a new token, updating the local
+configuration, and revoking the old id. Issuance and revocation are internal
+functions; no browser or public MCP tool can administer credentials.
+
+`mcpTokens:issue` generates 256 random bits and hashes the credential in an
+action; the internal `issueRecord` mutation receives only SHA-256 and metadata.
+The `mcpTokens` table stores `tokenHash`, `label`, `createdAt`, optional
+`expiresAt`/`revokedAt`, and `lastUsedAt`, indexed by `by_hash`. A zero last-use
+value means never used. Authentication reads this index, rejects revoked or
+expired rows, and updates usage only on first use or after at least one minute;
+the touch mutation rechecks both validity and the time to handle concurrent
+requests. Rate limits remain keyed by the same token hash. Raw credentials are
+not stored in either table. Personal tokens never confer session membership;
+private export sections still need participant capabilities. Pairing/viewer
+control is #70 part 2, not this token increment.
 
 ## Module integration and author identity
 
@@ -60,15 +96,15 @@ The HTTP adapter supplies `[registerExportTools]` to the handler's module list; 
 
 New modules export `registerExportTools(server: McpServer, deps: McpDependencies): void` (or `registerAnnotations`, `registerMessages`, `registerSummaries`) and are added to `createServer(deps, modules)`. Shared types are in `convex/mcp/types.ts`. `deps.data` reads reports, and `deps.ctx` is the actual Convex HTTP `ActionCtx` providing `runQuery`, `runMutation`, `runAction` and storage. No extra server is created by a tool module.
 
-`deps.caller` is verified by the HTTP adapter. It contains `kind: "service"`, the SHA-256 `tokenHash`, `agentName`, and its identical `authorName` alias. Default author: `"Claude Desktop"`. After bearer-secret verification, the in-app action can send:
+`deps.caller` is verified by the HTTP adapter. It contains `kind: "service" | "user"`, the SHA-256 `tokenHash`, `agentName`, and its identical `authorName` alias. Personal-token callers always have kind `user`, author `Claude Desktop`, and no agentRunId; their run header is ignored entirely, including malformed JSON. Service callers retain the existing default label and specialist-header behavior. Only after matching the env service secret can the in-app action send:
 
 ```text
 X-Neuro-Agent-Run: {"agentName":"Scribe","runId":"<actual agent run id>"}
 ```
 
-Only Navigator, Anatomy tutor and Scribe are accepted specialist names; malformed headers are rejected. This header is trusted because only the deployment-secret holder can use it; it is not a separate signature or a DB lookup of the run. The Desktop proxy does not forward run headers. Names in tool arguments are rejected, and cannot override the authenticated caller.
+For the env service credential, only Navigator, Anatomy tutor and Scribe are accepted specialist names; malformed headers are rejected. This header is trusted because only the deployment-secret holder can use it; it is not a separate signature or a DB lookup of the run. The Desktop proxy does not forward run headers. Names in tool arguments are rejected, and cannot override the authenticated caller.
 
-Writers call `authorFor({kind: 'agent', name: deps.caller.authorName, source: 'mcp'})`. Service authentication does **not** imply participant/session permission. A writer must separately validate session capability arguments before its internal DB/storage action. The private rate-limit function is referenced with `makeFunctionReference` so this additive module does not hand-edit generated API files.
+Writers call `authorFor({kind: 'agent', name: deps.caller.authorName, source: 'mcp'})`. Neither service nor personal-token authentication implies participant/session permission. A writer must separately validate session capability arguments before its internal DB/storage action. The private rate-limit function is referenced with `makeFunctionReference` so this additive module does not hand-edit generated API files.
 
 D7=A: the Convex agent action must use an SDK MCP `Client` + `StreamableHTTPClientTransport` against this endpoint, list its tools and call them with the secret/run header; it must not bypass the server by invoking knowledge functions directly.
 
@@ -93,3 +129,10 @@ npx --yes @modelcontextprotocol/inspector@2.5.0 --cli --config /path/to/local-mc
 An actual isolated anonymous `convex dev` deployment was also tested after #97, with a populated SPA fixture: `/learn` served HTML while `/api/mcp` returned authenticated MCP responses, bad tokens returned 401, and the real stdio proxy returned exact sample metrics and certainty. Cloud deployment and the Desktop GUI remain manual checks; no production MCP token was set.
 
 References: [SDK Web Standards transport](https://github.com/modelcontextprotocol/typescript-sdk/blob/v1.x/src/server/webStandardStreamableHttp.ts), [Convex HTTP actions](https://docs.convex.dev/functions/http-actions).
+
+Personal-token local smoke (#70 part 1): the admin CLI issued a disposable token
+without displaying it in test output. An actual SDK Client used it at /api/mcp,
+listed all six tools and requested a report export with a forged Scribe header;
+the stored author remained Claude Desktop. CLI revocation made the next request
+return 401. The test token was revoked and the isolated server stopped; no shared
+or cloud credentials changed.
