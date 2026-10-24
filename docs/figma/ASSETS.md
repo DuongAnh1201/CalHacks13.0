@@ -1,4 +1,6 @@
-# Figma assets — frame 04 (`43:1149`)
+# Figma assets
+
+## Frame 04 (`43:1149`)
 
 Exported from Figma file `rHjTVYYISZzHWvWNeSKaVE` via MCP `get_design_context` on 2026-10-23. Source URLs expire ~7 days after export; these files are the frozen copies.
 `04-explore.ref.tsx` references them as `./assets/<file>`. **The node id is authoritative.** The context column comes from walking up from the first `<img>` use, and because Figma puts labels *before* icons it often names the preceding sibling. Open the ref at the listed line to confirm. `f8116.png` is JPEG data despite the extension.
@@ -66,3 +68,74 @@ Everything else is optional. Tumor, voice, webcam and diagnosis visuals are out 
 | `5288e.svg` | `imgContainer15` | Container ‹ Trailing Primary Action (Sensitivity: Normal) ‹ Background | `43:1431` | 991 |
 | `a607d.svg` | `imgContainer16` | Container ‹ Button ‹ Trailing Icon Actions | `43:1437` | 1005 |
 | `f0710.svg` | `imgContainer17` | Container ‹ Button ‹ Trailing Icon Actions | `43:1440` | 1012 |
+
+
+## Frames 01–03 (exported 2026-10-24)
+
+Same rules as frame 04. Refs: `01-upload.ref.tsx` (`43:3`), `02-processing.ref.tsx` (`44:99`), `03-workspace.ref.tsx` (`43:767`). **`03-workspace.ref.tsx` is truncated at 100 KB** (MCP token limit): it stops inside the right column's "ACTION CONTROL DECK", so `77060 79880 76bfc 49072` and the repeated header/footer icons have no use site in the file. Use `03-workspace.png` for everything below line ~900. `8ad8d.png`, `6a58f.png` and `304b1.png` are JPEG data (MRI slice mock-ups, out of scope).
+
+Header/footer icons (`3ad0c 42112 5f73c 030d1 52b59`) repeat in every frame; the existing `TopNavBar`/`Footer` already cover them.
+
+### Icons Milestone B uses (plan `docs/superpowers/plans/2026-10-24-milestone-b-frontend.md`)
+
+| use | file | node | where in ref |
+|---|---|---|---|
+| Dropzone upload icon (Upload, T3) | `47363.svg` | `44:22` | 01 › Dropzone — Idle › Upload Icon |
+| "Browse files" button icon (Upload, T3) | `3f40b.svg` | `44:30` | 01 › Button — Browse files |
+| Sample case icon (Upload, T3) | `d5c9a.svg` | `44:84` | 01 › Sample Scan Option |
+| Small check / "Uploaded" status (Upload slots, T3) | `f8d34.svg` | `44:228` | 02 › File Meta › Status |
+| File icon (Processing job row, T4) | `a6f94.svg` | `44:221` | 02 › File Row |
+| Step done check (Processing, T4) | `7e35a.svg` | `44:234` | 02 › Step › State |
+| Step running ring (Processing, T4) | `0ee3b.svg` | `44:245` | 02 › Step — Segment tumor › State |
+| Arrow right in primary CTA (Results "Place in 3D", T5) | `b1141.svg` | `44:268` | 02 › Button — Open MRI Workspace |
+
+Not used (SPEC conflicts): `8682b.svg` (DICOM folder), `460ba.svg` (privacy lock; card dropped), `85da8.svg` (agent tip mic), all frame-03 agent-panel icons.
+
+### Frame 01 (`43:3`)
+
+| file | const | context (closest ‹ outer) | node | ref line |
+|---|---|---|---|---|
+| `47363.svg` | `imgIcon` | Icon ‹ Upload Icon ‹ Dropzone — Idle | `44:22` | 60 |
+| `3f40b.svg` | `imgIcon1` | Icon ‹ Button — Browse files ‹ Actions | `44:30` | 70 |
+| `8682b.svg` | `imgIcon2` | Icon ‹ Button — Choose DICOM folder | `44:35` | 78 |
+| `d5c9a.svg` | `imgIcon3` | Icon ‹ Sample Scan Option ‹ Secondary Options | `44:84` | 171 |
+| `460ba.svg` | `imgIcon4` | Icon ‹ Privacy Note | `44:93` | 189 |
+
+### Frame 02 (`44:99`)
+
+| file | const | context (closest ‹ outer) | node | ref line |
+|---|---|---|---|---|
+| `a6f94.svg` | `imgIcon` | Icon ‹ File Icon ‹ File Row | `44:221` | 62 |
+| `f8d34.svg` | `imgIcon1` | Icon ‹ Status ‹ File Meta | `44:228` | 73 |
+| `7e35a.svg` | `imgIcon2` | Icon ‹ State ‹ Step — Read file & strip patient identifiers | `44:234` | 84 |
+| `0ee3b.svg` | `imgState` | State ‹ Step — Segment tumor (UNet-3D) | `44:245` | 107 |
+| `85da8.svg` | `imgIcon3` | Icon ‹ Agent Tip ‹ CTA Row | `44:259` | 132 |
+| `b1141.svg` | `imgIcon4` | Icon ‹ Button — Open MRI Workspace | `44:268` | 148 |
+
+### Frame 03 (`43:767`, truncated)
+
+| file | const | context (closest ‹ outer) | node | ref line |
+|---|---|---|---|---|
+| `d8bf0.svg` | `imgContainer` | Container ‹ HorizontalBorder | `43:774` | 72 |
+| `3f35e.svg` | `imgIcon1` | Icon ‹ Agent Avatar ‹ Agent Header | `44:274` | 161 |
+| `c9605.svg` | `imgEllipse` | Ellipse ‹ Status — Listening | `44:280` | 172 |
+| `78c7f.svg` | `imgEllipse1` | Ellipse ‹ Chip — Orchestrator | `44:286` | 186 |
+| `61a1b.svg` | `imgEllipse2` | Ellipse ‹ Chip — Spatial UI | `44:292` | 202 |
+| `8e97a.svg` | `imgIcon2` | Icon ‹ Tab — Voice | `44:299` | 221 |
+| `6179e.svg` | `imgIcon3` | Icon ‹ Tab — Script | `44:304` | 229 |
+| `941c5.svg` | `imgIcon4` | Icon ‹ Msg — Vision (system) | `45:128` | 239 |
+| `2623b.svg` | `imgIcon5` | Icon ‹ Meta ‹ Bubble | `45:44` | 250 |
+| `bfdea.svg` | `imgIcon6` | Icon ‹ Button — Run script | `45:94` | 332 |
+| `81241.svg` | `imgIcon7` | Icon ‹ Mic Button — Active | `45:103` | 369 |
+| `8ad8d.png` | `imgAb6AXuBpj…` | MRI slice image (JPEG) | `43:886` | 487 |
+| `c9b37.svg` | `imgContainer1` | Container ‹ In-canvas HUD telemetry | `43:902` | 534 |
+| `e74d7.svg` | `imgContainer2` | Container ‹ Button | `43:916` | 566 |
+| `05ed5.svg` | `imgContainer3` | Container ‹ Button | `43:919` | 571 |
+| `6a58f.png` | `imgAb6AXuC0W…` | MRI slice image (JPEG) | `43:940` | 623 |
+| `304b1.png` | `imgAb6AXuDcn…` | MRI slice image (JPEG) | `43:970` | 694 |
+| `c18f8.svg` | `imgContainer4` | Container ‹ Button | `43:984` | 727 |
+| `94482.svg` | `imgContainer5` | Container ‹ Button | `43:989` | 739 |
+| `e5b0c.svg` | `imgContainer6` | Container ‹ Button | `43:994` | 751 |
+| `d8034.svg` | `imgContainer7` | Container | `43:999` | 766 |
+| `1dae3.svg` | `imgContainer8` | Container | `43:1049` | 910 |
+| `77060.svg` `79880.svg` `76bfc.svg` `49072.svg` | `imgContainer9–12` | past the truncation point | – | – |
