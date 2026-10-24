@@ -17,6 +17,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 # 2. Application code, viewer, weights
 COPY src/ ./src/
 COPY weights/ ./weights/
+COPY brats_mri_segmentation/configs/metadata.json ./brats_mri_segmentation/configs/metadata.json
+COPY seed/ ./seed/
 
 # 3. Run as non-root user
 RUN useradd --create-home appuser \
@@ -29,4 +31,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
