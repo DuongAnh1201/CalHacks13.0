@@ -285,7 +285,7 @@ What the model does and doesn't give us:
   - annotations;
   - the conversation summary (`summarize`) and the tool steps;
   - the "Educational, not clinically validated" notice.
-- **Auto triggers (D3):** job reaches `done`; leaving Explore; every ~15 messages (with the rolling summary). Convex calls the MCP tool from a scheduled function, versioned `export-v1`, `export-v2`, …; nothing is overwritten.
+- **Auto triggers (D3, decided):** job reaches `done`; leaving Explore; every ~15 messages (with the rolling summary). Convex calls the MCP tool from a scheduled function, versioned `export-v1`, `export-v2`, …; nothing is overwritten.
 
 ## 8. 🔀 MCP server `neuro-mcp`
 
@@ -338,7 +338,7 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 |---|---|---|
 | D1 ✅ #75 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
 | D2 ✅ #76 | LLM model and API key | `claude-opus-5-5`, effort `low`, for every agent; Haiku for the Router only if latency or cost needs it later. Key: Convex env var `ANTHROPIC_API_KEY` (Tom provides it before #67) |
-| D3 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
+| D3 ✅ #77 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
 | D4 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
 | D5 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
 | D6 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
