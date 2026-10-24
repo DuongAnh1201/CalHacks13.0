@@ -18,10 +18,10 @@
 ---
 
 > **Everything below this line was added by the lead (claude), from Tom's brief above.**
-> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions. **🧭** = changed in **v4**: the D1 wording, open questions, model certainty.
-> Status: **DRAFT v4 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
+> Tom's brief is unchanged. Markers: **🆕** = new, **✏️** = an item of the brief clarified, **🔄** = changed in **v2** after reading the frontend code and the Figma frames, **🔀** = changed in **v3**: Tom's split, MCP for knowledge and documents, `dispatch` for viewer actions. **🧭** = changed in **v4**: the D1 wording, open questions, model certainty. **✂️** = changed in **v5**: decisions limited to the multi-agent system.
+> Status: **DRAFT v5 for Tom's approval. Nothing here is built yet.** The full list of changes is in the [Change log](#13-change-log).
 
-# 🆕 Multi-agent assistant: detailed plan (v4)
+# 🆕 Multi-agent assistant: detailed plan (v5)
 
 ## 0. 🔄 What the frontend already gives us (read before the plan)
 
@@ -168,7 +168,7 @@ The Figma frame already designs the chat and voice UI. Mapping each part to code
 | Voice Input Bar: mic, live transcript, waveform, "Hold Space or open palm to talk" | `VoiceInputBar` + `usePushToTalk` | Web Speech API interim results; a text box is always there (SPEC §8.3 fallback) |
 | Toast "Tumor placed on the 3D brain … **Undo**" (top of the frame) | `ActionToast` | shown after an agent or voice change, with the `undo` action |
 
-**Where the panel goes (D8):**
+**Where the panel goes (D5):**
 - **Explore:** the right column, as in Figma.
 - **`/learn`:** the right column already holds the structure info panel. Proposed: right column tabs **Info | Agent**. `explain_structure` switches to Info.
 
@@ -192,14 +192,14 @@ The "Gestures off" chip in `TopNavBar` gets a sibling **voice chip** (SPEC §9: 
 | `routes/Learn.tsx`, `routes/Explore.tsx` | mount the panel; pass `page` and `availableTools` |
 | `components/TopNavBar.tsx` | voice chip |
 
-**Coordination:** Ben owns the frontend (PR #50 open). P1 touches `dispatch.ts`, both canvases and `Explore.tsx`, so **PR #50 merges first** and Ben reviews every frontend PR from this plan (D10).
+**Coordination:** Ben owns the frontend (PR #50 open). P1 touches `dispatch.ts`, both canvases and `Explore.tsx`, so **PR #50 merges first** and Ben reviews every frontend PR from this plan.
 
 ## 6. 🔄 Multi-agent architecture (Convex side)
 
 | Agent | Job | Tools it gets | Model |
 |---|---|---|---|
 | **Fast path** (`parseIntent`, browser code) | Common commands, instantly, with no network | all viewer tools | none |
-| **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (option: `claude-haiku-5-5`, D4) |
+| **Router** | Picks one specialist; answers single-tool requests itself | `handoff` + viewer tools | `claude-opus-5-5`, effort `low` (option: `claude-haiku-5-5`, D2) |
 | **Navigator** | Multi-step view requests ("spin to the right side and fade the cortex") | viewer tools for this page | `claude-opus-5-5`, `low` |
 | **Anatomy tutor** | Explain, tumor numbers and search, only from `anatomy.json`, `structures.json`, `report.json` and session chat | 🔀 MCP: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search`; dispatch: `focus_region` | `claude-opus-5-5`, `medium` |
 | **Scribe** | Summaries, annotations, exports | 🔀 MCP: `summarize`, `export_document`; dispatch: `add_annotation` | `claude-opus-5-5`, `medium` |
@@ -220,7 +220,7 @@ The Router sorts every question into one of five kinds before any specialist run
 | Kind | Example | What happens |
 |---|---|---|
 | **1. This scan or this brain** | "How big is the tumor?", "Where is the hippocampus?" | Anatomy tutor → MCP tools. Answers only with numbers and text from `report.json` / `anatomy.json`, and names the source |
-| **2. General education** | "What is a glioblastoma?", "What does edema mean?" | **Pending Tom (D13).** Proposed **A**: Claude answers from general knowledge, short, always labelled *"General information, not from this scan"*, never with numbers about this patient. Other options: **B** = A + a web search tool with cited sources (slower, needs a key); **C** = strict refusal ("I can only answer about this scan and the atlas") |
+| **2. General education** | "What is a glioblastoma?", "What does edema mean?" | **Pending Tom (D9).** Proposed **A**: Claude answers from general knowledge, short, always labelled *"General information, not from this scan"*, never with numbers about this patient. Other options: **B** = A + a web search tool with cited sources (slower, needs a key); **C** = strict refusal ("I can only answer about this scan and the atlas") |
 | **3. Medical judgement** | "Is it cancer?", "How long will he live?", "Should he have surgery?", "Is the scan healthy?" | **Always refused**, fixed text: *"I can't diagnose or predict outcomes. This is an educational view, not clinically validated. Please ask a doctor."* It may still state facts: volumes, side and the model's certainty of the outline (§6.2) |
 | **4. About the app** | "What can you do?", "How do I explode the brain?" | Short help text + this page's tool list + "Try saying" chips |
 | **5. Off-topic** | "What's the weather?" | One line: "I help with the brain viewer. Try: …" |
@@ -262,7 +262,7 @@ What the model does and doesn't give us:
 **Claude call details:**
 - `@anthropic-ai/sdk` inside the action; key in a Convex env var only.
 - Hand-written tool loop, max 6 turns, so each call is checked and logged.
-- 🔀 **How the agent reaches MCP (D11):**
+- 🔀 **How the agent reaches MCP (D7):**
   - **A (proposed):** the Convex action is an MCP client (`@modelcontextprotocol/sdk` `Client`). It lists `neuro-mcp`'s tools once, passes them to Claude next to the viewer tools, and runs each MCP `tool_use` itself. We keep the rate limit, the log row and the latency for every call.
   - **B:** the Claude API's MCP connector (`mcp_servers` in the request). Less code, but Anthropic calls the server, so it needs a public URL + token and we log the calls after the fact.
 - `strict: true` tool schemas and `tool_choice: auto`.
@@ -285,7 +285,7 @@ What the model does and doesn't give us:
   - annotations;
   - the conversation summary (`summarize`) and the tool steps;
   - the "Educational, not clinically validated" notice.
-- **Auto triggers (D5):** job reaches `done`; leaving Explore; every ~15 messages (with the rolling summary). Convex calls the MCP tool from a scheduled function, versioned `export-v1`, `export-v2`, …; nothing is overwritten.
+- **Auto triggers (D3):** job reaches `done`; leaving Explore; every ~15 messages (with the rolling summary). Convex calls the MCP tool from a scheduled function, versioned `export-v1`, `export-v2`, …; nothing is overwritten.
 
 ## 8. 🔀 MCP server `neuro-mcp`
 
@@ -330,38 +330,46 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
   - an agent request shows `Thinking` at once and finishes in a few seconds.
 - **Fallbacks:** no mic or denied → `Voice off` chip; the text box always works (SPEC §8.3 hall-noise risk).
 
-## 10. 🔄 Decisions for Tom
+## 10. ✂️ Decisions for Tom (multi-agent system only)
+
+✂️ v5: renumbered. Tom's scope is the multi-agent system, so the items that don't belong to it were removed (listed under the table).
 
 | # | Decision | Proposed |
 |---|---|---|
-| D1 🧭 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
-| D2 | 🔄 M6 (wider shared view) | Not needed for chat, voice or MCP any more; keep for multi-viewer review (P8) |
-| D3 | M4: affine in `report.json` (🧭 now contract **v1.3**, since v1.2 is the certainty field) | Only needed for P7 annotations on Explore |
-| D4 | LLM key and Router model | `claude-opus-5-5`, effort `low`; or `claude-haiku-5-5` for the Router |
-| D5 | Auto-export triggers | job done + leaving Explore |
-| D6 | What ships before the h29 freeze | 🔀 P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
-| D7 | Name: NeuroVision vs NeuroLens | NeuroVision (the UI already uses it) |
-| D8 🆕 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
-| D9 🆕 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
-| D10 🆕 | Frontend ownership | PR #50 merges first; Ben reviews the frontend PRs from this plan |
-| D11 🔀 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
-| D12 🔀 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
-| D13 🧭 | General-education questions (§6.1 kind 2) | **A** (general knowledge, labelled). B = + web search; C = strict refusal |
-| D14 🧭 ✅ | Model certainty in `report.json` | **Approved by Tom.** Issue #52, contract v1.2 |
+| D1 | SPEC D8 says Jarvis is deterministic; LLM is P1 | Replace D8 with: *"Jarvis = deterministic first, agents second. Speech/text → rule-based parser → tool call → `dispatch` (offline, always on). No parser match → Claude agents in Convex (Router → Navigator / Anatomy tutor / Scribe), which may only call registered tools: viewer tools via `dispatch`, knowledge tools via `neuro-mcp`. `explainFinding` stays a template over `report.json`; numbers only from the report; no diagnosis, prognosis or 'healthy'. LLM for text and voice. No free-form medical RAG."* Also: SPEC §8.3 flow line gains the agent step; the h20–26 row's "LLM / RAG frozen unless validated" becomes "agents frozen at h29 unless the eval passes"; one Decision Log line |
+| D2 | LLM model and API key | `claude-opus-5-5`, effort `low`, key in a Convex env var only; option: `claude-haiku-5-5` for the Router |
+| D3 | Auto-export triggers | job done + leaving Explore (+ the ~15-message summary checkpoint) |
+| D4 | What ships before the h29 freeze | P1–P4 (P4 = the MCP knowledge server); P5 and later are stretch |
+| D5 | Agent panel place on `/learn` | Right column tabs **Info \| Agent** |
+| D6 | Figma label "Clinical Reasoner" | Rename to Navigator / Anatomy tutor / Scribe |
+| D7 | How the in-app agent calls MCP | **A**: the Convex action as the MCP client (full logging and limits). B: the Claude API MCP connector |
+| D8 | PDF export | Markdown always; PDF built on the server in P7 (pick the library then) |
+| D9 | General-education questions (§6.1 kind 2) | **A** (general knowledge, labelled). B = + web search; C = strict refusal |
+| D10 | Do agent-authored notes need a human Accept? | Yes: agent rows start `suggested`; exports include only `accepted` unless asked |
+
+**Already decided:**
+- ✅ Model certainty in `report.json` (issue #52, PR #55).
+- ✅ One table per record type with an `author` field. We create the tables (#56); Sage writes the human-side functions + REST; Tom owns the MCP agent side.
+
+**✂️ Removed (not part of the multi-agent system; owned elsewhere):**
+- The wider Convex shared view for multi-viewer review (old D2, M6).
+- The affine in `report.json` (old D3, backend contract). Until it exists, agent annotations use `structure` and `tumor` anchors only.
+- The product name (old D7).
+- Frontend ownership / PR #50 order (old D10).
 
 ## 11. 🔄 Build phases (each = one GitHub issue, merged only by Tom)
 
 | # | Phase | Owner | Done when (acceptance) |
 |---|---|---|---|
-| P0 | Decisions D1–D13; SPEC D8 amendment (D1 text in §10) | lead + Tom | Decision Log lines merged |
+| P0 | Decisions D1–D10; SPEC D8 amendment (D1 text in §10) | lead + Tom | Decision Log lines merged |
 | P0b 🧭 | Model certainty in `report.json` (#52, contract v1.2) | codex1 | **in progress**; acceptance in #52 |
 | **P1** | Pure `reduce` + `cameraCommands` + new actions (zoom, rotate, spin, undo) + `actionLog` + `tools.ts` + `parseIntent` + `resolveTarget` + Agent Panel with a text box, on `/learn` | codex1 (logic) + claude2 (panel), Ben reviews | On `/learn`, typing each of these changes the view and shows a ✓ row with ms: "zoom to 150%", "left view", "spin", "x-ray", "cortex 20%", "explode 50%", "isolate the left hippocampus", "hide the cortex", "undo", "reset". Existing dispatch tests still pass; new tests for every parser phrase and every tool's `toActions`. **No Convex, no LLM** |
 | P2 | Push-to-talk + voice chip + suggestion chips + Script tab | claude2 | Same 10 phrases by voice in Chrome; mic denied → `Voice off`, text still works |
 | P3 | Convex client in the frontend + `agentRuns` + `agent.ask` / `run` + Router + Navigator (viewer tools only) | codex2 | The viewer half of the Figma request works end to end; 40-phrase eval ≥ 90% correct tool calls; with no key: "Assistant unavailable", fast path still works |
-| P4 🔀 | **`neuro-mcp`** on Convex `/mcp`: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search` + Anatomy tutor wired to it (D11) | codex1 (server) + claude-old (agent) | MCP Inspector lists the tools; "how big is the tumor?" on `sample` answers the report's exact cm³; on `/learn` it says there is no patient report; Claude Desktop gets the same answers; banned-wording test passes |
+| P4 🔀 | **`neuro-mcp`** on Convex `/mcp`: `explain_structure`, `explain_finding`, `get_tumor_metrics`, `get_report`, `search` + Anatomy tutor wired to it (D7) | codex1 (server) + claude-old (agent) | MCP Inspector lists the tools; "how big is the tumor?" on `sample` answers the report's exact cm³; on `/learn` it says there is no patient report; Claude Desktop gets the same answers; banned-wording test passes |
 | P5 🔀 | Optional: viewer tools for Claude Desktop through pairing (§8.3) | codex1 | Claude Desktop turns the brain on `/learn` after pairing |
 | P6 | Explore parity: wire `CaseCanvas` to opacity, hidden, layers, explode (with or after Milestone D) | Ben | the ⏳ rows in §3.3 turn ✅ with no agent change |
-| P7 | Scribe: MCP `summarize` + `export_document` (+ auto-export), annotations through dispatch (needs D3) | claude2 | exports download from the panel and from Claude Desktop; same numbers as the chat; pins sit within 2 mm |
+| P7 | Scribe: MCP `summarize` + `export_document` (+ auto-export), annotations via MCP (#54; `structure` / `tumor` anchors) | claude2 | exports download from the panel and from Claude Desktop; same numbers as the chat; pins sit within 2 mm |
 | P8 | Multi-viewer sync (M6), hardening, demo script twice | lead | two tabs follow one presenter; demo runs twice with the LLM off and on |
 
 ## 12. 🆕 Test plan
@@ -425,3 +433,9 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 - 🧭 §6.1: how the Router handles open questions (5 kinds). General education is pending Tom (new D13); medical judgement is always refused, with fixed text.
 - 🧭 §6.2: model certainty. Today the model's probabilities are discarded. Tom approved a per-region `certainty` field (issue #52, contract v1.2, new D14). The agent may only call it certainty of the outline, never a probability of disease.
 - 🧭 §3, §8: `get_tumor_metrics` returns `certainty`. §10 D3 is renumbered to contract v1.3. §11 adds P0b (#52). §12 adds certainty and open-question tests.
+
+**v5 (2026-10-24), Tom: "I only do the multi-agent system":**
+- ✂️ §10: decisions renumbered D1–D10 and limited to the multi-agent system.
+  - Removed: the wider shared view (old D2), the affine (old D3), the product name (old D7) and frontend ownership (old D10).
+  - Added D10: do agent-authored notes need a human Accept?
+  - D-references in the text updated to the new numbers. Earlier change-log entries keep the old numbers.
