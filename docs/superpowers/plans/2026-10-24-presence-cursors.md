@@ -44,7 +44,9 @@ Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: L
 - **One shared checkout.** Work in `/Users/kaydee/Developer/CalHacks13.0` on branch `agents/presence-cursors`.
   - Never run `git switch`, `checkout`, `stash`, `reset`, `rebase`, `merge`, `push`, or `git add -A` / `git add .`.
   - Stage only your task's files, by path.
+- **Superpowers inline only:** run superpowers:executing-plans inline in your own session. No subagent-driven-development, no subagents, no worktree.
 - **executing-plans overrides:** no worktree, no ledger, no final review, no finishing-a-development-branch, no push.
+- **Decide routine things yourself.** Coordinate hand-offs and review requests directly with peers.
 - **GitNexus:**
   - Run `impact({target, direction: "upstream"})` before editing an existing function or component.
   - Run `detect_changes()` before every commit.
@@ -56,7 +58,7 @@ Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: L
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
 - **Messaging:** `hc send <label> "<msg>"`. Labels: `lead` (orchestrator), `be`, `fe`, `ai`, `qa`.
-  - Message **lead** only for: a finished task (commit hash + test count), a blocker, or a decision that changes this plan.
+  - Message **lead** only for: completed work (commit hash + test count), an unresolved blocker, or an important decision that needs user input. No chatter or progress updates.
   - Message **qa** when a task is ready for review.
   - Message a peer only when you need something from them, or when the "Ownership and order" table says they wait on you.
 - **Secrets:** never print, log or commit `.env*` contents or tokens.
@@ -1505,4 +1507,4 @@ The PR needs Sage's review (schema change + guardrail 7). Do not open it unless 
 
 **qa** (Claude):
 
-> You are `qa`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Do **Task 6** for every `T<n> ready` message (scope check, diff vs plan, run that task's gate, reply PASS/FAIL to the owner, copy lead on FAIL). When T0–T5 all PASS, do **Task 7** Step 1, then wait for lead's `deployed` message before Steps 3–4. Never edit source files; you only commit the QA README. Shared checkout: never switch, stash, reset or push.
+> You are `qa`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Worker rules" first (superpowers inline only, no subagents). Do **Task 6** for every `T<n> ready` message (scope check, diff vs plan, run that task's gate, reply PASS/FAIL to the owner, copy lead on FAIL). When T0–T5 all PASS, do **Task 7** Step 1, then wait for lead's `deployed` message before Steps 3–4. Never edit source files; you only commit the QA README. Shared checkout: never switch, stash, reset or push.
