@@ -71,6 +71,20 @@ export const vAnnotationAnchor = v.union(
   v.object({ kind: v.literal("tumor") }),
 );
 
+export const vStickyColor = v.union(v.literal("yellow"), v.literal("pink"), v.literal("blue"), v.literal("green"));
+export const vBoardItem = v.union(
+  v.object({ kind: v.literal("sticky"), anchor: vAnnotationAnchor, text: v.string(), color: vStickyColor }),
+  v.object({ kind: v.literal("text"), anchor: vAnnotationAnchor, text: v.string() }),
+  v.object({
+    kind: v.literal("stroke"),
+    camera: v.object({ position: vVec3, target: vVec3 }),
+    points: v.array(v.number()), // flat x,y pairs in 0..1 of the stage
+    color: v.string(),
+    width: v.number(),
+    mode: v.union(v.literal("pen"), v.literal("highlight")),
+  }),
+);
+
 /** Same compact step fields as the agentRuns plan; args are tool-specific data. */
 export const vToolStep = v.object({
   id: v.string(),
@@ -344,6 +358,17 @@ export default defineSchema({
 
   // Shared human/agent records. Writers stamp attribution on the server.
   // Text lengths, anchor bounds and D10 transitions belong to shared mutations.
+  boardItems: defineTable({
+    sessionId: v.id("sessions"),
+    jobId: v.string(),
+    authorParticipantId: v.id("sessionParticipants"),
+    authorName: v.string(), // display label only, never identity
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    updatedBy: v.id("sessionParticipants"),
+    item: vBoardItem,
+  }).index("by_session", ["sessionId"]),
+
   annotations: defineTable({
     ...vAuthor.fields,
     jobId: v.string(),

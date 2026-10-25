@@ -301,7 +301,7 @@ export const agentRemove = internalMutation({
  * Semantic checks the schema validator cannot express. Returns the anchor to
  * store (a point is narrowed to exactly three numbers).
  */
-function validateAnchor(scan: Doc<"scans">, anchor: Anchor): Anchor {
+export function validateAnchor(scan: Doc<"scans">, anchor: Anchor): Anchor {
   switch (anchor.kind) {
     case "point": {
       const p = anchor.ras_mm;
@@ -353,6 +353,6 @@ async function sessionAnnotations(
 }
 
 /** Same double check as `requirePresenter`: role AND the session's host pointer. */
-function isSessionHost(session: Doc<"sessions">, participant: Doc<"sessionParticipants">): boolean {
+export function isSessionHost(session: Doc<"sessions">, participant: Doc<"sessionParticipants">): boolean {
   return participant.role === "host" && session.hostParticipantId === participant._id;
 }
