@@ -122,6 +122,15 @@ MCP listing passed; annotation/message/summary/transcript tools remained present
 The disposable room/token were cleaned up and our recorded CLI/backend PIDs were
 stopped explicitly; ports 3380/3381 were confirmed clear. No push or PR.
 
+## Two chat boxes: human session chat and Agent Panel (#58)
+
+Agents never write into the human session chat. MCP exposes only the authorized
+read-only `list_messages` tool and `messages://{jobId}` resource; `post_message`
+and its internal mutation are removed. Room capability checks remain required
+for reads. Completed agent conversations continue through the shared insert
+helper into clientId/jobId-scoped rows with no sessionId, queried by listChat.
+Sage's human send/list API and the shared insert helper remain unchanged.
+
 ## /learn cleanup
 
 The agent no longer has a `/learn` page: `Page` is `mri | 3d`, the tool registry and chips have no learn entries, `export_document` always needs the run's job (no atlas export from the panel), and chat persistence needs a `jobId` (there is no `atlas` chat). The eval set has no `/learn` cases: the viewer phrases stay on `/3d` (40, plus two left/right ask-backs) and `/mri` (30 plus 8 off-page refusals), and every question kind has at least 10 cases on those two pages. Kinds 3 and 5 still need 100%. MCP itself still accepts `page: "learn"` as input and treats it as "no report".

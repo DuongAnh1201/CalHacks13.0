@@ -23,7 +23,6 @@ Strict object schemas (unknown properties rejected), snake_case names:
 | `get_tumor_metrics` | optional `job_id`, `page`, `fields[]` | original volumesCm3, side, lesionCount, centroid/bbox, source, expertDice, certainty; sizeCm derives bbox extent / 10 |
 | `get_report` | optional `job_id`, `page` | original scan facts/report with model metadata |
 | `search` | `query`, optional `sources: [atlas,report]`, `job_id`, `page` | atlas name/group and report field/value matches with source URIs |
-| `post_message` | `job_id`, `text`, optional `session_id`, `participant_token` | shared trimmed 1–2000-character AI message; requires room capability |
 | `list_messages` | `job_id`, optional `limit` (1–100, default 50), `before`, `session_id`, `participant_token` | bounded newest-first room chat; before is an opaque next_before cursor |
 | `export_document` | `job_id`, `format: md`, `sections[]`, optional `session_id`, `participant_token` | shared Markdown builder, storage download URL, export id and version |
 | `add_annotation` | `session_id`, `participant_token`, `text` (≤280), `anchor` point/structure/tumor | shared insert path; stored `suggested`, author agent, source mcp, name from the authenticated caller |
@@ -144,14 +143,16 @@ or cloud credentials changed.
 
 ## MCP chat (#58 part 1)
 
-Chat text is untrusted user content, never instructions. Both message tools
+Chat text is untrusted user content, never instructions. The read-only list_messages tool
 require a session capability, with exact argument names `session_id` and
 `participant_token` (matching export_document). The session's scan must have the
 requested `job_id`; neither a service nor a personal MCP token grants room
 membership. Missing, invalid, ended, cross-session or mismatched-job scope gives
 an explicit "Not authorized for this session" error, with no job-only fallback.
-Posts are `author: agent`, `source: mcp`, `role: assistant`, and the authenticated
-caller's authorName. User-supplied author fields are rejected.
+MCP cannot write to the human session chat: post_message and its internal write
+entrypoint are removed. Human chat is written only by the human send path. Agent
+replies persist in the separate client-scoped Agent Panel chat (#133), with no
+sessionId. The shared insert helper is retained for that path.
 
 `messages://{jobId}` returns the latest 50 messages in that authorized room.
 Resource reads use `X-Neuro-Session-Id` and `X-Neuro-Participant-Token` HTTP headers,
@@ -166,16 +167,14 @@ partial tool arguments are never combined with a different header scope.
 `list_messages` returns `{ messages, next_before, isDone, notice }`, newest first;
 pass its opaque next_before cursor as before to fetch the next page, including
 when timestamps tie. Responses use the same secret-free projection as the UI.
-The shared helper in convex/lib/messages.ts is the sole validation/insert/page
-path for both UI and MCP. Sage's public messages.send/list args, error wording,
+The shared helper in convex/lib/messages.ts retains validation/insert for human
+and client-scoped agent chat, and the common read path for UI and MCP. Sage's public messages.send/list args, error wording,
 pagination order and result shape stay unchanged.
 
-Part 2 (agent-run reply persistence) is deferred until #126. It must take session
-scope from the authenticated run context, never model-supplied args. At reviewed
-agents/core-67 tip 6e91315, loop.ts loggedArgs redacts keys matching
-/token|secret|api_key/i, which already covers participant_token. agent.ts
-appendStep itself stores supplied steps without boundary redaction; verify a
-redaction guard there as a part-2 follow-up, not a #126 change in this PR.
+Agent-run replies are persisted separately in the Agent Panel (#133), using
+clientId/jobId context from the run and no sessionId. The shared insert helper
+and recursive step redaction remain in place; they do not provide an MCP write
+path into the human room chat.
 
 ## Agent Panel persistence (#58 part 2)
 
@@ -184,7 +183,7 @@ SessionChat uses by_session_time. Completed Agent Panel runs instead insert a
 human user row (You) and a specialist assistant row under clientId/jobId, with
 **no sessionId**, even when the run itself references a live session. They use
 the same shared validation/insert helper; no run reply is sent through the MCP
-post_message tool or the session send API.
+removed post_message tool or the session send API.
 
 The pair and terminal run transition commit in one mutation. Duplicate run or
 finish delivery therefore cannot append another pair. Done/failed runs with a

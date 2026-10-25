@@ -6,9 +6,9 @@
  *   messages.send   public mutation  a session member posts a chat line
  *   messages.list   public query     reactive, paginated, newest-first chat
  *
- * The table itself belongs to #56 and is shared with the agent/MCP side (Tom),
- * which writes `role: "assistant"` rows into the same session. There is ONE chat
- * store; do not add a second table for "human chat" (BACKEND_CONTEXT §3).
+ * The table belongs to #56, but the two chat boxes have separate scopes:
+ * humans write session rows here; agent replies use clientId with NO sessionId
+ * through the shared insert helper (#133). MCP may read this room but never post.
  *
  * Java analogy: this file is the `@RestController` + `@Service` for chat. The
  * auth helpers in `lib/auth.ts` are the Spring Security filter, and
