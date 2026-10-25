@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
 import { startPresence } from './presence';
+import type { Page } from './sceneSync';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
 import type { BoardRow, ChatMessage, Cursor, Note, NoteAnchor, RemoteCursor, SessionState, ViewerCommand } from './types';
 
@@ -37,7 +38,15 @@ function watch(s: Stored): void {
   unsubscribe?.();
   stopPresence?.();
   stopPresence = startPresence(client!, s, (online) => useShare.setState({ online }), convexUrl);
-  unsubscribe = client!.onUpdate(api.sessions.get, auth(s), (session: SessionState) => useShare.setState({ session }), (e: Error) => {
+  unsubscribe = client!.onUpdate(api.sessions.get, auth(s), (session: SessionState) => {
+    // The host can move the room to another case (sessions.setScan): this tab's jobId follows it.
+    const cur = useShare.getState().stored;
+    if (cur && cur.jobId !== session.scan.jobId) {
+      const next = { ...cur, jobId: session.scan.jobId };
+      saveStored(next);
+      useShare.setState({ stored: next, session });
+    } else useShare.setState({ session });
+  }, (e: Error) => {
     const code = codeOf(e);
     if (code === 'SESSION_ENDED') drop(SESSION_ENDED);
     else if (code && STALE.has(code)) drop(null);
@@ -67,6 +76,25 @@ export async function startShare(jobId: string): Promise<string | null> {
     begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'host', inviteCode: r.inviteCode, jobId });
     return null;
   } catch (e) { return messageFor(e); }
+}
+
+let switching: string | null = null;
+/** Host only: moves the live room to another finished job. The invite link stays the same; guests follow (sessions.setScan). */
+export async function switchShare(jobId: string, page: Page): Promise<void> {
+  const s = useShare.getState().stored;
+  if (!client || s?.role !== 'host' || s.jobId === jobId || switching === jobId) return;
+  switching = jobId;
+  try {
+    const { scanId } = (await client.action(api.jobs.registerScan, { jobId })) as { scanId: string };
+    await client.mutation(api.sessions.setScan, { ...auth(s), scanId, page });
+    // Normally already done by the sessions.get update, which lands before the mutation resolves.
+    const cur = useShare.getState().stored;
+    if (cur?.sessionId === s.sessionId && cur.jobId !== jobId) { saveStored({ ...cur, jobId }); useShare.setState({ stored: { ...cur, jobId } }); }
+    useShare.setState({ syncNote: null });
+  } catch (e) {
+    console.error('[share]', e);
+    useShare.setState({ syncNote: messageFor(e) });
+  } finally { switching = null; }
 }
 
 /** Same rule as convex/lib/email.ts. */

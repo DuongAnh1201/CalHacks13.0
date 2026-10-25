@@ -11,6 +11,8 @@ export interface Participant { participantId: string; displayName: string; role:
 export interface SessionState {
   sessionId: string;
   status: 'active' | 'ended';
+  /** The room's case; it changes when the host moves the room (sessions.setScan). */
+  scan: { jobId: string };
   view: { plane: Axis; tumorVisible: boolean; viewVersion: number; sliceIndices: SliceIndices; scene: Scene };
   me: Participant;
   participants: Participant[];

@@ -2,11 +2,11 @@ import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SESSION_ENDED, SYNC_FAILED } from './copy';
-import { endShare, joinShare, sendCursor, sendView, sessionCall, setFollowing, setReportEmail, startShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
+import { endShare, joinShare, sendCursor, sendView, sessionCall, setFollowing, setReportEmail, startShare, switchShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
 import type { SessionState } from './types';
 
 type Ref = Parameters<typeof getFunctionName>[0];
-const SESSION = { sessionId: 's1', status: 'active', participants: [], isPresenter: true } as unknown as SessionState;
+const SESSION = { sessionId: 's1', status: 'active', scan: { jobId: 'job-7' }, participants: [], isPresenter: true } as unknown as SessionState;
 
 function fakeClient(over: Partial<Record<string, (args: unknown) => unknown>> = {}) {
   const calls: [string, unknown][] = [];
@@ -116,6 +116,40 @@ describe('share store', () => {
     expect(validEmail(' a@b.co ')).toBe(true);
     expect(validEmail('a@b')).toBe(false);
     expect(validEmail(`${'a'.repeat(250)}@x.io`)).toBe(false);
+  });
+});
+
+describe('moving the room to another case', () => {
+  it('switchShare registers the new job and moves the session onto it, keeping the invite', async () => {
+    const f = fakeClient({ 'jobs:registerScan': () => ({ scanId: 'scan2' }) }); useClientForTest(f.client as never);
+    await startShare('job-7');
+    f.calls.length = 0;
+    await switchShare('upload-1', '3d');
+    expect(f.calls.filter((c) => !c[0].startsWith('presence:'))).toEqual([
+      ['jobs:registerScan', { jobId: 'upload-1' }],
+      ['sessions:setScan', { sessionId: 's1', participantToken: 'host-t', scanId: 'scan2', page: '3d' }],
+    ]);
+    expect(useShare.getState().stored).toMatchObject({ role: 'host', inviteCode: 'ABC123', jobId: 'upload-1' });
+  });
+  it('switchShare does nothing for a guest or for the same job, and notes a failure', async () => {
+    const f = fakeClient({ 'jobs:registerScan': () => { throw new ConvexError({ code: 'X', message: 'The imaging service did not answer.' }); } });
+    useClientForTest(f.client as never);
+    await joinShare('ABC123', 'Ana', 'ana@example.com');
+    f.calls.length = 0;
+    await switchShare('upload-1', 'mri');
+    expect(f.calls).toEqual([]);
+    useShare.setState({ stored: { ...useShare.getState().stored!, role: 'host' } });
+    await switchShare('job-7', 'mri');
+    expect(f.calls).toEqual([]);
+    await switchShare('upload-1', 'mri');
+    expect(useShare.getState().syncNote).toBe('The imaging service did not answer.');
+    expect(useShare.getState().stored?.jobId).toBe('job-7');
+  });
+  it("a guest's stored job follows the session's case", async () => {
+    const f = fakeClient(); useClientForTest(f.client as never);
+    await joinShare('ABC123', 'Ana', 'ana@example.com');
+    f.subs.find((x) => x.name === 'sessions:get')!.onData({ ...SESSION, scan: { jobId: 'upload-1' } });
+    expect(useShare.getState().stored).toMatchObject({ role: 'viewer', jobId: 'upload-1' });
   });
 });
 

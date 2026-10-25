@@ -1,0 +1,2 @@
+# entrypoint.sh runs in a Linux container: a CRLF checkout breaks its shebang.
+*.sh text eol=lf

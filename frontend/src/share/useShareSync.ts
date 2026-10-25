@@ -3,14 +3,31 @@ import { useNavigate } from 'react-router-dom';
 import { dispatch } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
 import { DEFAULT_SCENE, sceneActions, sceneOf, sceneSender, type Page, type Scene } from './sceneSync';
-import { sendView, useShare } from './store';
+import { sendView, switchShare, useShare } from './store';
 
 /** Phase B: the host streams its page + 3D scene; a following guest goes to that page and mirrors the scene once `ready`. */
 export function useShareSync(jobId: string, page: Page, ready: boolean): void {
   const navigate = useNavigate();
-  const role = useShare((s) => (s.stored?.jobId === jobId && s.session?.status === 'active' ? s.stored?.role ?? null : null));
+  // The room's case. stored.jobId follows sessions.get, so it moves when the host switches case.
+  const roomJob = useShare((s) => (s.session?.status === 'active' ? s.stored?.jobId ?? null : null));
+  const myRole = useShare((s) => (s.session?.status === 'active' ? s.stored?.role ?? null : null));
+  const role = roomJob === jobId ? myRole : null;
   const scene = useShare((s) => (role === 'viewer' && s.session?.me.following ? s.session.view.scene : null));
+  const roomPage = useShare((s) => s.session?.view.scene.page ?? null);
   const applied = useRef<Scene | null>(null);
+  const lastRoomJob = useRef(roomJob);
+
+  // A sharing host who opens another case takes the room along: same invite link, guests follow.
+  useEffect(() => {
+    if (myRole === 'host' && roomJob && roomJob !== jobId && ready) void switchShare(jobId, page);
+  }, [myRole, roomJob, jobId, ready, page]);
+
+  // The host moved the room: guests go with it, following or not (notes and cursors belong to the room's case).
+  useEffect(() => {
+    const moved = lastRoomJob.current !== null && lastRoomJob.current !== roomJob;
+    lastRoomJob.current = roomJob;
+    if (myRole === 'viewer' && moved && roomJob && roomJob !== jobId) navigate(`/jobs/${roomJob}/${roomPage ?? page}`);
+  }, [myRole, roomJob, roomPage, jobId, page, navigate]);
 
   useEffect(() => {
     if (role !== 'host' || !ready) return;

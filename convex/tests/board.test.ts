@@ -119,3 +119,18 @@ describe("board bounds", () => {
     await expectAppError(t.mutation(api.board.create, { ...auth, item: sticky }), "NOT_AUTHENTICATED");
   });
 });
+
+describe("board: moving a room to another case", () => {
+  it("lists only the open case's items", async () => {
+    const { t, scanId, asHost } = await setUpRoom();
+    const uploadId = await t.run(async (ctx) => {
+      const { _id, _creationTime, ...row } = (await ctx.db.get(scanId))!;
+      return await ctx.db.insert("scans", { ...row, jobId: "upload-1", displayName: "Uploaded case upload-1" });
+    });
+    await t.mutation(api.board.create, { ...asHost, item: sticky });
+    await t.mutation(api.sessions.setScan, { ...asHost, scanId: uploadId, page: "3d" });
+    expect(await t.query(api.board.list, asHost)).toEqual([]);
+    await t.mutation(api.sessions.setScan, { ...asHost, scanId, page: "3d" });
+    expect((await t.query(api.board.list, asHost)).map((r) => r.item)).toEqual([sticky]);
+  });
+});

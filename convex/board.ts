@@ -56,7 +56,9 @@ export const list = query({
   handler: async (ctx, args): Promise<PublicBoardItem[]> => {
     const { session, participant } = await requireSessionMember(ctx, args);
     const host = isSessionHost(session, participant);
-    return (await rows(ctx, session._id)).sort((a, b) => a.createdAt - b.createdAt).map((r) => ({
+    // A room can move between cases (sessions.setScan): only this case's board.
+    const { jobId } = await loadScan(ctx, session.scanId);
+    return (await rows(ctx, session._id)).filter((r) => r.jobId === jobId).sort((a, b) => a.createdAt - b.createdAt).map((r) => ({
       itemId: r._id, item: r.item, authorName: r.authorName, createdAt: r.createdAt, updatedAt: r.updatedAt,
       mine: r.authorParticipantId === participant._id, canRemove: host || r.authorParticipantId === participant._id,
     }));

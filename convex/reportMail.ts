@@ -37,7 +37,8 @@ export const load = internalQuery({
     // Full room context includes suggested and dismissed notes, labelled by status.
     data.annotations = await ctx.db.query("annotations").withIndex("by_session", (q) => q.eq("sessionId", sessionId))
       .filter((q) => q.eq(q.field("jobId"), scan.jobId)).collect();
-    const board = await ctx.db.query("boardItems").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
+    const board = await ctx.db.query("boardItems").withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .filter((q) => q.eq(q.field("jobId"), scan.jobId)).collect();
     const replies = await ctx.db.query("annotationReplies").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
     return { jobId: scan.jobId, endedAt: session.updatedAt, participants: people.map((p) => p.displayName), data, board, replies };
   },

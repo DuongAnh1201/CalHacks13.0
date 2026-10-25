@@ -79,7 +79,7 @@ async function setUp() {
     secret: { kind: "whichSide", side: "left" },
   });
 
-  return { t, asHost, asViewer, otherToken: other.participantToken, annotationId, replyId, item, roundId };
+  return { t, scanId, asHost, asViewer, otherToken: other.participantToken, annotationId, replyId, item, roundId };
 }
 
 type Ctx = Awaited<ReturnType<typeof setUp>>;
@@ -98,6 +98,11 @@ const MATRIX: Record<string, { hostOnly: boolean; call: (t: T, auth: Auth, ctx: 
   "sessions.setFollowMode": {
     hostOnly: false,
     call: (t, a) => t.mutation(api.sessions.setFollowMode, { ...a, following: false }),
+  },
+  // The room's own case: a no-op, so it also passes in this playground room.
+  "sessions.setScan": {
+    hostOnly: true,
+    call: (t, a, c) => t.mutation(api.sessions.setScan, { ...a, scanId: c.scanId, page: "mri" }),
   },
   "sessions.end": { hostOnly: true, call: (t, a) => t.mutation(api.sessions.end, a) },
   "sessionParticipants.list": { hostOnly: false, call: (t, a) => t.query(api.sessionParticipants.list, a) },

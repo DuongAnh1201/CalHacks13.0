@@ -847,3 +847,76 @@ describe("join email (session report)", () => {
     expect(rows).toMatchObject([{ participantId: guest.participantId, email: "tom@example.com", status: "pending" }]);
   });
 });
+
+describe("moving a room to another case (setScan)", () => {
+  /** A second registered case: the sample's geometry under an upload's jobId. */
+  async function addUpload(t: Awaited<ReturnType<typeof setUpRoom>>["t"], scanId: Id<"scans">) {
+    return await t.run(async (ctx) => {
+      const { _id, _creationTime, ...row } = (await ctx.db.get(scanId))!;
+      return await ctx.db.insert("scans", { ...row, jobId: "upload-1", displayName: "Uploaded case upload-1" });
+    });
+  }
+
+  it("moves guests to the new case with the same invite, on the host's page", async () => {
+    const { t, scanId, host, viewer } = await setUpRoom();
+    const uploadId = await addUpload(t, scanId);
+    await t.mutation(api.sessions.updateView, { sessionId: host.sessionId, participantToken: host.participantToken, command: { type: "setExplosion", value: 0.6 } });
+
+    const r = await t.mutation(api.sessions.setScan, { sessionId: host.sessionId, participantToken: host.participantToken, scanId: uploadId, page: "3d" });
+    expect(r).toMatchObject({ applied: true, jobId: "upload-1" });
+
+    const seen = await t.query(api.sessions.get, { sessionId: viewer.sessionId, participantToken: viewer.participantToken });
+    expect(seen.scan.jobId).toBe("upload-1");
+    expect(seen.view.scene).toMatchObject({ page: "3d", explodeAmount: 0 });
+    expect(seen.view.viewVersion).toBe(r.viewVersion);
+    // The old invite still works and lands on the new case.
+    const late = await t.mutation(api.sessions.join, { email: "late@example.com", inviteCode: host.inviteCode, displayName: "Late" });
+    expect(late.jobId).toBe("upload-1");
+  });
+
+  it("is a no-op for the case already open", async () => {
+    const { t, scanId, host } = await setUpRoom();
+    const before = await t.query(api.sessions.get, { sessionId: host.sessionId, participantToken: host.participantToken });
+    const r = await t.mutation(api.sessions.setScan, { sessionId: host.sessionId, participantToken: host.participantToken, scanId, page: "mri" });
+    expect(r).toEqual({ applied: false, viewVersion: before.view.viewVersion, jobId: "sample" });
+  });
+
+  it("shows only the open case's notes, and clears live cursors", async () => {
+    const { t, scanId, host, viewer } = await setUpRoom();
+    const uploadId = await addUpload(t, scanId);
+    const asHost = { sessionId: host.sessionId, participantToken: host.participantToken };
+    await t.mutation(api.annotations.create, { ...asHost, text: "on the sample", anchor: { kind: "structure", id: "x" } });
+    await t.mutation(api.cursors.move, { sessionId: viewer.sessionId, participantToken: viewer.participantToken, cursor: { node: "brain_left", localMm: [1, 2, 3] } });
+
+    await t.mutation(api.sessions.setScan, { ...asHost, scanId: uploadId, page: "mri" });
+    expect(await t.query(api.annotations.list, asHost)).toEqual([]);
+    expect(await t.query(api.cursors.list, asHost)).toEqual([]);
+
+    await t.mutation(api.sessions.setScan, { ...asHost, scanId, page: "mri" });
+    expect((await t.query(api.annotations.list, asHost)).map((n) => n.text)).toEqual(["on the sample"]);
+  });
+
+  it("is presenter-only", async () => {
+    const { t, scanId, viewer } = await setUpRoom();
+    const uploadId = await addUpload(t, scanId);
+    await expectAppError(
+      t.mutation(api.sessions.setScan, { sessionId: viewer.sessionId, participantToken: viewer.participantToken, scanId: uploadId, page: "mri" }),
+      "NOT_PRESENTER",
+    );
+  });
+
+  it("refuses a playground and an unknown scan", async () => {
+    const { t, scanId, host } = await setUpRoom();
+    const uploadId = await addUpload(t, scanId);
+    const play = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host", kind: "play" });
+    await expectAppError(
+      t.mutation(api.sessions.setScan, { sessionId: play.sessionId, participantToken: play.participantToken, scanId: uploadId, page: "mri" }),
+      "INVALID_ARGUMENT",
+    );
+    await t.run((ctx) => ctx.db.delete(uploadId));
+    await expectAppError(
+      t.mutation(api.sessions.setScan, { sessionId: host.sessionId, participantToken: host.participantToken, scanId: uploadId, page: "mri" }),
+      "NOT_FOUND",
+    );
+  });
+});

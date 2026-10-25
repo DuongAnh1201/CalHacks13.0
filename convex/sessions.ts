@@ -509,6 +509,61 @@ export const updateView = mutation({
 });
 
 // ---------------------------------------------------------------------------
+// sessions.setScan  — the presenter moves the room to another case
+// ---------------------------------------------------------------------------
+
+/**
+ * Points a review room at a different scan. Presenter only.
+ *
+ * WHY: a room used to be welded to the scan it was opened on. A host who shared
+ * Sample A, then opened their own upload in the same tab, kept handing out the
+ * Sample A invite; guests landed on Sample A and the host's new page streamed
+ * nothing. Now the invite link stays the same and the room follows the host.
+ *
+ * The view restarts from the new scan's defaults (slice geometry differs per
+ * scan), on the host's current `page` so guests don't bounce through /mri.
+ * Live cursors are cleared: they are anchored to the old scan's mesh nodes.
+ * Notes stay, tagged with their jobId; `annotations.list` shows only the
+ * current case's, so switching back brings them back.
+ *
+ * Play rooms are refused: their rounds are built around one scan.
+ */
+export const setScan = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    participantToken: v.string(),
+    scanId: v.id("scans"),
+    page: v.union(v.literal("mri"), v.literal("3d")),
+  },
+  handler: async (ctx, args): Promise<{ applied: boolean; viewVersion: number; jobId: string }> => {
+    const { session } = await requirePresenter(ctx, args);
+    const scan = await loadScan(ctx, args.scanId);
+    if (scan._id === session.scanId) {
+      return { applied: false, viewVersion: session.viewVersion, jobId: scan.jobId };
+    }
+    if ((session.kind ?? "review") !== "review") {
+      throw appError("INVALID_ARGUMENT", "A playground keeps the case it was opened on.");
+    }
+
+    const cursors = await ctx.db.query("cursors").withIndex("by_session", (q) => q.eq("sessionId", session._id)).collect();
+    for (const c of cursors) await ctx.db.delete(c._id);
+
+    const view = defaultSharedView(scan);
+    const viewVersion = session.viewVersion + 1;
+    await ctx.db.patch(session._id, {
+      scanId: scan._id,
+      plane: view.plane,
+      cursorRasMm: view.cursorRasMm,
+      tumorVisible: view.tumorVisible,
+      scene: { ...view.scene, page: args.page },
+      viewVersion,
+      updatedAt: Date.now(),
+    });
+    return { applied: true, viewVersion, jobId: scan.jobId };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // sessions.setFollowMode
 // ---------------------------------------------------------------------------
 
