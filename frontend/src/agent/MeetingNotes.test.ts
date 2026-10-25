@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { CaptionLine, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } from './MeetingNotes';
+import { CaptionLine, LiveTranscript, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } from './MeetingNotes';
 import { CONSENT_BANNER, type NoteTakerBinding, type NoteTakerState } from './useNoteTaker';
 const time = new Date('2026-10-24T12:00:00Z').getTime();
 const m: NoteTakerState = {
@@ -54,5 +54,30 @@ describe('live meeting views', () => {
   it('renders an empty transcript before the host opts in', () => {
     const h = renderToStaticMarkup(createElement(TranscriptView, { meeting: { ...m, enabled: false, segments: [], events: [], note: null } }));
     expect(h).toContain('AI notes are off. The host can turn them on.');
+  });
+});
+
+describe('live transcript panel', () => {
+  const seg = (i: number) => ({ segmentId: `s${i}`, participantId: i % 2 ? 'guest' : 'me', speakerName: i % 2 ? 'Guest' : 'Host', text: `Line ${i}.`, final: true, startedAt: time + i * 1000, endedAt: time + i * 1000 + 500 });
+  const live = (over: Partial<NoteTakerState> = {}) => renderToStaticMarkup(createElement(LiveTranscript, { meeting: { ...m, ...over } }));
+
+  it('shows Listening, a live clock and real speaker names, never You', () => {
+    const h = live();
+    expect(h).toContain('Listening'); expect(h).toContain('aria-label="Live transcript"'); expect(h).toContain('· Live');
+    expect(h.match(/>Host<\/p>/g)).toHaveLength(1); expect(h).toContain('>Guest</p>');
+    expect(h).not.toContain('>You<');
+  });
+  it('keeps only the last 4 lines, oldest first', () => {
+    const h = live({ segments: [5, 0, 1, 2, 3, 4].map(seg) });
+    expect(h).not.toContain('Line 0.'); expect(h).not.toContain('Line 1.');
+    expect(h.indexOf('Line 2.')).toBeLessThan(h.indexOf('Line 5.'));
+  });
+  it('marks interim text separately from final text', () => {
+    const h = live();
+    expect(h).toContain('data-final="false"'); expect(h).toContain('data-final="true"');
+  });
+  it('shows muted and empty states', () => {
+    expect(live({ muted: true })).toContain('you&#x27;re muted');
+    expect(live({ segments: [] })).toContain('Waiting for speech…');
   });
 });

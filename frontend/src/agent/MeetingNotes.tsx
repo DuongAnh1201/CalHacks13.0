@@ -12,6 +12,34 @@ function speakerColour(id: string) {
 const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const speaker = (s: { participantId?: string; speakerName: string }, selfId?: string) => s.participantId && s.participantId === selfId ? 'You' : s.speakerName;
 
+const LIVE_LINES = 4;
+const elapsed = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+
+/** Glass panel in the top-right: newest few transcript lines, labelled by real speaker name. */
+export function LiveTranscript({ meeting: m }: { meeting: NoteTakerState }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const since = Math.max(0, ...m.events.filter((e) => e.kind === 'on').map((e) => e.at));
+  const lines = [...m.segments].sort((a, b) => a.startedAt - b.startedAt).slice(-LIVE_LINES);
+  return <section className={css.live}>
+    <header className={css.liveHead}>
+      <span className={m.muted ? css.liveMuted : css.liveOn}><span className={css.pulse} />Listening{m.muted && " · you're muted"}</span>
+      {since > 0 && <time>{elapsed(now - since)} · Live</time>}
+    </header>
+    <div role="log" aria-live="polite" aria-label="Live transcript">
+      {!lines.length && <p className={css.liveEmpty}>Waiting for speech…</p>}
+      {lines.map((s, i) => {
+        const id = s.participantId ?? s.speakerName;
+        const prev = lines[i - 1];
+        return <div key={s.segmentId} className={css.liveLine}>
+          {(!prev || (prev.participantId ?? prev.speakerName) !== id) && <p className={css.liveWho} style={{ color: speakerColour(id) }}>{s.speakerName}</p>}
+          <p className={s.final === false ? css.interim : undefined} data-final={s.final !== false}>{s.text || '…'}</p>
+        </div>;
+      })}
+    </div>
+  </section>;
+}
+
 export function CaptionLine({ segments, selfId }: { segments: Segment[]; selfId?: string }) {
   const last = [...segments].sort((a, b) => (b.updatedAt ?? b.endedAt) - (a.updatedAt ?? a.endedAt))[0];
   if (!last) return null;
