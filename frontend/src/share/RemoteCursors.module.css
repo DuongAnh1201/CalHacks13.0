@@ -1,1 +1,2 @@
 .chip { padding: 0 6px; border-radius: 4px; color: #fff; font: 600 11px/1.6 system-ui, sans-serif; white-space: nowrap; transform: translate(10px, -50%); pointer-events: none; }
+.speaking { outline: 2px solid; outline-offset: 2px; }
