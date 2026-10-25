@@ -7,6 +7,7 @@ GET  /jobs/{id}            status: queued | running | done | failed
 GET  /jobs/{id}/report     report.json
 GET  /jobs/{id}/model.glb  3D meshes
 GET  /jobs/{id}/seg.nii.gz label map
+GET  /library              the seeded study cases, for browsing
 GET  /health               server check
 """
 import json
@@ -87,9 +88,10 @@ def _work(job_id: str):
 
 def initialize_jobs():
     JOBS.mkdir(parents=True, exist_ok=True)
+    seeded = {f.name for f in SEED.iterdir()} if SEED.exists() else set()
     if os.getenv("KEEP_JOBS") != "1":  # dev: compose watch restarts on every edit
         for folder in JOBS.iterdir():
-            if folder.is_dir() and not folder.name.startswith("sample"):
+            if folder.is_dir() and folder.name not in seeded and not folder.name.startswith("sample"):
                 shutil.rmtree(folder)
     if SEED.exists():
         for folder in SEED.iterdir():
@@ -220,6 +222,29 @@ async def create_job(request: Request):
         shutil.rmtree(job_dir)
         raise
     return {"jobId": job_id}
+
+
+LIBRARY_FIELDS = ("tumorDetected", "side", "lesionCount", "volumesCm3", "segmentationSource")
+
+
+@app.get("/library")
+def library():
+    """Every seeded case with the report fields a browser card needs, sorted by title.
+
+    A seed folder may hold meta.json {"title", "blurb"}; without one the job id is the title.
+    Read from SEED, not JOBS, so an upload never shows up in the shared library.
+    """
+    cases = []
+    for folder in sorted(SEED.iterdir()) if SEED.exists() else []:
+        report_path = folder / "report.json"
+        if not folder.is_dir() or not report_path.exists():
+            continue
+        report = json.loads(report_path.read_text())
+        meta_path = folder / "meta.json"
+        meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        cases.append({"jobId": folder.name, "title": meta.get("title", folder.name), "blurb": meta.get("blurb", ""),
+                      **{k: report.get(k) for k in LIBRARY_FIELDS}})
+    return sorted(cases, key=lambda c: c["title"])
 
 
 @app.get("/jobs/{job_id}")

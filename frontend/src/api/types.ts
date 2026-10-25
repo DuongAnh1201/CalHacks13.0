@@ -25,3 +25,10 @@ export interface Report {
   certainty?: { whole: number | null; core: number | null; enhancing: number | null } | null;
   expertDice?: { whole: number; core: number; enhancing: number };
 }
+
+/** GET /library: one seeded study case (backend/src/api.py library()). */
+export interface LibraryCase {
+  jobId: string; title: string; blurb: string;
+  tumorDetected: boolean; side: Report['side']; lesionCount: number;
+  volumesCm3: Report['volumesCm3']; segmentationSource: Report['segmentationSource'];
+}

@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, createJob } from '../api/client';
-import { INVALID_FORMAT_MESSAGE, SAMPLES, SEQUENCE_LABEL, SEQUENCES, guessSequence, isNifti, type Sequence } from '../api/upload';
+import { INVALID_FORMAT_MESSAGE, SEQUENCE_LABEL, SEQUENCES, guessSequence, isNifti, type Sequence } from '../api/upload';
 import browseIcon from '../assets/figma/3f40b.svg';
 import uploadIcon from '../assets/figma/47363.svg';
 import flaskIcon from '../assets/figma/d5c9a.svg';
@@ -65,21 +65,17 @@ export default function Upload() {
   const ready = SEQUENCES.every((s) => slots[s]);
 
   return (
-    <FlowPage step={1} title="Load an MRI study" lede="Pick a sample case, or upload the 4 MRI sequences of one study. NeuroVision segments the tumor and places it on the 3D brain.">
+    <FlowPage step={1} title="Load an MRI study" lede="Explore a ready-made case, or upload the 4 MRI sequences of one study. Pons segments the tumor and places it on the 3D brain.">
       <div className={css.stack}>
         <BackendBanner />
-        <ul className={css.samples}>
-          {SAMPLES.map((s) => (
-            <li key={s.id} className={css.sample}>
-              <img src={flaskIcon} alt="" width={24} height={24} />
-              <div className={css.copy}>
-                <p className={css.cardTitle}>{s.title}</p>
-                <p className={css.cardDetail}>{s.detail}</p>
-              </div>
-              <Link className={css.ghost} to={`/jobs/${s.id}/processing`} onClick={() => saveWorkspace({ id: s.id, kind: 'mri', name: s.title, openedAt: Date.now() })}>Use sample</Link>
-            </li>
-          ))}
-        </ul>
+        <div className={css.sample}>
+          <img src={flaskIcon} alt="" width={24} height={24} />
+          <div className={css.copy}>
+            <p className={css.cardTitle}>No scan of your own?</p>
+            <p className={css.cardDetail}>Browse the library of real brain MRIs with expert-outlined tumors, ready to study.</p>
+          </div>
+          <Link className={css.ghost} to="/explore">Explore scans</Link>
+        </div>
         <div
           className={css.drop}
           onDragOver={(e) => e.preventDefault()}

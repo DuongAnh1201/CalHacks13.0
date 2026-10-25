@@ -8,7 +8,7 @@ export function TopNavBar() {
     <header className={css.bar}>
       <NavLink to="/" className={css.brand}>
         <img src={brandMark} alt="" width={19} height={20} />
-        NeuroVision
+        Pons
       </NavLink>
       <ShareControls css={css} />
     </header>
