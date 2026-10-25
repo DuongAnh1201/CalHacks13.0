@@ -1,3 +1,4 @@
+import { redactToolArgs } from "./redact";
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ClaudeClient, ClaudeRequest } from "./anthropic";
@@ -82,17 +83,6 @@ const asRecord = (input: unknown): Record<string, unknown> =>
   input !== null && typeof input === "object" && !Array.isArray(input)
     ? (input as Record<string, unknown>)
     : {};
-function loggedArgs(input: unknown): unknown {
-  if (Array.isArray(input)) return input.map(loggedArgs);
-  if (input && typeof input === "object")
-    return Object.fromEntries(
-      Object.entries(input).map(([key, value]) => [
-        key,
-        /token|secret|api_key/i.test(key) ? "[redacted]" : loggedArgs(value),
-      ]),
-    );
-  return input;
-}
 function closedSchema(schema: unknown): unknown {
   if (Array.isArray(schema)) return schema.map(closedSchema);
   if (schema && typeof schema === "object") {
@@ -216,7 +206,7 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
           await deps.step({
             id: `${input.runId}:${turn}:${block.id}`,
             tool: "web_search",
-            args: loggedArgs(block.input),
+            args: redactToolArgs(block.input),
             ok: webAllowed,
             message: webAllowed
               ? "Server web search completed."
@@ -365,7 +355,7 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
         const step: Step = {
           id: `${input.runId}:${turn}:${call.id}`,
           tool: call.name,
-          args: loggedArgs(args),
+          args: redactToolArgs(args),
           ok,
           message,
           ms: Math.max(0, Date.now() - start),
