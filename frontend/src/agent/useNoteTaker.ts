@@ -333,7 +333,7 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
   const stored = useShare((s) => s.stored);
   const sessionStatus = useShare((s) => s.session?.status);
   const callStatus = useCall((s) => s.status);
-  const key = stored && stored.jobId === jobId ? stored.sessionId : null;
+  const key = stored && stored.jobId === jobId ? transcriptionKey(stored) : null;
   const [ctl, setCtl] = useState<{ id: string; ctl: NoteTakerController } | null>(null);
   const latest = useRef(ctl);
   useEffect(() => { latest.current = ctl; }, [ctl]);
