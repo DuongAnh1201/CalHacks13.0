@@ -43,10 +43,11 @@
 | Anatomy tutor (web search, D9), Scribe | ⏳ after #67 + API key | #69, #72 |
 | Auto-export triggers (D3), PDF (D8) | ⏳ | #62 follow-up |
 | Eval, LLM-off demo | ⏳ | #73 |
+| Agent pages | ✅ `mri` and `3d` only. `/learn` was removed in #134; `agent.ask` rejects `learn` with `BAD_PAGE`, the registry and eval set have no learn entries | `convex/agent/*`, `convex/agent.ts` |
 
 **Needed from Tom:** `ANTHROPIC_API_KEY` (Convex env) for live agent runs; `MCP_TOKEN` in the prod Convex env (until then prod `/api/mcp` returns 401, failing closed).
 
-**Pages changed since v6 (Ben's W1, #85–#88):** Explore became `/jobs/:id/3d`, Results became `/jobs/:id/mri`, and the Agent Panel lives on those two pages. `/learn` has no panel yet. Sections §0, §3.3 and §4 below are updated where it matters; older rows that mention Explore mean `/3d`.
+**Pages changed since v6 (Ben's W1, #85–#88):** Explore became `/jobs/:id/3d`, Results became `/jobs/:id/mri`, and the Agent Panel lives on those two pages. **Learning Mode (`/learn`) was removed in #134, so the agent has two pages only: `mri` and `3d` (see §0.1 and §3.3).** Sections §0, §3.3 and §4 below are updated where it matters; older rows that mention Explore mean `/3d`.
 
 ## 0. 🔄 What the frontend already gives us (read before the plan)
 
@@ -160,21 +161,18 @@ Claude API tool names may only use letters, digits, `_` and `-`, so v1's `viewer
 
 ### 3.3 🆕 Tools per page (the agent only sees what the page supports)
 
-Every request carries `page` and `availableTools`. The Router never offers a tool the page can't apply. Today:
+Every request carries `page` and `availableTools`. The Router never offers a tool the page can't apply. The agent has two pages, `mri` and `3d` (`/mri` and `/3d` are accepted at the boundary and normalized). `learn` and `/learn` are rejected by `agent.ask` with `BAD_PAGE`: Learning Mode was removed in #134 and there is no atlas page any more. Source of truth: `toolRegistry` in `convex/agent/viewerTools.ts`.
 
-| Tool | `/learn` | `/jobs/:id/3d` 🧱 (was Explore) |
+| Tool | `/jobs/:id/mri` (2D MPR) | `/jobs/:id/3d` |
 |---|---|---|
-| `zoom_view`, `rotate_view`, `spin_view`, `reset_view`, `undo` | ✅ after P1 | ✅ after P1 (same camera module) |
-| `set_mode` solid / xray | ✅ | ✅ 🧱 (#87) |
-| `set_opacity` | ✅ cortex | ✅ 🧱 brain (#87) |
-| `set_explode` | ✅ | ✅ 🧱 `CaseCanvas` applies it (#87) |
-| `toggle_visibility` | ✅ structures, groups, L / R | ✅ 🧱 hemispheres and tumor layers (#87) |
-| `isolate`, `focus_region` | ✅ | `tumor` only ✅ (`focusTumor`) |
-| `explain_structure` (MCP) | ✅ | — (no atlas on Explore) |
-| `explain_finding`, `get_tumor_metrics`, `get_report` (MCP) | — (answers "this is the template atlas, not a patient scan") | ✅ |
-| `search`, `summarize`, `export_document` (MCP) | ✅ | ✅ |
+| `zoom_view`, `reset_view`, `undo` | ✅ | ✅ |
+| `focus_region` | ✅ `tumor` | ✅ `tumor` only (`focusTumor`) |
+| `toggle_visibility` | ✅ tumor layers (edema / core / enhancing) | ✅ hemispheres and tumor layers |
+| `rotate_view`, `spin_view`, `set_mode`, `set_opacity` (brain), `set_explode`, `isolate` | — (the agent says the page does not have it) | ✅ |
+| `explain_finding`, `get_tumor_metrics`, `get_report` (MCP) | ✅ | ✅ |
+| `search`, `export_document` (MCP) | ✅ | ✅ |
 
-🧱 v7: Ben's #87 turned the ⏳ rows ✅, so #71 only needs `agent/tools.ts` to list them. The agent picks them up with no agent change: the page's tool list is the switch.
+`explain_structure` stays an MCP tool for Claude Desktop but is not offered by any in-app page. MCP still accepts `page: "learn"` / `"/learn"` as input (so existing Desktop configs keep working) and answers it as "no report": it never returns patient facts for that page.
 
 ## 4. 🆕 The Agent Panel (Figma frame 04, nodes `46:*`)
 
@@ -477,3 +475,4 @@ Only for the demo moment "Claude Desktop turns the brain" (P5, stretch):
 - 🧱 Pages: Explore → `/jobs/:id/3d`, Results → `/jobs/:id/mri` (Ben's W1). §3.3 ⏳ rows are ✅ after #87.
 - 🧱 §4: the panel is Ben's `components/agent/AgentPanel` (UI only); agents plug into its props. D5's `/learn` Info | Agent tabs wait until `/learn` gets the panel.
 - 🧱 §11: P1 and P2 are Ben's (#64–#66); P0b and the P4 server are done.
+- 🔄 (2026-10-24) §0.1, §3.3: the agent has two pages, `mri` and `3d`, after Learning Mode was removed (#134). `learn` is rejected by `agent.ask`; MCP still accepts `page: "learn"` as input and treats it as no report.

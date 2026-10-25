@@ -68,20 +68,19 @@ export const toolRegistry: ToolRegistry = {
   ...Object.fromEntries(
     Object.keys(viewerSchemas).map((name) => [
       name,
-      { pages: ["learn", "3d"] as const },
+      { pages: ["3d"] as const },
     ]),
   ),
   capture_screenshot: { pages: ["mri", "3d"] },
   // MRI is the 2D MPR page; only its supported viewer commands are offered.
-  zoom_view: { pages: ["learn", "mri", "3d"] },
-  reset_view: { pages: ["learn", "mri", "3d"] },
-  undo: { pages: ["learn", "mri", "3d"] },
-  focus_region: { pages: ["learn", "mri", "3d"] },
-  toggle_visibility: { pages: ["learn", "mri", "3d"] },
-  explain_structure: { pages: ["learn"] },
+  zoom_view: { pages: ["mri", "3d"] },
+  reset_view: { pages: ["mri", "3d"] },
+  undo: { pages: ["mri", "3d"] },
+  focus_region: { pages: ["mri", "3d"] },
+  toggle_visibility: { pages: ["mri", "3d"] },
   explain_finding: { pages: ["mri", "3d"] },
   get_tumor_metrics: { pages: ["mri", "3d"] },
   get_report: { pages: ["mri", "3d"] },
-  search: { pages: ["learn", "mri", "3d"] },
-  export_document: { pages: ["learn", "mri", "3d"] },
+  search: { pages: ["mri", "3d"] },
+  export_document: { pages: ["mri", "3d"] },
 };

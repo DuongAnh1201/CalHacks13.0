@@ -124,7 +124,7 @@ async function reserveSpend(ctx: MutationCtx, text: string, now: number) {
 
 /** One terminal transition owns the pair; no model-provided scope is read here. */
 async function persistChat(ctx: MutationCtx, row: Doc<"agentRuns">, reply: string, agent: string) {
-  const jobId = row.jobId ?? (row.page === "learn" ? "atlas" : undefined);
+  const jobId = row.jobId;
   if (!jobId || !reply.trim()) return;
   const scope = { clientId: row.clientId, jobId, runId: row._id };
   await insertMessage(ctx, { ...scope, role: "user", text: row.text },
@@ -147,6 +147,7 @@ export const ask = mutation({
     jobId: v.optional(v.string()),
     text: v.string(),
     source: v.union(v.literal("chat"), v.literal("voice"), v.literal("text")),
+    // "learn" / "/learn" still pass validation only so they can be refused with a clear error below.
     page: v.union(
       v.literal("learn"),
       v.literal("/learn"),
@@ -164,6 +165,11 @@ export const ask = mutation({
   },
   handler: async (ctx, { participantToken, ...args }) => {
     requireClient(args.clientId);
+    if (args.page === "learn" || args.page === "/learn")
+      throw new ConvexError({
+        code: "BAD_PAGE",
+        message: "The assistant is not available on /learn. Use the MRI or 3D case pages.",
+      });
     if (
       !args.text.trim() ||
       args.text.length > 2000 ||
@@ -219,7 +225,7 @@ export const ask = mutation({
       }
     }
     const spendDay = await reserveSpend(ctx, args.text, now);
-    const page = args.page.replace(/^\//, "") as Page;
+    const page: Page = args.page.replace(/^\//, "") as Page;
     const runId = await ctx.db.insert("agentRuns", {
       ...args,
       page,
@@ -356,7 +362,7 @@ export const finish = internalMutation({
       const storedReply = finalReply(reply);
       await persistChat(ctx, row, storedReply, agent);
       await ctx.db.patch(runId, {
-        status: error === "AGENT_ERROR" ? "failed" : "done",
+        status: error === "AGENT_ERROR" || error === "PAGE_REMOVED" ? "failed" : "done",
         reply: storedReply, agent, error,
       });
     }
@@ -368,6 +374,16 @@ export const run = internalAction({
   handler: async (ctx, { runId }) => {
     const row = await ctx.runMutation(claimRef, { runId });
     if (!row) return null;
+    if (row.page === "learn") {
+      // Legacy row queued before /learn lost its assistant: finish it cleanly, never run it.
+      await ctx.runMutation(finishRef, {
+        runId,
+        reply: "The assistant is no longer available on /learn. Open a case to use it.",
+        agent: "Router",
+        error: "PAGE_REMOVED",
+      });
+      return null;
+    }
     try {
       const scope = noteScope(row);
       const sessionNotes = scope ? await ctx.runQuery(latestNotesRef, { scope }) : null;

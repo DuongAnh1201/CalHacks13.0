@@ -156,16 +156,16 @@ describe("canStartRun", () => {
 
 describe("allowedTools", () => {
   const registry: ToolRegistry = {
-    rotate_view: { pages: ["learn", "3d"] },
-    set_opacity: { pages: ["learn"] },
-    explain_structure: { pages: ["learn"] },
+    rotate_view: { pages: ["mri", "3d"] },
+    set_opacity: { pages: ["mri"] },
+    explain_structure: { pages: ["mri"] },
     get_tumor_metrics: { pages: ["3d"] },
-    search: { pages: ["learn", "3d"] },
+    search: { pages: ["mri", "3d"] },
   };
 
   it("keeps only tools the registry allows on the page", () => {
     const available = ["rotate_view", "set_opacity", "explain_structure", "get_tumor_metrics", "search"];
-    expect(allowedTools("learn", available, registry)).toEqual(["rotate_view", "set_opacity", "explain_structure", "search"]);
+    expect(allowedTools("mri", available, registry)).toEqual(["rotate_view", "set_opacity", "explain_structure", "search"]);
     expect(allowedTools("3d", available, registry)).toEqual(["rotate_view", "get_tumor_metrics", "search"]);
   });
 
@@ -174,10 +174,10 @@ describe("allowedTools", () => {
   });
 
   it("drops unknown names, prototype keys and duplicates", () => {
-    expect(allowedTools("learn", ["rm_rf", "toString", "__proto__", "search", "search"], registry)).toEqual(["search"]);
+    expect(allowedTools("mri", ["rm_rf", "toString", "__proto__", "search", "search"], registry)).toEqual(["search"]);
   });
 
   it("handles empty input", () => {
-    expect(allowedTools("learn", [], registry)).toEqual([]);
+    expect(allowedTools("mri", [], registry)).toEqual([]);
   });
 });
