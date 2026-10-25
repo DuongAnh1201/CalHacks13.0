@@ -26,10 +26,13 @@ COPY seed/ ./seed/
 # JOBS_DIR to the pod's volume (/workspace/jobs), since the container disk is wiped on deploy.
 ENV KEEP_JOBS=1
 
-# 3. Run as non-root user
+# 3. Run as non-root user. entrypoint.sh starts as root only to chown JOBS_DIR
+#    (a root-owned volume in prod), then drops to appuser before uvicorn starts.
 RUN mkdir -p /app/jobs \
  && chown -R appuser /app/jobs
-USER appuser
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN command -v setpriv
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 EXPOSE 8000
 
