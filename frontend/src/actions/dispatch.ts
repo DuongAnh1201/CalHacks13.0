@@ -8,7 +8,7 @@ const NO_TUMOR: DispatchResult = { ok: false, message: 'No tumor detected in thi
 
 let ctx: CaseContext = { jobId: '', hasTumor: false, structureIds: new Set(), bboxMm: { min: [0, 0, 0], max: [0, 0, 0] } };
 
-/** View effects that are not state (camera). AtlasCanvas listens for 'reset'. */
+/** View effects that are not state (camera). CaseCanvas listens for 'reset'. */
 export const viewEvents = new EventTarget();
 
 const ok = (message: string): DispatchResult => ({ ok: true, message });

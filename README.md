@@ -29,7 +29,7 @@ Docker · FastAPI: validate → SegResNet → masks → meshes (RAS mm)
         └─ seg.nii.gz + flair.nii.gz
         ▼
 React app: Upload → Processing → Results → Explore (R3F 3D)
-           /learn (atlas)                       ▲
+                                                ▲
                           pointer → one typed Action dispatcher
 ```
 
@@ -50,7 +50,6 @@ Brain and tumor meshes come from the **same scan and affine**, so they share one
 | Processing | Shipped: 1 s polling and backend stages. |
 | Results | Shipped: volumes, side, lesion count, expert Dice on samples, and limitations. |
 | Explore `/jobs/:id/explore` | Shipped: Whole Brain, Show tumor, Reset view. |
-| Learning Mode `/learn` | Shipped: CerebrA atlas, X-Ray, explode, isolate, structure tree. |
 | 2D NiiVue slices | Not yet: [#11](https://github.com/DuongAnh1201/CalHacks13.0/issues/11). |
 | X-Ray / Exploded / Cutaway on a case | Not yet: [#12](https://github.com/DuongAnh1201/CalHacks13.0/issues/12), [#15](https://github.com/DuongAnh1201/CalHacks13.0/issues/15), [#16](https://github.com/DuongAnh1201/CalHacks13.0/issues/16). |
 | Keyboard map | Not yet: [#17](https://github.com/DuongAnh1201/CalHacks13.0/issues/17). |
@@ -77,7 +76,7 @@ Click a **sample case** on the upload page. Sample jobs are pre-seeded and need 
 ## Repo layout
 
 ```
-frontend/src/{routes,viewer,actions,api,components,learn,content}/   React + R3F
+frontend/src/{routes,viewer,actions,api,components,content}/   React + R3F
 backend/                                    FastAPI + MONAI SegResNet + mesh export (Docker)
 jobs/sample*/                               pre-seeded demo jobs
 data/sample/LICENSE                         demo dataset license + attribution

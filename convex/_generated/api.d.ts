@@ -12,6 +12,7 @@ import type * as agent_eval_cases from "../agent/eval/cases.js";
 import type * as agent_eval_score from "../agent/eval/score.js";
 import type * as agent_guard from "../agent/guard.js";
 import type * as annotations from "../annotations.js";
+import type * as cursors from "../cursors.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as http from "../http.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   "agent/eval/score": typeof agent_eval_score;
   "agent/guard": typeof agent_guard;
   annotations: typeof annotations;
+  cursors: typeof cursors;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
   http: typeof http;
