@@ -1,6 +1,5 @@
-import { AgentMail } from "@agentmail/convex";
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { env, internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { snapshot } from "./exportDoc";
@@ -11,7 +10,6 @@ import type { ExportSnapshot } from "./lib/exportMarkdown";
 import { readExportReport } from "./lib/exportReport";
 
 const mail = env as typeof env & { AGENTMAIL_API_KEY?: string; AGENTMAIL_INBOX_ID?: string };
-const agentmail = new AgentMail(components.agentmail);
 
 /** Any member (in practice the host, who skips the join form) sets where their report goes. */
 export const setMyEmail = mutation({
@@ -35,7 +33,10 @@ export const load = internalQuery({
     const scan = session ? await ctx.db.get(session.scanId) : null;
     if (!session || !scan) return null;
     const people = await ctx.db.query("sessionParticipants").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
-    const data = await snapshot(ctx, scan.jobId, ["annotations", "summary", "transcript"], sessionId, true);
+    const data = await snapshot(ctx, scan.jobId, ["summary", "transcript", "conversation", "screenshots"], sessionId, true);
+    // Full room context includes suggested and dismissed notes, labelled by status.
+    data.annotations = await ctx.db.query("annotations").withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .filter((q) => q.eq(q.field("jobId"), scan.jobId)).collect();
     return { jobId: scan.jobId, endedAt: session.updatedAt, participants: people.map((p) => p.displayName), data };
   },
 });
@@ -79,26 +80,31 @@ export const send = internalAction({
       html: renderHtml(doc),
       text: renderMarkdown(doc, (s) => s),
       attachments: [
-        { filename: "report.md", content: toBase64(md), contentType: "text/markdown" },
-        { filename: "report.docx", content: await renderDocx(doc), contentType: DOCX_TYPE },
+        { filename: "report.md", content: toBase64(md), content_type: "text/markdown" },
+        { filename: "report.docx", content: await renderDocx(doc), content_type: DOCX_TYPE },
       ],
     };
     const recipients = await ctx.runMutation(internal.reportMail.claimRecipients, { sessionId });
     for (const r of recipients) {
       try {
-        // @agentmail/convex 0.1.0 types ctx as a mutation ctx; an action's runMutation is what it calls.
-        const outboundId = await agentmail.sendMessage(ctx as unknown as Parameters<typeof agentmail.sendMessage>[0], inboxId, { ...message, to: r.email });
-        await ctx.runMutation(internal.reportMail.recordSend, { id: r.id, outboundId });
+        const response = await fetch(`https://api.agentmail.to/v0/inboxes/${encodeURIComponent(inboxId)}/messages/send`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${mail.AGENTMAIL_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ ...message, to: r.email }),
+        });
+        if (!response.ok) {
+          console.error("reportMail: send failed", response.status, (await response.text()).replaceAll(mail.AGENTMAIL_API_KEY, "[redacted]").slice(0, 300));
+          await ctx.runMutation(internal.reportMail.recordSend, { id: r.id });
+          continue;
+        }
+        const result = await response.json();
+        if (typeof result.message_id !== "string" || !result.message_id) throw new Error("AgentMail response missing message_id");
+        await ctx.runMutation(internal.reportMail.recordSend, { id: r.id, outboundId: result.message_id });
       } catch {
+        console.error("reportMail: send failed");
         await ctx.runMutation(internal.reportMail.recordSend, { id: r.id });
       }
     }
     return null;
   },
-});
-
-/** One-time: `npx convex run reportMail:setupInbox`, then set AGENTMAIL_INBOX_ID to the returned inbox id. */
-export const setupInbox = internalAction({
-  args: {},
-  handler: async (ctx): Promise<unknown> => agentmail.createInbox(ctx, { displayName: "Neuro Imaging Reports" }),
 });

@@ -7,7 +7,15 @@ import { readExportReport } from "../lib/exportReport";
 const data = {
   annotations: [{ author: "human", authorName: "Sage", anchor: { kind: "structure", id: "hippocampus" }, text: "Looks malignant <script>x</script>", status: "accepted" }],
   summary: { text: "We discussed the prognosis.\nThen volumes." },
-  messages: [],
+  messages: [
+    { author: "agent", authorName: "Scribe", text: "AI context prognosis", createdAt: 4_000, toolSteps: [{ args: { token: "secret-tool" } }] },
+    { author: "human", authorName: "Tom", text: "Room chat malignant <script>chat</script>", createdAt: 2_000 },
+  ],
+  screenshots: [
+    { caption: "Whole view malignant", takenAt: 5_000, url: "https://images.example.com/shot.png" },
+    { caption: "Insecure image", takenAt: 6_000, url: "http://images.example.com/insecure.png" },
+    { caption: "Unsafe image", takenAt: 7_000, url: "javascript:alert(1)" },
+  ],
   startedAt: 1_000,
   transcript: [
     { speakerName: "Tom", text: "Whole  volume is large", startedAt: 66_000, final: true },
@@ -92,6 +100,27 @@ describe("clinical report", () => {
     expect(doc.measurements?.filter(([label]) => label.endsWith("outline certainty"))).toEqual([["Whole tumor outline certainty", "0"]]);
     const without = buildReportDoc({ ...source, report: { ...source.report!, certainty: null } });
     expect(without.measurements?.filter(([label]) => label.endsWith("outline certainty"))).toEqual([]);
+  });
+  it("includes chronological chat, screenshot links and annotation status in every format", async () => {
+    const doc = buildReportDoc(await input());
+    const zip = await JSZip.loadAsync(await renderDocx(doc), { base64: true });
+    const xml = await zip.file("word/document.xml")!.async("string");
+    const rels = await zip.file("word/_rels/document.xml.rels")!.async("string");
+    for (const out of [renderMarkdown(doc), renderHtml(doc), xml]) {
+      for (const text of ["Chat", "Screenshots", "Human: Tom", "AI: Scribe", "Room chat", "AI context", "Whole view", "Insecure image", "Unsafe image", "+00:01", "+00:03", "+00:04", "accepted"]) expect(out).toContain(text);
+      expect(out.indexOf("Room chat")).toBeLessThan(out.indexOf("AI context"));
+      expect(out.indexOf("Annotations")).toBeLessThan(out.indexOf("Chat"));
+      expect(out.indexOf("Chat")).toBeLessThan(out.indexOf("Screenshots"));
+      expect(out.indexOf("Screenshots")).toBeLessThan(out.indexOf("Transcript"));
+      expect(out).not.toMatch(/malignant|prognosis|secret-tool|<script>/i);
+      expect(out).not.toContain("http://images.example.com/insecure.png");
+      expect(out).not.toContain("javascript:alert");
+    }
+    expect(renderMarkdown(doc)).toContain("[View screenshot](https://images.example.com/shot.png)");
+    expect(renderHtml(doc)).toContain('href="https://images.example.com/shot.png"');
+    expect(rels).toContain("https://images.example.com/shot.png");
+    expect(rels).not.toContain("http://images.example.com/insecure.png");
+    expect(rels).not.toContain("javascript:");
   });
   it("base64-encodes utf-8 text", () => {
     const text = "cm³ — Tom";

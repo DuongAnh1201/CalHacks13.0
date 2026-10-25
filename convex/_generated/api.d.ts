@@ -179,5 +179,4 @@ export declare const internal: FilterApi<
 export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
   presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
-  agentmail: import("@agentmail/convex/_generated/component.js").ComponentApi<"agentmail">;
 };
