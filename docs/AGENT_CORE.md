@@ -121,3 +121,12 @@ image rejection, presenter-only capture, 30-second rejection and member-authoriz
 MCP listing passed; annotation/message/summary/transcript tools remained present.
 The disposable room/token were cleaned up and our recorded CLI/backend PIDs were
 stopped explicitly; ports 3380/3381 were confirmed clear. No push or PR.
+
+## Two chat boxes: human session chat and Agent Panel (#58)
+
+Agents never write into the human session chat. MCP exposes only the authorized
+read-only `list_messages` tool and `messages://{jobId}` resource; `post_message`
+and its internal mutation are removed. Room capability checks remain required
+for reads. Completed agent conversations continue through the shared insert
+helper into clientId/jobId-scoped rows with no sessionId, queried by listChat.
+Sage's human send/list API and the shared insert helper remain unchanged.

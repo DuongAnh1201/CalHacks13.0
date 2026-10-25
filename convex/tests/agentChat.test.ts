@@ -40,7 +40,7 @@ describe("Agent Panel chat is separate from session chat", () => {
     const before = await t.query(api.messages.list, { sessionId: host.sessionId, participantToken: host.participantToken, paginationOpts: { numItems: 50, cursor: null } });
     const runId = await running(t, { sessionId: host.sessionId });
     await t.mutation(internal.agent.appendStep, { runId, step: {
-      id: "scope", tool: "post_message", kind: "mcp", args: { clientId: "attacker", jobId: "other-job", session_id: host.sessionId }, ok: false, message: "Not applied", ms: 1,
+      id: "scope", tool: "list_messages", kind: "mcp", args: { clientId: "attacker", jobId: "other-job", session_id: host.sessionId }, ok: false, message: "Not applied", ms: 1,
     } });
     await finish(t, runId);
     const after = await t.query(api.messages.list, { sessionId: host.sessionId, participantToken: host.participantToken, paginationOpts: { numItems: 50, cursor: null } });

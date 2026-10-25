@@ -1,10 +1,10 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
+import { internalQuery, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireSessionMember } from "./lib/auth";
 import { appError } from "./lib/errors";
-import { insertMessage, listMessagePage } from "./lib/messages";
+import { listMessagePage } from "./lib/messages";
 import { loadScan } from "./scans";
 
 const scopeFields = { jobId: v.string(), sessionId: v.optional(v.id("sessions")), participantToken: v.optional(v.string()) };
@@ -22,17 +22,6 @@ async function requireChatScope(ctx: QueryCtx, args: { jobId: string; sessionId?
     throw appError("NOT_AUTHENTICATED", AUTH_MESSAGE);
   }
 }
-
-/** MCP transport supplies agentName; it is never in the public tool schema. */
-export const post = internalMutation({
-  args: { ...scopeFields, text: v.string(), agentName: v.string() },
-  handler: async (ctx, args) => {
-    const scope = await requireChatScope(ctx, args);
-    const messageId = await insertMessage(ctx, { ...scope, text: args.text, role: "assistant" },
-      { kind: "agent", name: args.agentName, source: "mcp" });
-    return { messageId };
-  },
-});
 
 export const list = internalQuery({
   args: { ...scopeFields, paginationOpts: paginationOptsValidator },
