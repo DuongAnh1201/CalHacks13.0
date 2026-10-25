@@ -1,0 +1,30 @@
+.fact {
+  display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 3fr); gap: 32px 56px;
+  padding: 44px 48px; border-radius: 28px; background: #fff;
+  border: 1px solid rgba(31, 86, 115, .14);
+}
+.aside { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.heading { margin: 0; font: 700 15px/1.3 var(--nv-font); color: var(--nv-primary); }
+.date { margin: 0; font: 500 14px var(--nv-font); color: var(--nv-text-3); }
+.category { display: inline-flex; align-items: center; gap: 8px; margin: 18px 0 0; font: 700 13px var(--nv-font); color: var(--nv-text-2); }
+.category::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+.tumor { --tone: #eb5757; }
+.mri { --tone: #3b6e8c; }
+.anatomy { --tone: #38684f; }
+.segmentation { --tone: #f2994a; }
+
+.main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.title { margin: 0; max-width: 26ch; font: 700 clamp(26px, 3.1vw, 40px)/1.14 var(--nv-font); letter-spacing: -.025em; color: var(--nv-text); text-wrap: balance; }
+.body { margin: 0; max-width: 62ch; font: 500 17px/1.6 var(--nv-font); color: var(--nv-text-2); text-wrap: pretty; }
+.source {
+  align-self: flex-start; margin-top: 4px; font: 700 14px var(--nv-font); color: var(--nv-primary);
+  text-decoration: underline; text-decoration-color: rgba(31, 86, 115, .3); text-underline-offset: 4px;
+  transition: text-decoration-color .15s;
+}
+.source:hover { text-decoration-color: currentColor; }
+.source:focus-visible { outline: 2px solid var(--nv-accent); outline-offset: 4px; border-radius: 4px; }
+
+@media (max-width: 760px) {
+  .fact { grid-template-columns: 1fr; gap: 20px; padding: 28px 24px; border-radius: 22px; }
+  .category { margin-top: 8px; }
+}

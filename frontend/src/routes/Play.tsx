@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ApiError, flairUrl, getLibrary, segUrl } from '../api/client';
 import type { LibraryCase } from '../api/types';
 import { TopNavBar } from '../components/TopNavBar';
@@ -78,7 +79,10 @@ export default function Play() {
 
   const [solo, setSolo] = useState<{ n: number; round: NewRound; mine: { answer: GameAnswer; result: GameResult } | null } | null>(null);
   const [total, setTotal] = useState({ points: 0, rounds: 0 });
-  const [kind, setKind] = useState<GameKind>('findSlice');
+  // /play?game=whichSide (the home page's game links) opens straight into a solo round of that game.
+  const [params] = useSearchParams();
+  const asked = GAMES.find((g) => g.kind === params.get('game'))?.kind ?? null;
+  const [kind, setKind] = useState<GameKind>(asked ?? 'findSlice');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -105,6 +109,13 @@ export default function Play() {
       setBusy(false);
     }
   };
+
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!asked || !library || playground || autoStarted.current) return;
+    autoStarted.current = true;
+    void next(asked);
+  }, [asked, library, playground]); // eslint-disable-line react-hooks/exhaustive-deps -- next is recreated every render; this runs once
 
   const onAnswer = async (answer: GameAnswer) => {
     if (playground && round) { setError(await answerRound(round.roundId, answer)); return; }
