@@ -8,7 +8,7 @@ import type { DispatchResult } from '../actions/types';
 import { ApiError, getReport, modelUrl } from '../api/client';
 import type { Report } from '../api/types';
 import checkIcon from '../assets/figma/7e35a.svg';
-import { AgentPanel } from '../components/agent/AgentPanel';
+import { MeetingOverlay, MeetingPanel } from '../agent/MeetingNotes';
 import { useNoteTaker } from '../agent/useNoteTaker';
 import { ExplodeSlider } from '../components/ExplodeSlider';
 import { HomeIcon, InfoIcon, PinIcon, SlidersIcon, SparkIcon, TargetIcon } from '../components/workspace/icons';
@@ -148,7 +148,7 @@ export default function Brain3D() {
     { id: 'info', label: 'Case info', icon: <InfoIcon />, panel: <CaseInfo report={report} /> },
     { id: 'notes', label: 'Notes', icon: <PinIcon />, badge: notes.length, panel: <NotesPanel report={report} notes={notes} mode="3d" /> },
     { id: 'view', label: 'View', icon: <SlidersIcon />, panel: view },
-    { id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><AgentPanel {...noteTaker} /></div> },
+    ...(!noteTaker.hidden ? [{ id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><MeetingPanel binding={noteTaker} /></div> }] : []),
   ] : [];
 
   const dock = report && !modelFailed && (
@@ -162,6 +162,7 @@ export default function Brain3D() {
   return (
     <Workspace jobId={id} title={report ? caseTitle(report) : 'Loading case…'} tools={tools} initialTool="info" focusTool={pinning ? 'notes' : null}
       onToolClose={(t) => { if (t === 'notes') setDraft(null); }} dock={dock}>
+      <MeetingOverlay binding={noteTaker} />
       <div className={placing ? `${css.stage} ${css.placing}` : css.stage} aria-label="3D brain">
         {!result && <p className={css.loading}>Loading results…</p>}
         {result?.kind === 'unknown' && (

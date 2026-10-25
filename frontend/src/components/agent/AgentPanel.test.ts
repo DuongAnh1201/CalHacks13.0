@@ -16,6 +16,13 @@ const tag = (h: string, label: string) => h.match(new RegExp(`<[a-z]+[^>]*aria-l
 const noop = () => {};
 
 describe('AgentPanel', () => {
+  it('renders nothing when hidden outside a live session', () => expect(html({ hidden: true })).toBe(''));
+  it('supports meeting labels and tab content without the command composer', () => {
+    const h = html({ tabLabels: ['Transcript', 'Notes'], tabContent: ['Live transcript content', 'Live notes content'] });
+    expect(h).toContain('>Transcript</button>'); expect(h).toContain('>Notes</button>');
+    expect(h).toContain('Live transcript content'); expect(h).not.toContain('Live notes content');
+    expect(h).not.toContain('Message the agent'); expect(h).not.toContain('Talk to the agent');
+  });
   it('renders every message kind', () => {
     const h = html({});
     for (const s of ['Pons Assistant', 'Segmentation done', 'show the tumor', 'Focused on the tumor', 'focusTumor()', '41 ms', 'Place in 3D', 'Not now']) expect(h).toContain(s);
@@ -24,13 +31,13 @@ describe('AgentPanel', () => {
     const h = html({});
     expect(tag(h, 'Message the agent')).toContain('disabled');
     expect(h).toContain('Agent not connected yet');
-    expect(tag(h, 'Talk to the agent')).toContain('disabled');
+    expect(tag(h, 'Toggle microphone')).toContain('disabled');
     expect(h).toMatch(/<button[^>]*disabled=""[^>]*>Place in 3D</);
   });
   it('enables them when handlers are passed', () => {
     const h = html({ onSend: noop, onMic: noop, onConfirm: noop, onDismiss: noop });
     expect(tag(h, 'Message the agent')).not.toContain('disabled');
-    expect(tag(h, 'Talk to the agent')).not.toContain('disabled');
+    expect(tag(h, 'Toggle microphone')).not.toContain('disabled');
     expect(h).not.toMatch(/<button[^>]*disabled=""[^>]*>Place in 3D</);
   });
   it('never names a keyboard key', () => expect(html({})).not.toMatch(/\b(space|esc|enter|ctrl|cmd)\b/i));

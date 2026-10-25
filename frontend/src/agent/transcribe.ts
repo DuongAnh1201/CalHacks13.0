@@ -1,8 +1,8 @@
 /**
  * Browser speech-to-text for the meeting transcript (#135). Pure helper: the
  * caller wires the UI and the Convex mutation. Uses the Web Speech API, so no
- * audio leaves this device through our code; only final text is emitted.
- * Interim results are ignored on purpose.
+ * audio is sent to our server. Interim text and final text have separate callbacks.
+ * The browser may use its speech recognition service.
  */
 
 export type TranscriptSegment = { text: string; startedAt: number; endedAt: number };
@@ -49,6 +49,7 @@ export type Transcriber = { supported: boolean; running: () => boolean; start: (
 
 export function createTranscriber(opts: {
   onSegment: (s: TranscriptSegment) => void;
+  onInterim?: (s: TranscriptSegment) => void;
   onError?: (code: string) => void;
   lang?: string;
   ctor?: RecognizerCtor | null;
@@ -59,6 +60,11 @@ export function createTranscriber(opts: {
   let rec: Recognizer | null = null;
   let wanted = false;
   let utteranceStart: number | null = null;
+  let interim = "";
+  const finish = () => {
+    if (interim && utteranceStart !== null) opts.onSegment({ text: interim, startedAt: utteranceStart, endedAt: now() });
+    interim = ""; utteranceStart = null;
+  };
 
   const begin = () => {
     if (!Ctor) return;
@@ -70,7 +76,12 @@ export function createTranscriber(opts: {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         if (utteranceStart === null) utteranceStart = now();
-        if (!res.isFinal) continue;
+        if (!res.isFinal) {
+          interim = res[0].transcript.replace(/\s+/g, " ").trim().slice(0, MAX_SEGMENT_CHARS);
+          opts.onInterim?.({ text: interim, startedAt: utteranceStart, endedAt: now() });
+          continue;
+        }
+        interim = "";
         const endedAt = now();
         const startedAt = utteranceStart;
         utteranceStart = null;
@@ -83,6 +94,7 @@ export function createTranscriber(opts: {
     };
     // Browsers end recognition after silence; keep listening while wanted.
     r.onend = () => {
+      finish();
       rec = null;
       if (wanted) begin();
     };
@@ -100,7 +112,7 @@ export function createTranscriber(opts: {
     },
     stop() {
       wanted = false;
-      utteranceStart = null;
+      finish();
       rec?.stop();
     },
   };

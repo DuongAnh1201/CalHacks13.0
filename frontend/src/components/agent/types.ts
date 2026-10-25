@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 export type ToolCallRow = { call: string; ms: number; ok: boolean; message?: string };
 export type AgentMessage =
   | { kind: 'system'; agent: string; text: string }
@@ -6,6 +7,10 @@ export type AgentMessage =
   | { kind: 'confirm'; agent: string; text: string; confirmLabel: string; dismissLabel: string };
 
 export interface AgentPanelProps {
+  hidden?: boolean;
+  tabLabels?: readonly [string, string];
+  tabContent?: readonly [ReactNode, ReactNode];
+  micLabel?: string;
   messages: AgentMessage[];
   status: 'ready' | 'listening' | 'offline';
   script?: string[];

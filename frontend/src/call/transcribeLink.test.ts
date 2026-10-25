@@ -75,6 +75,6 @@ describe('linkTranscriber', () => {
     f.subs.find((s) => s.name === 'transcript:state')!.onData({ enabled: true });
     tr.emit({ text: 'enhancing rim at the margin', startedAt: 1000, endedAt: 3500 });
     await Promise.resolve();
-    expect(f.calls).toEqual([['transcript:append', { sessionId: 's1', participantToken: 'tok', text: 'enhancing rim at the margin', durationMs: 2500 }]]);
+    expect(f.calls.filter(([name]) => name === 'transcript:updateLine')).toEqual([['transcript:updateLine', { sessionId: 's1', participantToken: 'tok', text: 'enhancing rim at the margin', durationMs: 2500, final: true }]]);
   });
 });
