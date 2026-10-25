@@ -41,7 +41,7 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
   }
   const tool = tools.find((t) => t.id === open);
   return (
-    <div className={css.page}>
+    <div className={css.page} data-tool-open={open ? '' : undefined}>
       <main className={css.stage}>{children}</main>
 
       <header className={css.case}>
