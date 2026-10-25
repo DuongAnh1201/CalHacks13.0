@@ -80,10 +80,10 @@ export function AgentPanel(p: AgentPanelProps) {
   const [tab, setTab] = useState<'voice' | 'script'>('voice');
   const [draft, setDraft] = useState('');
   return (
-    <section className={css.panel} aria-label="Neuro Agent">
+    <section className={css.panel} aria-label="Pons Assistant">
       <header className={css.head}>
         <span className={css.avatar}><img src={avatarIcon} alt="" width={16} height={16} /></span>
-        <div className={css.titles}><h2 className={css.title}>Neuro Agent</h2><p className={css.sub}>Voice &amp; script control for the workspace</p></div>
+        <div className={css.titles}><h2 className={css.title}>Pons Assistant</h2><p className={css.sub}>Voice &amp; script control for the workspace</p></div>
         <span className={`${css.status} ${css[p.status]}`} role="status"><img src={statusDot} alt="" width={6} height={6} />{STATUS[p.status]}</span>
       </header>
       <ul className={css.chips} aria-label="Agents">

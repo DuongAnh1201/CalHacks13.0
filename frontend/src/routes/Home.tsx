@@ -36,13 +36,17 @@ export default function Home() {
           <div id="nv-new-menu" popover="auto" className={css.menu}>
             <Link className={css.item} to="/upload"><b>{MRI.label}</b><small>{MRI.hint}</small></Link>
           </div>
+          <Link className={css.explore} to="/explore">Explore scans</Link>
         </aside>
         <main className={css.main}>
           <h1 className={css.title}>Workspaces</h1>
           {items.length === 0 ? (
             <div className={css.empty}>
-              <p>No workspaces yet.</p>
-              <Link className={css.cta} to="/upload">Upload your first MRI</Link>
+              <p>No workspaces yet. Start from a ready-made case, or bring your own MRI.</p>
+              <div className={css.ctas}>
+                <Link className={css.cta} to="/explore">Explore scans</Link>
+                <Link className={css.ghostCta} to="/upload">Upload an MRI</Link>
+              </div>
             </div>
           ) : (
             <ul className={css.grid}>

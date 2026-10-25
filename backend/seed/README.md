@@ -18,6 +18,14 @@ uv run python scripts/make_sample.py <case_dir> sample-2            # model (~7 
 uv run python scripts/make_sample.py <case_dir> sample-2 --expert   # expert-mask fallback
 ```
 
+## Study library (`lib-NN`, GET /library)
+
+```bash
+uv run python scripts/build_library.py <Task01_BrainTumour> --count 25
+```
+
+Picks a varied set of cases (hemisphere × tumor size), meshes their expert masks (seconds per case, no model run) and writes `seed/lib-NN/` with a `meta.json` title and blurb. Every seed folder with a `report.json` is listed by `GET /library`; `meta.json` is optional (the job id is the fallback title).
+
 Use `--expert` if inference is broken: the job has the same five-node `model.glb`, and the badge reads "Expert segmentation" from `segmentationSource`.
 
 Dataset: Medical Segmentation Decathlon, CC-BY-SA 4.0 (see `data/sample/LICENSE`, issue #1). These cases may be in the model's training set (BraTS 2018), so the Dice here is a sanity check, not a result.

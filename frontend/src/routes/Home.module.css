@@ -121,3 +121,9 @@
 @media (max-width: 720px) {
   .body { grid-template-columns: 1fr; }
 }
+
+.explore, .ghostCta {
+  padding: 10px 16px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill);
+  background: #fff; color: var(--nv-primary); font-weight: 600; text-decoration: none; text-align: center;
+}
+.ctas { display: flex; flex-wrap: wrap; gap: 8px; }

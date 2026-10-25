@@ -13,7 +13,6 @@
 
 .banner img { width: 6px; height: 6px; display: block; }
 
-.ok { color: var(--nv-success-2); background: var(--nv-success-bg); }
 
 .off { color: var(--nv-accent-warm); background: var(--nv-muted-bg); }
 
