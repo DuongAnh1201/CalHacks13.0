@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { history } from './history';
-import { setTool, type Tool } from './tool';
+import { selectItem, setTool, type Tool } from './tool';
 
 export type KeyAction = { type: 'undo' } | { type: 'redo' } | { type: 'tool'; tool: Tool } | { type: 'delete' };
 const LETTERS: Record<string, Tool> = { v: 'select', c: 'comment', s: 'sticky', t: 'text', p: 'pen', h: 'highlight' };
@@ -29,7 +29,7 @@ export function useBoardKeys(enabled: boolean, onDelete: () => void) {
       e.preventDefault();
       if (a.type === 'undo') void history.undo().catch((err) => console.error('[board]', err));
       else if (a.type === 'redo') void history.redo().catch((err) => console.error('[board]', err));
-      else if (a.type === 'tool') setTool(a.tool);
+      else if (a.type === 'tool') { setTool(a.tool); if (e.key === 'Escape') selectItem(null); }
       else onDelete();
     };
     window.addEventListener('keydown', on);

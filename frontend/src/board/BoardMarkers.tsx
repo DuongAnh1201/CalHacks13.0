@@ -86,6 +86,7 @@ function Item({ cs, report, row, selected, tool }: { cs: CaseScene; report: Repo
   };
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (tool !== 'select' || editing || (e.target as HTMLElement).closest('[data-nodrag]')) return;
+    e.stopPropagation();
     origin.current = { x: e.clientX, y: e.clientY, moved: false };
     setArmed(true);
   };

@@ -45,7 +45,10 @@ export function Thread({ note }: { note: Note }) {
       </ul>
       <textarea className={css.replyBox} maxLength={1000} value={text} placeholder="Reply" aria-label="Reply"
         onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void reply(); } }} />
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { selectItem(null); return; }
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void reply(); }
+        }} />
       <div className={css.actions}>
         <button type="button" disabled={busy || !text.trim()} onClick={() => void reply()}>Reply</button>
         {note.canResolve && <button type="button" onClick={resolve}>{note.resolvedAt ? 'Reopen' : 'Resolve'}</button>}
