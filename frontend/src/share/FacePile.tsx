@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { colorOf } from './cursorSync';
 import css from './SharePopover.module.css';
 import { useShare } from './store';
@@ -9,6 +10,8 @@ const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2)
 /** Online participants only (presence), not the durable roster. */
 export function FacePile({ session }: { session: SessionState }) {
   const online = useShare((s) => s.online);
+  const { pathname } = useLocation();
+  if (!/^\/jobs\/[^/]+\/(mri|3d)$/.test(pathname)) return null;
   const here = session.participants.filter((p) => online.has(p.participantId));
   if (here.length === 0) return null;
   return (
