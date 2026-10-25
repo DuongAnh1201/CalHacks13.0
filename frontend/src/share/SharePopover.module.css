@@ -35,3 +35,7 @@
 .off { background: transparent; border: 1px solid var(--nv-text-3); }
 .qr { justify-self: center; padding: 8px; background: #fff; border-radius: var(--nv-radius-control); }
 .banner { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--nv-primary); }
+.pile { display: flex; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.face { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #555; color: #fff; font: 600 10px/1 system-ui, sans-serif; }
+.dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #9aa0a6; }
+.dotOn { background: #2ea043; }

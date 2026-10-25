@@ -294,6 +294,8 @@ export const join = mutation({
     participantToken: string;
     participantId: Id<"sessionParticipants">;
     role: "viewer";
+    /** Which case to open: the guest's page is /jobs/<jobId>/... */
+    jobId: string;
   }> => {
     const displayName = normaliseDisplayName(args.displayName);
 
@@ -326,7 +328,8 @@ export const join = mutation({
       lastSeenAt: now,
     });
 
-    return { sessionId: session._id, participantToken, participantId, role: "viewer" };
+    const scan = await loadScan(ctx, session.scanId);
+    return { sessionId: session._id, participantToken, participantId, role: "viewer", jobId: scan.jobId };
   },
 });
 
@@ -532,6 +535,8 @@ export const end = mutation({
   },
   handler: async (ctx, args): Promise<{ status: "ended" }> => {
     const { session } = await requirePresenter(ctx, args);
+    const cursors = await ctx.db.query("cursors").withIndex("by_session", (q) => q.eq("sessionId", session._id)).collect();
+    for (const c of cursors) await ctx.db.delete(c._id);
     await ctx.db.patch(session._id, { status: "ended", updatedAt: Date.now() });
     return { status: "ended" };
   },

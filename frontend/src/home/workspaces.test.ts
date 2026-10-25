@@ -28,12 +28,11 @@ describe('workspaces', () => {
     expect(listWorkspaces(s).map((x) => x.id)).toEqual(['b']);
   });
   it('drops rows that are not workspaces', () => {
-    const s = fake(); s.setItem('nv.workspaces', JSON.stringify([w('a', 1), { id: 3 }, null, { id: 'x', kind: 'chat' }]));
+    const s = fake(); s.setItem('nv.workspaces', JSON.stringify([w('a', 1), { id: 3 }, null, { id: 'x', kind: 'chat' }, { id: 'l', kind: 'learn', name: 'Learning Mode', openedAt: 2 }]));
     expect(listWorkspaces(s).map((x) => x.id)).toEqual(['a']);
   });
-  it('links each kind to its page', () => {
+  it('links a workspace to its MRI page', () => {
     expect(hrefOf(w('j1', 0))).toBe('/jobs/j1/mri');
-    expect(hrefOf(w('l1', 0, 'learn'))).toBe('/learn/l1');
   });
   it('names an upload from the file stem without the sequence suffix', () => {
     expect(scanName('BraTS_0042_flair.nii.gz', 'job-ab12')).toBe('BraTS_0042');

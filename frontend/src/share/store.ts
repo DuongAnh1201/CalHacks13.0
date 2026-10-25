@@ -1,12 +1,12 @@
 import type { ConvexClient } from 'convex/browser';
 import { create } from 'zustand';
 import { api, convex, convexUrl } from './client';
-import { codeOf, messageFor, NO_SAMPLE, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
+import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
-import type { ChatMessage, SessionState, ViewerCommand } from './types';
+import type { ChatMessage, Cursor, RemoteCursor, SessionState, ViewerCommand } from './types';
 
-type Client = Pick<ConvexClient, 'query' | 'mutation' | 'onUpdate'>;
+type Client = Pick<ConvexClient, 'query' | 'mutation' | 'action' | 'onUpdate'>;
 
 /** `online` holds participantIds with an open tab (Phase 3 presence), separate from the roster. */
 interface ShareState { stored: Stored | null; session: SessionState | null; notice: string | null; syncNote: string | null; online: Set<string> }
@@ -58,13 +58,13 @@ export function resume(): void {
 }
 
 // shortcut: a Convex deployment that is down makes these await until it is back, add a timeout if that bites in the demo.
-export async function startShare(): Promise<string | null> {
+/** Shares any finished job: Convex fetches its report from the imaging service and registers the scan first. */
+export async function startShare(jobId: string): Promise<string | null> {
   if (!client) return NOT_CONFIGURED;
   try {
-    const scan = (await client.query(api.scans.getByJobId, { jobId: 'sample' })) as { scanId: string } | null;
-    if (!scan) return NO_SAMPLE;
-    const r = (await client.mutation(api.sessions.create, { scanId: scan.scanId, hostDisplayName: 'Host' })) as { sessionId: string; participantToken: string; inviteCode: string };
-    begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'host', inviteCode: r.inviteCode });
+    const { scanId } = (await client.action(api.jobs.registerScan, { jobId })) as { scanId: string };
+    const r = (await client.mutation(api.sessions.create, { scanId, hostDisplayName: 'Host' })) as { sessionId: string; participantToken: string; inviteCode: string };
+    begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'host', inviteCode: r.inviteCode, jobId });
     return null;
   } catch (e) { return messageFor(e); }
 }
@@ -72,8 +72,8 @@ export async function startShare(): Promise<string | null> {
 export async function joinShare(code: string, name: string): Promise<string | null> {
   if (!client) return NOT_CONFIGURED;
   try {
-    const r = (await client.mutation(api.sessions.join, { inviteCode: code, displayName: name })) as { sessionId: string; participantToken: string };
-    begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'viewer', inviteCode: code });
+    const r = (await client.mutation(api.sessions.join, { inviteCode: code, displayName: name })) as { sessionId: string; participantToken: string; jobId: string };
+    begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'viewer', inviteCode: code, jobId: r.jobId });
     return null;
   } catch (e) { return messageFor(e); }
 }
@@ -119,4 +119,18 @@ export async function sendChat(text: string): Promise<string | null> {
   const s = useShare.getState().stored;
   if (!client || !s) return NOT_CONFIGURED;
   try { await client.mutation(api.messages.send, { ...auth(s), text }); return null; } catch (e) { return messageFor(e); }
+}
+
+/** Any role. Best-effort: a dropped point is replaced by the next one. */
+export function sendCursor(cursor: Cursor | null): void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return;
+  client.mutation(api.cursors.move, { ...auth(s), cursor }).catch(() => {});
+}
+
+/** Everyone else's cursors in this room. An end or stale token is handled by the sessions.get subscription. */
+export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.cursors.list, auth(s), onRows, () => onRows([]));
 }

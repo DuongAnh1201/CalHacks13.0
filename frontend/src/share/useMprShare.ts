@@ -6,11 +6,11 @@ import type { SliceIndices } from './types';
 
 export interface MprRemote { indices: SliceIndices; tumorVisible: boolean }
 
-/** Crosshair + mask sync for /jobs/sample/mri. The host sends, a following guest receives. */
+/** Crosshair + mask sync for /jobs/<session job>/mri. The host sends, a following guest receives. */
 export function useMprShare(jobId: string): { onCrosshair: (idx: SliceIndices) => void; onMaskVisible: (visible: boolean) => void; remote: MprRemote | null } {
   // useShallow: the object is rebuilt per call, so identity must change only when the server sends a new view.
   const remote = useShare(useShallow((s): MprRemote | null => {
-    const live = jobId === 'sample' && s.session?.status === 'active' && s.stored?.role === 'viewer' ? s.session : null;
+    const live = s.stored?.jobId === jobId && s.session?.status === 'active' && s.stored?.role === 'viewer' ? s.session : null;
     return live?.me.following ? { indices: live.view.sliceIndices, tumorVisible: live.view.tumorVisible } : null;
   }));
   // Last indices this host sent, per session: broadcastTo fires onLocationChange on all three views for one click.
@@ -18,7 +18,7 @@ export function useMprShare(jobId: string): { onCrosshair: (idx: SliceIndices) =
 
   const onCrosshair = useCallback((next: SliceIndices) => {
     const { stored, session } = useShare.getState();
-    if (jobId !== 'sample' || session?.status !== 'active') return;
+    if (stored?.jobId !== jobId || session?.status !== 'active') return;
     if (stored?.role === 'host') {
       const prev = sent.current?.sessionId === session.sessionId ? sent.current.idx : session.view.sliceIndices;
       if (sameIndices(prev, next)) return;
@@ -31,7 +31,7 @@ export function useMprShare(jobId: string): { onCrosshair: (idx: SliceIndices) =
 
   // The page reports its overlay state on mount, usually before any session exists; keep it for when one starts.
   const mask = useRef<boolean | null>(null);
-  const hostSession = useShare((s) => jobId === 'sample' && s.stored?.role === 'host' && s.session?.status === 'active' ? s.session.sessionId : null);
+  const hostSession = useShare((s) => s.stored?.jobId === jobId && s.stored?.role === 'host' && s.session?.status === 'active' ? s.session.sessionId : null);
   const hostVisible = useShare((s) => hostSession && s.session?.status === 'active' ? s.session.view.tumorVisible : false);
   const syncMask = useCallback(() => {
     const { session } = useShare.getState();

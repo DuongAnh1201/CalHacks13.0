@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HEARTBEAT_MS, startPresence } from './presence';
 
 type Ref = Parameters<typeof getFunctionName>[0];
-const STORED = { sessionId: 's1', participantToken: 'tok', role: 'viewer' as const, inviteCode: 'A' };
+const STORED = { sessionId: 's1', participantToken: 'tok', role: 'viewer' as const, inviteCode: 'A', jobId: 'sample' };
 
 function fakeClient() {
   const calls: [string, Record<string, unknown>][] = [];

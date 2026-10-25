@@ -266,6 +266,19 @@ describe("Phase B scene commands", () => {
     expect(sliceIndexFromCursor(WITH_TUMOR, "sagittal", next.cursorRasMm)).toBe(239);
     expectAppError(() => applyCommand(WITH_TUMOR, base(), { type: "setCursor", sliceIndices: { axial: 1.5, coronal: 0, sagittal: 0 } }), "INVALID_ARGUMENT");
   });
+  it("setCamera stores the presenter's orbit, rejects bad vectors, and is a no-op when unchanged", () => {
+    const cmd = { type: "setCamera" as const, position: [-260, 80, -200], target: [0, 0, 0] };
+    const v = applyCommand(WITH_TUMOR, base(), cmd);
+    expect(v.scene.camera).toEqual({ position: [-260, 80, -200], target: [0, 0, 0] });
+    expect(viewsEqual(v, base())).toBe(false);
+    // Same pose again: no write, so a still camera never touches the database.
+    expect(viewsEqual(applyCommand(WITH_TUMOR, v, cmd), v)).toBe(true);
+    for (const position of [[0, 0], [0, Number.NaN, 0], [0, 0, 5001], [0, 0, 0, 0]]) {
+      expectAppError(() => applyCommand(WITH_TUMOR, base(), { ...cmd, position }), "INVALID_ARGUMENT");
+    }
+    // Reset drops the shared camera; guests keep their own until the presenter moves again.
+    expect(applyCommand(WITH_TUMOR, v, { type: "resetView" }).scene.camera).toBeUndefined();
+  });
   it("setOpacity / setExplosion clamp to 0..1 and reject non-finite", () => {
     expect(applyCommand(WITH_TUMOR, base(), { type: "setOpacity", value: 2 }).scene.brainOpacity).toBe(1);
     expect(applyCommand(WITH_TUMOR, base(), { type: "setExplosion", value: -1 }).scene.explodeAmount).toBe(0);

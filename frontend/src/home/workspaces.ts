@@ -1,4 +1,4 @@
-export type WorkspaceKind = 'mri' | 'learn';
+export type WorkspaceKind = 'mri';
 export interface Workspace { id: string; kind: WorkspaceKind; name: string; openedAt: number }
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
@@ -11,7 +11,7 @@ function local(): Store | null {
 
 const isWorkspace = (v: unknown): v is Workspace => {
   const w = v as Workspace | null;
-  return !!w && typeof w.id === 'string' && (w.kind === 'mri' || w.kind === 'learn') && typeof w.openedAt === 'number';
+  return !!w && typeof w.id === 'string' && w.kind === 'mri' && typeof w.openedAt === 'number';
 };
 
 export function listWorkspaces(s: Store | null = local()): Workspace[] {
@@ -30,7 +30,7 @@ export function removeWorkspace(id: string, s: Store | null = local()): void {
   try { s?.setItem(KEY, JSON.stringify(listWorkspaces(s).filter((x) => x.id !== id))); } catch { /* blocked or full: the list is a convenience */ }
 }
 
-export const hrefOf = (w: Workspace) => (w.kind === 'mri' ? `/jobs/${w.id}/mri` : `/learn/${w.id}`);
+export const hrefOf = (w: Workspace) => `/jobs/${w.id}/mri`;
 
 /** Card name for an upload: the FLAIR file stem minus a trailing sequence tag, else the job id. */
 export function scanName(fileName: string, jobId: string): string {

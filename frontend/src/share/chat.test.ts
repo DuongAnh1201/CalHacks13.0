@@ -5,7 +5,7 @@ import { sendChat, useClientForTest, useShare, watchChat } from './store';
 import type { ChatMessage } from './types';
 
 type Ref = Parameters<typeof getFunctionName>[0];
-const STORED = { sessionId: 's1', participantToken: 'tok', role: 'viewer' as const, inviteCode: 'A' };
+const STORED = { sessionId: 's1', participantToken: 'tok', role: 'viewer' as const, inviteCode: 'A', jobId: 'sample' };
 const msg = (id: string, text: string): ChatMessage => ({ messageId: id, role: 'user', author: 'human', authorName: 'Ana', text, createdAt: 1 });
 
 function fakeClient(send?: (args: unknown) => unknown) {
