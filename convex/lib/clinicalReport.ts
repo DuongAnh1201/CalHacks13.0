@@ -1,4 +1,4 @@
-import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import { Document, ExternalHyperlink, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { BANNED_EXPORT_WORDS, EXPORT_NOTICE, exportText, offset, type ExportSnapshot } from "./exportMarkdown";
 import type { ExportReport } from "./exportReport";
 
@@ -20,7 +20,9 @@ export interface ReportDoc {
   measurements: [string, string][] | null;
   summary: string | null;
   summaryInterim: boolean;
-  annotations: { author: string; anchor: string; text: string }[];
+  annotations: { author: string; anchor: string; text: string; status: string }[];
+  chat: { at: string; author: string; text: string }[];
+  screenshots: { at: string; caption: string; url: string | null }[];
   transcript: { at: string; speaker: string; text: string }[];
 }
 
@@ -55,6 +57,16 @@ export function buildReportDoc({ jobId, endedAt, participants, report, data }: R
       anchor: row.anchor.kind === "structure" ? clean(`structure ${row.anchor.id}`)
         : row.anchor.kind === "point" ? `point (${row.anchor.ras_mm.join(", ")}) mm` : "tumor",
       text: clean(row.text),
+      status: clean(row.status),
+    })),
+    chat: data.messages.slice().sort((a, b) => a.createdAt - b.createdAt).map((row) => ({
+      at: offset(row.createdAt, data.startedAt),
+      author: clean(`${row.author === "human" ? "Human" : "AI"}: ${row.authorName}`),
+      text: clean(row.text),
+    })),
+    screenshots: (data.screenshots ?? []).map((shot) => ({
+      at: offset(shot.takenAt, data.startedAt), caption: clean(shot.caption),
+      url: /^https:\/\/[^\s<>()"']+$/.test(shot.url) ? shot.url : null,
     })),
     transcript: (data.transcript ?? []).filter((row) => row.final !== false).map((row) => ({
       at: offset(row.startedAt, data.startedAt), speaker: clean(row.speakerName), text: clean(row.text.replace(/\s+/g, " ")),
@@ -71,7 +83,9 @@ export function renderMarkdown(doc: ReportDoc, t = exportText): string {
       ? ["Measure | Value", "--- | ---", ...doc.measurements.map(([k, v]) => `${k} | ${t(v)}`)].join("\n") + `\n\n${CERTAINTY_NOTE}`
       : "Measurements unavailable."),
     "## Session discussion\n\n" + (doc.summaryInterim ? `**${INTERIM_SUMMARY}**\n\n` : "") + (doc.summary ? t(doc.summary) : "Summary unavailable."),
-    "## Annotations\n\n" + (doc.annotations.map((a) => `- **${t(a.author)}** · ${t(a.anchor)}: ${t(a.text)}`).join("\n") || "No annotations."),
+    "## Annotations\n\n" + (doc.annotations.map((a) => `- **${t(a.author)}** · ${t(a.status)} · ${t(a.anchor)}: ${t(a.text)}`).join("\n") || "No annotations."),
+    "## Chat\n\n" + (doc.chat.map((r) => `- ${r.at} **${t(r.author)}**: ${t(r.text)}`).join("\n") || "No chat was recorded."),
+    "## Screenshots\n\n" + (doc.screenshots.map((s) => `- ${s.at} ${t(s.caption)} · ${s.url ? `[View screenshot](${s.url})` : "image unavailable"}`).join("\n") || "No screenshots were taken."),
     `## Transcript\n\n${TRANSCRIPT_NOTE}\n\n` + (doc.transcript.map((r) => `- ${r.at} **${t(r.speaker)}**: ${t(r.text)}`).join("\n") || "No transcript was recorded."),
     "## Next steps for learners\n\n" + NEXT_STEPS.map((s, i) => `${i + 1}. ${s}`).join("\n"),
     `---\n\n${EXPORT_NOTICE}`,
@@ -95,7 +109,10 @@ export function renderHtml(doc: ReportDoc): string {
     + section("Measurements (model output)", doc.measurements ? pairs(doc.measurements) + para(CERTAINTY_NOTE) : para("Measurements unavailable."))
     + section("Session discussion", (doc.summaryInterim ? para(INTERIM_SUMMARY) : "") + para(doc.summary ?? "Summary unavailable."))
     + section("Annotations", doc.annotations.length
-      ? `<ul>${doc.annotations.map((a) => `<li><b>${esc(a.author)}</b> · ${esc(a.anchor)}: ${esc(a.text)}</li>`).join("")}</ul>` : para("No annotations."))
+      ? `<ul>${doc.annotations.map((a) => `<li><b>${esc(a.author)}</b> · ${esc(a.status)} · ${esc(a.anchor)}: ${esc(a.text)}</li>`).join("")}</ul>` : para("No annotations."))
+    + section("Chat", doc.chat.length ? pairs(doc.chat.map((r) => [`${r.at} ${r.author}`, r.text])) : para("No chat was recorded."))
+    + section("Screenshots", doc.screenshots.length
+      ? `<ul>${doc.screenshots.map((s) => `<li>${s.at} ${esc(s.caption)} · ${s.url ? `<a href="${esc(s.url)}">View screenshot</a>` : "image unavailable"}</li>`).join("")}</ul>` : para("No screenshots were taken."))
     + section("Transcript", para(TRANSCRIPT_NOTE) + (doc.transcript.length
       ? pairs(doc.transcript.map((r) => [`${r.at} ${r.speaker}`, r.text])) : para("No transcript was recorded.")))
     + section("Next steps for learners", `<ol>${NEXT_STEPS.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`)
@@ -120,7 +137,14 @@ export async function renderDocx(doc: ReportDoc): Promise<string> {
     ...(doc.summaryInterim ? [p(INTERIM_SUMMARY)] : []),
     ...(doc.summary ?? "Summary unavailable.").split("\n").map(p),
     h2("Annotations"),
-    ...(doc.annotations.length ? doc.annotations.map((a) => p(`${a.author} · ${a.anchor}: ${a.text}`)) : [p("No annotations.")]),
+    ...(doc.annotations.length ? doc.annotations.map((a) => p(`${a.author} · ${a.status} · ${a.anchor}: ${a.text}`)) : [p("No annotations.")]),
+    h2("Chat"),
+    ...(doc.chat.length ? [table(doc.chat.map((r) => [`${r.at} ${r.author}`, r.text]))] : [p("No chat was recorded.")]),
+    h2("Screenshots"),
+    ...(doc.screenshots.length ? doc.screenshots.map((s) => new Paragraph({ children: [
+      new TextRun(`${s.at} ${s.caption} · `),
+      ...(s.url ? [new ExternalHyperlink({ link: s.url, children: [new TextRun({ text: "View screenshot", style: "Hyperlink" })] })] : [new TextRun("image unavailable")]),
+    ] })) : [p("No screenshots were taken.")]),
     h2("Transcript"),
     p(TRANSCRIPT_NOTE),
     ...(doc.transcript.length ? [table(doc.transcript.map((r) => [`${r.at} ${r.speaker}`, r.text]))] : [p("No transcript was recorded.")]),
