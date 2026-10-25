@@ -155,3 +155,10 @@ export async function removeNote(annotationId: string): Promise<string | null> {
   if (!client || !s) return NOT_CONFIGURED;
   try { await client.mutation(api.annotations.remove, { ...auth(s), annotationId }); return null; } catch (e) { return messageFor(e); }
 }
+
+/** A LiveKit join token for this tab's participant (convex/call.ts), or an error message. */
+export async function callToken(): Promise<{ url: string; token: string } | { error: string }> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return { error: NOT_CONFIGURED };
+  try { return await client.action(api.call.token, auth(s)); } catch (e) { return { error: messageFor(e) }; }
+}
