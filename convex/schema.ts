@@ -79,6 +79,12 @@ export const vToolStep = v.object({
 });
 
 export default defineSchema({
+  screenshots: defineTable({
+    jobId: v.string(), sessionId: v.optional(v.id("sessions")), clientId: v.optional(v.string()),
+    runId: v.optional(v.id("agentRuns")), storageId: v.id("_storage"), caption: v.string(), reason: v.string(),
+    takenAt: v.number(), width: v.number(), height: v.number(),
+  }).index("by_session", ["sessionId"]).index("by_storage", ["storageId"]),
+
 
   scans: defineTable({
     jobId: v.string(),

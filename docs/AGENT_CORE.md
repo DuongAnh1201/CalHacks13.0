@@ -65,3 +65,59 @@ Speech-to-text runs in each member's browser (Web Speech API, `frontend/src/agen
 - **Quotes (T3a):** the note may quote a participant's own words with attribution. `checkNote` runs the Guard on AI-authored text only: a double-quoted span is exempt only when it is verbatim (case and spacing aside) inside a transcript segment of this update, or was already a quoted span of the previous note (which passed the same check). Text the model merely puts in quotes is still checked.
 - **`update_notes`:** a Router step, offered only to verified session runs when an API key exists (never on web-allowed runs). It goes through `notes:schedule`, so it shares the 60 s debounce.
 - **Cadence:** when the host turns transcription on (and a key exists), `notes:tick` runs about every 60 s through the same debounce until transcription is turned off or the session ends. `transcriptSettings.tickAt` identifies the live chain, so a stale tick ends itself and toggling twice never starts a second chain. No key: nothing is scheduled.
+
+## Final meeting summary and auto export (#138)
+
+`sessions.end` already schedules `notes:finalizeSession` (server-side, no token). It now does two independent things:
+
+1. **Final summary (needs a key; Opus via the shared `MODEL`, not the Haiku live-notes model).** Code assembles the sections whose facts must be exact: **Attendees** (participant rows), **Key findings** (`reportLines` over report.json, with its source line; the only place numbers come from), **Questions asked** (verified agent-run texts and human chat lines containing `?`, quoted as data). The model returns JSON with only a **Timeline** (≤ 8) and **Action items** (≤ 6, only things a participant proposed). Each item is dropped unless it is single-line, passes `checkNote` (AI-authored banned words blocked; verbatim human quotes exempt) and carries no number that is not in the report findings (numbers inside a verified quote are the human's). Stored as the next `sessionSummaries` version covering the end time, so `isFinal` stays derived. Written once (`prepare` refuses a second). With nothing new since the last running note, the model is not called and that note becomes the timeline if it passes the same checks. A model failure, a limit hit or unusable output writes nothing.
+2. **Automatic Markdown export (T4a; runs with or without a key).** `exportDoc.autoReserve` creates one `exports` row per ended session (`trigger: "auto"`, `reason: "checkpoint"`; a failed one may be retried, a pending or ready one blocks a second) and the shared `exportDoc.build` renders it. Sections: case, report, annotations, summary, conversation, plus the new opt-in **screenshots** (ordered, with captions, embedded as images over http(s) only) and **transcript** (speaker, offset from session start). Both new sections are session-private like the other private ones and never part of the default set. Without a key the summary section reads "Summary unavailable: …" and the transcript and screenshots are still included.
+
+`notes.forSession` (members only) returns the final summary fields plus `screenshots` and `export: {version, status, url}`.
+
+**Screenshots (#137):** `lib/exportScreenshots.ts::loadExportScreenshots` reads the `screenshots` table for the session and case, keeps rows taken within the meeting (session start to its end time), orders them by `takenAt` and attaches the storage URL used for embedding. Callers are already member-gated (`notes.forSession`, and the private export snapshot).
+
+## Screenshot server and capture helper (#137; browser wiring is Ben's #139)
+
+The server owns `convex/lib/screenshotPolicy.ts`: tumor focus, report/metrics
+request, X-Ray/Exploded/Cutaway, annotation add, user screenshot request, and
+the explicit `capture_screenshot({reason})` viewer tool (MRI/3D; 1–120 chars).
+No key is needed for fixed event policy. `screenshots.requestCapture` accepts
+browser event facts and returns an approved reason or null. `screenshots.events`
+provides stable-id run/annotation events; only `sessionVerified` runs qualify.
+
+Uploads/records require an active verified presenter and matching job/session.
+Server-time transactions enforce >=30 s between captures and <=20 per meeting.
+Actual JPEG/PNG headers/dimensions are checked: width <=1280 and <=600 KiB
+(614400 bytes). Invalid new uploads, including quota-race losers, are deleted;
+existing screenshot/export references are protected. Captions are <=280 chars.
+A linked run must be verified for the same session/case. No member token is stored.
+`list_screenshots({job_id,session_id,participant_token})` gives verified members
+read-only metadata/Convex storage URLs; MCP authentication alone is not membership.
+
+**Ben's three-line hook** (imports from `frontend/src/agent/screenshot.ts`):
+
+```ts
+const decision = await client.mutation(api.screenshots.requestCapture, { ...scope, event });
+const image = decision && await captureCanvas(canvas);
+if (decision && image) await uploadScreenshot(image, { generateUploadUrl: () => client.mutation(api.screenshots.generateUploadUrl, scope), recordScreenshot: data => client.action(api.screenshots.recordScreenshot, { ...scope, ...data, reason: decision.reason, caption: decision.reason }) });
+```
+
+`scope` is `{jobId,sessionId,participantToken}` from verified share state. Run the
+listener only for the active presenter and correct case; the server rechecks.
+Send facts `{kind:'action',action}` after dispatch, `{kind:'report',jobId}` for
+report requests, and `{kind:'user_text',text}` for screenshot requests. For run
+steps/annotations subscribe to `screenshots.events({...scope,since})`, dedupe ids
+and use the approved reason/runId with the same capture/upload helper.
+
+The helper only captures and uploads: max width 1280, no upscaling, preserved
+aspect, JPEG quality fallback to fit the byte cap, upload then record dimensions.
+Ben owns render readiness and WebGL buffer preservation/redraw; capture after
+the view has painted. Sent viewer steps do not prove applied state. #137 changes
+no viewer component, route, AgentPanel, dispatcher, or API-client wiring.
+
+Local #137 smoke after merging main: actual PNG upload/record/download, invalid
+image rejection, presenter-only capture, 30-second rejection and member-authorized
+MCP listing passed; annotation/message/summary/transcript tools remained present.
+The disposable room/token were cleaned up and our recorded CLI/backend PIDs were
+stopped explicitly; ports 3380/3381 were confirmed clear. No push or PR.

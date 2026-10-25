@@ -5,6 +5,7 @@ import { config } from './mcp/config';
 import { registerExportTools } from './mcp/exportTools';
 import { registerAnnotationTools } from './mcp/annotationTools';
 import { registerMessageTools } from './mcp/messageTools';
+import { registerScreenshotTools } from './mcp/screenshotTools';
 import { registerSummaryTools } from './mcp/summaryTools';
 import { registerTranscriptTools } from './mcp/transcriptTools';
 import { internal } from './_generated/api';
@@ -18,7 +19,7 @@ const mcp = httpAction((ctx, request) => handleMcp(request, {
     if (!personal) return false;
     return personal.needsTouch ? ctx.runMutation(internal.mcpTokens.touch, { id: personal.id }) : true;
   },
-  modules: [registerExportTools, registerAnnotationTools, registerMessageTools, registerSummaryTools, registerTranscriptTools],
+  modules: [registerExportTools, registerAnnotationTools, registerMessageTools, registerSummaryTools, registerTranscriptTools, registerScreenshotTools],
   rateCheck: tokenHash => ctx.runMutation(consume, { tokenHash }),
 }));
 const http = httpRouter();
