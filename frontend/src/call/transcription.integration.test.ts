@@ -169,3 +169,14 @@ it('same-session call rejoin ignores settings from the previous subscription', (
   expect(f.active()).toHaveLength(0);
   f.enable(true); expect(f.active()).toHaveLength(1);
 });
+
+it('failed call join resumes standalone notes without accepting pre-join final callbacks', () => {
+  const f = setup(); f.enable(true);
+  const old = f.active()[0];
+  useCall.setState({ status: 'connecting' });
+  expect(f.active()).toHaveLength(0);
+  useCall.setState({ status: 'error', error: 'Call unavailable' });
+  expect(f.active()).toHaveLength(1);
+  old.emit(segment); expect(f.append()).toHaveLength(0);
+  f.active()[0].emit(segment); expect(f.append()).toHaveLength(1);
+});

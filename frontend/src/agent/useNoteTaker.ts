@@ -87,7 +87,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     return started && enabled && !memberMuted() && !ended && !blocked
       && useTranscription.getState().owner === owner
       && !!stored && transcriptionKey(stored) === key && useShare.getState().session?.status !== 'ended'
-      && (call.status === 'idle' || (call.status === 'live' && !call.muted));
+      && (call.status === 'idle' || call.status === 'error' || (call.status === 'live' && !call.muted));
   }
   function makeTranscriber() {
     const current = ++generation;
