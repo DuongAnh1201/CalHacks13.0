@@ -4,7 +4,7 @@ import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
-import type { ChatMessage, Cursor, Note, NoteAnchor, RemoteCursor, SessionState, ViewerCommand } from './types';
+import type { BoardRow, ChatMessage, Cursor, Note, NoteAnchor, RemoteCursor, SessionState, ViewerCommand } from './types';
 
 type Client = Pick<ConvexClient, 'query' | 'mutation' | 'action' | 'onUpdate'>;
 
@@ -150,6 +150,24 @@ export function watchNotes(onNotes: (n: Note[]) => void): () => void {
   const s = useShare.getState().stored;
   if (!client || !s) return () => {};
   return client.onUpdate(api.annotations.list, auth(s), onNotes, (e: Error) => console.error('[notes]', e));
+}
+
+/** The session board (stickies, text, strokes), oldest first. A no-op outside a session. */
+export function watchBoard(onRows: (r: BoardRow[]) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.board.list, auth(s), onRows, (e: Error) => console.error('[board]', e));
+}
+
+export type SessionFn = 'board.create' | 'board.update' | 'board.remove' | 'annotations.create' | 'annotations.remove'
+  | 'annotations.reply' | 'annotations.removeReply' | 'annotations.resolve' | 'annotations.unresolve';
+
+/** Board and comment writes. Throws with the ConvexError intact so undo can tell STALE from a real failure. */
+export async function sessionCall<T>(fn: SessionFn, args: Record<string, unknown>): Promise<T> {
+  const s = useShare.getState().stored;
+  if (!client || !s) throw new Error(NOT_CONFIGURED);
+  const [mod, name] = fn.split('.');
+  return (await client.mutation(api[mod][name], { ...auth(s), ...args })) as T;
 }
 
 /** Pins a note as this tab's participant. Returns an error message, or null. */
