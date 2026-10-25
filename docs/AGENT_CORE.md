@@ -153,3 +153,9 @@ The agent no longer has a `/learn` page: `Page` is `mri | 3d`, the tool registry
 **One recognizer (#151):** retain `transcription.ts` owner identity and generation/subscription guards. The panel-owned path and `call/transcribeLink.ts` fallback both use `createTranscriptWriter` for interim/final updates; ownership handoff stops the old recognizer/writer before starting another. Capabilities are captured per writer, and callbacks from before mute, Leave, session change or ownership handoff are ignored. Integration tests assert a peak of one active recognizer.
 
 **Ben handoff:** `AgentPanel` only adds optional `hidden`, `tabLabels`, `tabContent`, `micLabel` props; existing voice/script callers retain their content. Sage's Pons Assistant title/aria label from #149 are retained. The actual transcript/notes UI and captions live in `frontend/src/agent/MeetingNotes.tsx`. `Brain3D` and `MriWorkspace` have minimal mounts of `MeetingPanel`/`MeetingOverlay` and hide the Assistant tool when `binding.hidden`; viewer/canvas components are untouched. `/mri` now uses the shared note-taker instead of demo messages.
+
+## Meeting end without ending the session
+
+`notes.endMeeting({sessionId, participantToken})` (host only) schedules the same `finalizeSession` as `sessions.end`: final summary plus one automatic export, with the session left active. The meeting end is `transcriptSettings.meetingEndedAt` (`lib/meetingEnd.ts`); it counts until the host turns transcription on again, which starts a new meeting. A second call for the same meeting, or `sessions.end` after it, writes nothing new. The client calls it when the host leaves the call and when AI notes are switched off.
+
+The Assistant panel stays visible after the call or session ends ("Meeting ended" state, final summary or "Preparing export…", Download row) until the user closes it. The host's browser starts the download of the automatic export once; other members keep the button.
