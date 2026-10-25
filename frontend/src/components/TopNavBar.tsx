@@ -12,7 +12,7 @@ export function TopNavBar() {
       </NavLink>
       <nav className={css.links} aria-label="Main">
         <NavLink to="/explore" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Explore</NavLink>
-        <NavLink to="/play" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Play</NavLink>
+        <NavLink to="/play" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Games</NavLink>
         <NavLink to="/upload" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Upload</NavLink>
       </nav>
       <ShareControls css={css} />

@@ -1,0 +1,41 @@
+.hero { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* The light table: the same deep slate as the workspace's slice viewers. */
+.table {
+  position: relative; aspect-ratio: 1; overflow: hidden; cursor: crosshair;
+  border-radius: 28px; background: radial-gradient(120% 90% at 50% 40%, #16303d 0%, #0e1b23 62%);
+  box-shadow: 0 30px 60px -28px rgba(14, 27, 35, .55), inset 0 0 0 1px rgba(124, 196, 240, .12);
+  animation: rise 900ms cubic-bezier(.2, .7, .2, 1) 120ms both;
+}
+.table:focus-visible { outline: 3px solid var(--nv-accent); outline-offset: 4px; }
+.scan, .overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.scan { object-fit: contain; image-rendering: auto; user-select: none; }
+
+/* Outlines carry the layers; fills stay faint so the bright FLAIR signal underneath stays visible. */
+.pEdema { fill: rgba(242, 201, 76, .06); stroke: #f2c94c; stroke-width: .75; }
+.pCore { fill: rgba(242, 153, 74, .07); stroke: #f2994a; stroke-width: .75; }
+.pEnhancing { fill: rgba(235, 87, 87, .1); stroke: #eb5757; stroke-width: .85; }
+.line { stroke: #8cc8ee; stroke-width: .45; opacity: .85; }
+.ring { fill: none; stroke: #fff; stroke-width: .8; }
+
+.side { position: absolute; top: 50%; transform: translateY(-50%); font: 700 13px var(--nv-font); color: rgba(206, 228, 242, .55); pointer-events: none; }
+.sideL { left: 18px; }
+.sideR { right: 18px; }
+
+.readout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; padding: 0 6px; }
+.region { display: inline-flex; align-items: center; gap: 8px; font: 700 15px var(--nv-font); color: var(--nv-text); }
+.region::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 22%, transparent); }
+.enhancing { --dot: #eb5757; }
+.core { --dot: #f2994a; }
+.edema { --dot: #f2c94c; }
+.plain { --dot: #8aa3b3; }
+
+.planes { display: flex; gap: 18px; margin: 0; }
+.planes div { display: flex; align-items: baseline; gap: 6px; }
+.planes dt { font: 600 12px var(--nv-font); color: var(--nv-text-3); }
+.planes dd { margin: 0; min-width: 3ch; font: 700 15px var(--nv-font); font-variant-numeric: tabular-nums; color: var(--nv-primary); }
+.planes small { font-weight: 600; font-size: 11px; color: var(--nv-text-3); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .table { animation: none; } }
+@media (max-width: 520px) { .planes { gap: 12px; } .table { border-radius: 22px; } }
