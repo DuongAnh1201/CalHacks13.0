@@ -58,6 +58,7 @@ const el = {
   roomPanel: document.getElementById("room-panel"),
   scanPicker: document.getElementById("scan-picker"),
   nameInput: document.getElementById("name-input"),
+  emailInput: document.getElementById("email-input"),
   createBtn: document.getElementById("create-btn"),
   inviteInput: document.getElementById("invite-input"),
   joinBtn: document.getElementById("join-btn"),
@@ -185,7 +186,7 @@ el.joinBtn.addEventListener("click", async () => {
     return;
   }
   try {
-    const result = await client.mutation(api.sessions.join, { inviteCode, displayName });
+    const result = await client.mutation(api.sessions.join, { inviteCode, displayName, email: el.emailInput.value.trim() });
     saveMembership({
       sessionId: result.sessionId,
       participantToken: result.participantToken,

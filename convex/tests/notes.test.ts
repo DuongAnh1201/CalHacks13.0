@@ -59,7 +59,7 @@ async function addRun(t: T, over: Record<string, unknown> = {}) {
 async function room(t: T) {
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Presenter" });
-  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge" });
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Judge" });
   return { host, viewer, scope: { kind: "session", sessionId: host.sessionId, jobId: "sample" } as const };
 }
 const summaries = (t: T) => t.run((ctx) => ctx.db.query("sessionSummaries").collect());

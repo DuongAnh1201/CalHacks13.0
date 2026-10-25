@@ -69,13 +69,23 @@ export async function startShare(jobId: string): Promise<string | null> {
   } catch (e) { return messageFor(e); }
 }
 
-export async function joinShare(code: string, name: string): Promise<string | null> {
+/** Same rule as convex/lib/email.ts. */
+export const validEmail = (s: string) => s.trim().length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+
+export async function joinShare(code: string, name: string, email: string): Promise<string | null> {
   if (!client) return NOT_CONFIGURED;
   try {
-    const r = (await client.mutation(api.sessions.join, { inviteCode: code, displayName: name })) as { sessionId: string; participantToken: string; jobId: string };
+    const r = (await client.mutation(api.sessions.join, { inviteCode: code, displayName: name, email })) as { sessionId: string; participantToken: string; jobId: string };
     begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'viewer', inviteCode: code, jobId: r.jobId });
     return null;
   } catch (e) { return messageFor(e); }
+}
+
+/** Where this participant's session report goes (the host has no join form). */
+export async function setReportEmail(email: string): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.reportMail.setMyEmail, { ...auth(s), email }); return null; } catch (e) { return messageFor(e); }
 }
 
 export async function endShare(): Promise<void> {

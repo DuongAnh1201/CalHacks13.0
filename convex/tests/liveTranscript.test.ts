@@ -11,7 +11,7 @@ async function setup() {
   const t = convexTest(schema);
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
   const h = await t.mutation(api.sessions.create, { scanId, hostDisplayName: 'Host' });
-  const v = await t.mutation(api.sessions.join, { inviteCode: h.inviteCode, displayName: 'Guest' });
+  const v = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: h.inviteCode, displayName: 'Guest' });
   const cap = (x: typeof h | typeof v) => ({ sessionId: x.sessionId, participantToken: x.participantToken });
   const host = cap(h), guest = cap(v);
   const on = (enabled = true) => t.mutation(api.transcript.setEnabled, { ...host, enabled });
