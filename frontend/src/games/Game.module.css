@@ -1,0 +1,56 @@
+/* Shared by the four game views. */
+.game { display: flex; flex-direction: column; gap: 16px; font-family: var(--nv-font); color: var(--nv-text); }
+.ask { margin: 0; font: 700 20px/28px var(--nv-font); letter-spacing: -.3px; }
+.hint { margin: 0; font-size: 13px; color: var(--nv-text-2); max-width: 640px; }
+.stage { display: flex; justify-content: center; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.choice { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 2px solid transparent; border-radius: 18px; background: none; text-align: left; }
+.choice[aria-pressed='true'] { border-color: var(--nv-primary); background: var(--nv-primary-soft); }
+.choice:disabled { opacity: 1; cursor: default; }
+.choiceLabel { font: 700 14px var(--nv-font); color: var(--nv-text); padding: 0 4px 4px; }
+.options { display: flex; flex-wrap: wrap; gap: 8px; }
+.option {
+  padding: 10px 18px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill);
+  background: #fff; font: 700 14px var(--nv-font); color: var(--nv-text);
+}
+.option[aria-pressed='true'] { background: var(--nv-primary); border-color: var(--nv-primary); color: #fff; }
+.option.right { background: #2e6b47; border-color: #2e6b47; color: #fff; }
+.option:disabled:not([aria-pressed='true']):not(.right) { opacity: .5; }
+.primary { align-self: flex-start; padding: 10px 20px; border: 0; border-radius: var(--nv-radius-control); background: var(--nv-primary); color: #fff; font: 700 14px var(--nv-font); }
+.ghost { padding: 8px 14px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; font: 700 12px var(--nv-font); color: var(--nv-text); }
+.ghost[aria-pressed='true'] { background: var(--nv-primary-soft); border-color: var(--nv-primary); color: var(--nv-primary); }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; color: var(--nv-text-2); }
+.tools input[type='range'] { accent-color: var(--nv-primary); }
+
+.verdict { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 14px; background: #fff; border: 1px solid var(--nv-border); }
+.verdict p { margin: 0; font-size: 13px; color: var(--nv-text-2); }
+.verdict strong { font-size: 16px; color: var(--nv-text); }
+.good { border-color: rgba(46, 107, 71, .45); background: var(--nv-success-bg); }
+.bad { border-color: rgba(152, 39, 19, .35); background: #fbeee9; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; font-weight: 600; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.scores { display: flex; flex-wrap: wrap; gap: 10px; }
+.score { min-width: 110px; padding: 10px 14px; border-radius: 12px; background: #fff; border: 1px solid var(--nv-border); }
+.score dt { font: 600 10px/14px var(--nv-font); letter-spacing: .4px; text-transform: uppercase; color: var(--nv-text-3); }
+.score dd { margin: 2px 0 0; font: 700 22px/28px var(--nv-font); }
+
+.compass { position: absolute; font: 700 12px var(--nv-font); color: #9fd3ff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.top { top: 8px; left: 50%; transform: translateX(-50%); }
+.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.left { left: 10px; top: 50%; transform: translateY(-50%); }
+.rightSide { right: 10px; top: 50%; transform: translateY(-50%); }
+
+.note { margin: 0; font-size: 13px; color: var(--nv-text-3); }
+.error { margin: 0; font-size: 13px; color: var(--nv-accent-warm); }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; height: min(640px, calc(100vh - 260px)); min-height: 420px; }
+.pane { position: relative; min-height: 0; overflow: hidden; border-radius: 14px; background: var(--nv-canvas-bg); border: 1px solid var(--nv-border); }
+
+@media (max-width: 860px) {
+  .pair, .split { grid-template-columns: 1fr; }
+  .split { height: auto; }
+  .pane { height: 420px; }
+}
+/* The global button:disabled fade would hide which answer was picked or right. */
+.option:disabled[aria-pressed='true'], .option:disabled.right { opacity: 1; }

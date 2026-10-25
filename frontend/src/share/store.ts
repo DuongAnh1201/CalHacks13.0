@@ -2,6 +2,7 @@ import type { ConvexClient } from 'convex/browser';
 import { create } from 'zustand';
 import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
+import type { GameAnswer, GamePrompt, GameSecret, GameState } from '../games/types';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
 import type { ChatMessage, Cursor, Note, NoteAnchor, RemoteCursor, SessionState, ViewerCommand } from './types';
@@ -22,7 +23,7 @@ export function useClientForTest(c: Client | null): void { unsubscribe = null; c
 // Tokens the server no longer accepts: forget them, no banner.
 const STALE = new Set(['NOT_A_MEMBER', 'NOT_AUTHENTICATED', 'NOT_FOUND']);
 
-const auth = (s: Stored) => ({ sessionId: s.sessionId, participantToken: s.participantToken });
+const auth = (s: Pick<Stored, 'sessionId' | 'participantToken'>) => ({ sessionId: s.sessionId, participantToken: s.participantToken });
 
 function drop(notice: string | null): void {
   unsubscribe?.();
@@ -170,9 +171,47 @@ export async function sendTranscript(text: string, durationMs: number): Promise<
   try { await client.mutation(api.transcript.append, { ...auth(s), text, durationMs }); } catch (e) { console.error('[transcript]', e); }
 }
 
+/** Bind writes to the recognizer's captured credentials, never a newly joined session. */
+export async function writeTranscriptLine(s: Pick<Stored, 'sessionId' | 'participantToken'>, line: { text: string; final: boolean; durationMs: number; segmentId?: string }): Promise<{ segmentId?: string; retryAfterMs?: number; closed?: boolean }> {
+  if (!client) throw new Error(NOT_CONFIGURED);
+  return (await client.mutation(api.transcript.updateLine, { ...auth(s), ...line })) ?? {};
+}
+export async function finishTranscript(s: Pick<Stored, 'sessionId' | 'participantToken'>): Promise<void> {
+  if (client) await client.mutation(api.transcript.finishOwn, auth(s));
+}
+export async function muteTranscript(s: Pick<Stored, 'sessionId' | 'participantToken'>, muted: boolean): Promise<void> {
+  if (client) await client.mutation(api.transcript.setMuted, { ...auth(s), muted });
+}
+
 /** The host's transcript switch for this session. Returns an unsubscribe; reports false on error. */
 export function watchTranscriptEnabled(onEnabled: (on: boolean) => void): () => void {
   const s = useShare.getState().stored;
   if (!client || !s) return () => {};
   return client.onUpdate(api.transcript.state, auth(s), (r: { enabled: boolean }) => onEnabled(r.enabled), () => onEnabled(false));
+}
+
+/** Latest game round + leaderboard for this session (convex/games.ts). A no-op outside a session. */
+export function watchGame(onState: (g: GameState) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.games.current, auth(s), onState, (e: Error) => console.error('[games]', e));
+}
+
+/** Host only. Returns an error message, or null. */
+export async function startRound(prompt: GamePrompt, secret: GameSecret | null): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.games.start, { ...auth(s), prompt, ...(secret ? { secret } : {}) }); return null; } catch (e) { return messageFor(e); }
+}
+
+export async function answerRound(roundId: string, answer: GameAnswer): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.games.answer, { ...auth(s), roundId, answer }); return null; } catch (e) { return messageFor(e); }
+}
+
+export async function revealRound(roundId: string): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.games.reveal, { ...auth(s), roundId }); return null; } catch (e) { return messageFor(e); }
 }

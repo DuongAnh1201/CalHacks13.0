@@ -31,6 +31,7 @@ import { v } from "convex/values";
 import { vScene } from "./lib/viewCommands";
 import { vAuthor } from "./lib/author";
 import { vAgentStep, vHistory } from "./agent/validators";
+import { vGameAnswer, vGamePrompt, vGameResult, vGameSecret } from "./lib/games";
 
 // ---------------------------------------------------------------------------
 // Reusable validators
@@ -446,7 +447,7 @@ export default defineSchema({
   }).index("by_scope", ["scopeKey"]),
 
   // Live meeting transcript (#135). Agent-owned; shared tables are untouched.
-  // Speech-to-text runs in the browser; only the final text reaches here.
+  // Browser speech-to-text: a live utterance updates one row; legacy rows are final.
   transcriptSegments: defineTable({
     sessionId: v.id("sessions"),
     jobId: v.string(),
@@ -455,9 +456,12 @@ export default defineSchema({
     text: v.string(), // <= 500 chars
     startedAt: v.number(), // unique and increasing per session (it is the `after` cursor)
     endedAt: v.number(),
+    final: v.optional(v.boolean()), // absent on legacy (final) lines
+    updatedAt: v.optional(v.number()),
   })
     .index("by_session_time", ["sessionId", "startedAt"])
-    .index("by_participant", ["participantId"]),
+    .index("by_participant", ["participantId"])
+    .index("by_session_end", ["sessionId", "endedAt"]),
 
   // Host-controlled switch: nothing is appended unless a row says enabled.
   transcriptSettings: defineTable({
@@ -465,6 +469,12 @@ export default defineSchema({
     enabled: v.boolean(),
     updatedAt: v.number(),
     tickAt: v.optional(v.number()), // the live Scribe tick chain (#136); a tick runs only if it matches
+    promptDismissed: v.optional(v.boolean()),
+    muted: v.optional(v.array(v.id("sessionParticipants"))),
+    events: v.optional(v.array(v.object({
+      at: v.number(), participantId: v.id("sessionParticipants"), speakerName: v.string(),
+      kind: v.union(v.literal("on"), v.literal("off"), v.literal("mute"), v.literal("unmute")),
+    }))),
   }).index("by_session", ["sessionId"]),
 
   // Conservative daily reservations, shared across clients; no key means no spend.
@@ -472,5 +482,38 @@ export default defineSchema({
     day: v.string(),
     count: v.number(),
   }).index("by_day", ["day"]),
+
+  // Study games (convex/games.ts, lib/games.ts). The host runs rounds; everyone
+  // else answers once per round. `secret` is never returned while a round is open.
+  gameRounds: defineTable({
+    sessionId: v.id("sessions"),
+    prompt: vGamePrompt,
+    secret: v.optional(vGameSecret),
+    status: v.union(v.literal("open"), v.literal("revealed")),
+    startedAt: v.number(),
+  }).index("by_session", ["sessionId"]),
+
+  gameAnswers: defineTable({
+    roundId: v.id("gameRounds"),
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    displayName: v.string(),
+    answer: vGameAnswer,
+    result: vGameResult,
+    answeredAt: v.number(),
+  })
+    .index("by_round", ["roundId"])
+    .index("by_round_participant", ["roundId", "participantId"]),
+
+  /** Running totals, one row per player, so the leaderboard read stays bounded by players. */
+  gameScores: defineTable({
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    displayName: v.string(),
+    points: v.number(),
+    rounds: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_participant", ["participantId"]),
 
 });

@@ -61,3 +61,4 @@
   .dock { bottom: 72px; }
   .disclaimer { display: none; }
 }
+.play { padding: 6px 12px; border-radius: var(--nv-radius-control); background: #f2994a; color: #fff; font: 700 12px var(--nv-font); text-decoration: none; }

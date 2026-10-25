@@ -14,20 +14,29 @@ const res = (text: string, isFinal: boolean) => ({ isFinal, 0: { transcript: tex
 function setup() {
   Fake.all = [];
   let t = 1000;
-  const segs: TranscriptSegment[] = []; const errs: string[] = [];
-  const tr = createTranscriber({ onSegment: (s) => segs.push(s), onError: (c) => errs.push(c), ctor: Fake, now: () => (t += 100) });
-  return { tr, segs, errs };
+  const segs: TranscriptSegment[] = []; const interim: TranscriptSegment[] = []; const errs: string[] = [];
+  const tr = createTranscriber({ onSegment: (s) => segs.push(s), onInterim: (s) => interim.push(s), onError: (c) => errs.push(c), ctor: Fake, now: () => (t += 100) });
+  return { tr, segs, interim, errs };
 }
 
 describe('transcribe', () => {
-  it('emits only final results, with timing from the first interim to the final', () => {
+  it('settles unfinished speech on silence or explicit stop, without duplicating it', () => {
     const { tr, segs } = setup(); tr.start();
+    Fake.all[0].onresult!({ resultIndex: 0, results: [res('last words', false)] });
+    tr.stop();
+    expect(segs.map((s) => s.text)).toEqual(['last words']);
+    Fake.all[0].onend!();
+    expect(segs).toHaveLength(1);
+  });
+  it('emits interim callbacks separately and finalizes with timing from the first words', () => {
+    const { tr, segs, interim } = setup(); tr.start();
     const r = Fake.all[0];
     expect(r.interimResults).toBe(true);
     r.onresult!({ resultIndex: 0, results: [res('hel', false)] });
     expect(segs).toEqual([]);
+    expect(interim).toEqual([{ text: 'hel', startedAt: 1100, endedAt: 1200 }]);
     r.onresult!({ resultIndex: 0, results: [res('hello team', true)] });
-    expect(segs).toEqual([{ text: 'hello team', startedAt: 1100, endedAt: 1200 }]);
+    expect(segs).toEqual([{ text: 'hello team', startedAt: 1100, endedAt: 1300 }]);
   });
 
   it('restarts after silence while wanted, and stops for good on stop()', () => {

@@ -31,7 +31,7 @@ import { createClaudeClient, type ClaudeClient } from "./agent/anthropic";
 import { acceptItems, generateFinal, generateNote, ITEM_MAX_CHARS, type FinalParts } from "./agent/scribe";
 import { reserveDailyRun } from "./agent";
 import { requireParticipant } from "./lib/auth";
-import { MAX_SEGMENT_MS, TICK_MS } from "./transcript";
+import { TICK_MS } from "./transcript";
 import { appError } from "./lib/errors";
 import { insertSummary, latestSummary, type SummaryScope } from "./lib/summaries";
 import { allowedNumbers, composeFinalSummary, type FinalFacts } from "./lib/finalSummary";
@@ -138,17 +138,15 @@ async function collect(
   }
 
   if (scope.kind === "session") {
-    // Segments are stamped at append time (endedAt) but start earlier, so look back one
-    // maximum segment length and filter on endedAt, the watermark the note advances by.
+    // Finalization stamps endedAt, so a long-lived interim row is never skipped by the watermark.
     const sid = scope.sessionId;
     const rows = await ctx.db
       .query("transcriptSegments")
-      .withIndex("by_session_time", (q) =>
-        q.eq("sessionId", sid).gt("startedAt", Math.max(0, since - MAX_SEGMENT_MS)),
-      )
+      .withIndex("by_session_end", (q) => q.eq("sessionId", sid).gt("endedAt", since))
+      .filter((q) => q.neq(q.field("final"), false))
       .take(200);
     const fresh = rows
-      .filter((x) => x.jobId === scope.jobId && x.endedAt > since)
+      .filter((x) => x.final !== false && x.jobId === scope.jobId && x.endedAt > since)
       .sort((a, b) => a.endedAt - b.endedAt)
       .slice(0, MAX_SEGMENTS);
     for (const x of fresh) {

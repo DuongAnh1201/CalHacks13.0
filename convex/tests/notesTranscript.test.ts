@@ -57,6 +57,29 @@ const summaries = (t: T) => t.run((ctx) => ctx.db.query("sessionSummaries").coll
 const envelope = (req: ClaudeRequest) => JSON.parse(req.messages[0].content as string).untrusted;
 
 describe("transcript in the live notes (#136)", () => {
+  it("excludes interim speech from notes until the same row finalizes, even across an older watermark", async () => {
+    const t = convexTest(schema);
+    const { host, viewer, scope } = await room(t);
+    vi.stubEnv("ANTHROPIC_API_KEY", "k");
+    const { segmentId } = await t.mutation(api.transcript.updateLine, { ...viewer, text: "unfinished words", final: false });
+    const fake = fakeClient("Meeting discussion.");
+    expect((await runNotes(ctxOf(t), scope, fake)).status).toBe("unchanged");
+    expect(fake.complete).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(8000);
+    await say(t, host, "a final remark");
+    await t.mutation(api.transcript.updateLine, { ...viewer, segmentId, text: "unfinished words", final: false });
+    await runNotes(ctxOf(t), scope, fake);
+    expect(envelope(fake.complete.mock.calls[0][0]).events.transcript.map((s: { text: string }) => s.text)).toEqual(["a final remark"]);
+    // Keep this utterance live for over a minute; no stale cleanup should settle it early.
+    for (let i = 0; i < 9; i++) {
+      await vi.advanceTimersByTimeAsync(8000);
+      await t.mutation(api.transcript.updateLine, { ...viewer, segmentId, text: "unfinished words", final: false });
+    }
+    await vi.advanceTimersByTimeAsync(400);
+    await t.mutation(api.transcript.updateLine, { ...viewer, segmentId, text: "finished words", final: true });
+    await runNotes(ctxOf(t), scope, fake);
+    expect(envelope(fake.complete.mock.calls[1][0]).events.transcript.map((s: { text: string }) => s.text)).toEqual(["finished words"]);
+  });
   it("feeds new segments to Scribe as untrusted data with the speaker, and a transcript alone triggers an update", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "k");
     const t = convexTest(schema);

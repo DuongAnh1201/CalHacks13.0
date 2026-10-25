@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { ApiError, getReport } from '../api/client';
 import type { Report } from '../api/types';
 import { initCase } from '../actions/dispatch';
-import { AgentPanel } from '../components/agent/AgentPanel';
-import { demoMessages } from '../components/agent/demo';
-import type { AgentMessage } from '../components/agent/types';
+import { MeetingOverlay, MeetingPanel } from '../agent/MeetingNotes';
+import { useNoteTaker } from '../agent/useNoteTaker';
 import { InfoIcon, PinIcon, SparkIcon } from '../components/workspace/icons';
 import { Workspace, type Tool } from '../components/workspace/Workspace';
 import { scanMmToIndices, useNoteUi } from '../share/notes';
@@ -23,8 +22,7 @@ type Phase = 'loading' | 'ready' | 'redirect' | 'unknown' | 'offline' | 'api';
 
 export default function MriWorkspace() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const noteTaker = useNoteTaker(id);
   const [report, setReport] = useState<Report | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [apiMessage, setApiMessage] = useState('');
@@ -53,7 +51,6 @@ export default function MriWorkspace() {
     getReport(id, ac.signal).then((r) => {
       if (ac.signal.aborted) return;
       initCase({ jobId: id, hasTumor: r.tumorDetected, structureIds: new Set(), bboxMm: r.brain.bboxMm });
-      setMessages(demoMessages(r, 'mri'));
       setReport(r);
       setPhase('ready');
     }).catch((e: unknown) => {
@@ -72,18 +69,12 @@ export default function MriWorkspace() {
   const tools: Tool[] = ready ? [
     { id: 'info', label: 'Case info', icon: <InfoIcon />, panel: <CaseInfo report={ready} /> },
     { id: 'notes', label: 'Notes', icon: <PinIcon />, badge: notes.length, panel: <NotesPanel report={ready} notes={notes} mode="mri" crosshair={readCrosshair} /> },
-    {
-      id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: (
-        <div className={css.agent}>
-          <AgentPanel messages={messages} status="offline" onConfirm={() => navigate(`/jobs/${id}/3d`)}
-            onDismiss={() => setMessages((m) => m.filter((x) => x.kind !== 'confirm'))} />
-        </div>
-      ),
-    },
+    ...(!noteTaker.hidden ? [{ id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><MeetingPanel binding={noteTaker} /></div> }] : []),
   ] : [];
 
   return (
     <Workspace jobId={id} title={ready ? caseTitle(ready) : 'Loading case…'} tools={tools}>
+      <MeetingOverlay binding={noteTaker} />
       {phase === 'loading' && <p className={css.status}>Loading results…</p>}
       {phase === 'unknown' && (
         <div className={css.status}>
