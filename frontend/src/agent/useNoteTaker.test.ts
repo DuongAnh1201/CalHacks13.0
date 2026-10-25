@@ -1,8 +1,15 @@
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNoteTakerController, EXPORT_LINE, NO_SESSION, OFFLINE_NOTE_TAKER, type Creds, type NoteTakerClient } from './useNoteTaker';
+import { useTranscription } from './transcription';
+import { useShare } from '../share/store';
+import { useCall } from '../call/store';
 import type { Transcriber, TranscriptSegment } from './transcribe';
+
+const controllers: ReturnType<typeof createNoteTakerController>[] = [];
+beforeEach(() => useTranscription.setState({ memberKey: null, muted: false, owner: null }));
+afterEach(() => controllers.splice(0).forEach((c) => c.dispose()));
 
 type Ref = Parameters<typeof getFunctionName>[0];
 const seg = (id: string, speakerName: string, text: string, at: number) => ({ segmentId: id, speakerName, text, startedAt: at - 500, endedAt: at });
@@ -34,6 +41,8 @@ function fakeTranscriber(supported = true) {
 const HOST: Creds = { sessionId: 's1', participantToken: 'host-tok', jobId: 'sample', role: 'host' };
 const VIEWER: Creds = { sessionId: 's1', participantToken: 'view-tok', jobId: 'sample', role: 'viewer' };
 function setup(creds: Creds = HOST, opts: { supported?: boolean; mutation?: (n: string, a: unknown) => unknown } = {}) {
+  useShare.setState({ stored: { ...creds, inviteCode: 'A' }, session: null });
+  useCall.setState({ status: 'idle', muted: false });
   const f = fakeClient({ mutation: opts.mutation });
   const tr = fakeTranscriber(opts.supported ?? true);
   const download = vi.fn();
@@ -46,6 +55,7 @@ function setup(creds: Creds = HOST, opts: { supported?: boolean; mutation?: (n: 
     client: f.client, creds, makeTranscriber: tr.make, download, formatTime: (ms) => `t${ms}`, now: () => 1000,
     getCanvas: () => ({}) as HTMLCanvasElement, capture: capture as never, upload: upload as never,
   });
+  controllers.push(ctl);
   ctl.start();
   return { f, tr, ctl, download, capture, upload };
 }
@@ -82,7 +92,7 @@ describe('mic, transcription banner and local capture', () => {
     await ctl.onMic();
     expect(f.mutations('transcript:setEnabled')[0][2]).toEqual({ sessionId: 's1', participantToken: 'host-tok', enabled: true });
     f.live('transcript:state').push({ enabled: true }); // the server answers through the live query
-    expect(texts(ctl)[0]).toMatch(/^Transcribing/);
+    expect(texts(ctl)[0]).toMatch(/^Transcription is on/);
     expect(tr.t.running).toBe(true);
     expect(ctl.getState().status).toBe('listening');
 
@@ -102,7 +112,7 @@ describe('mic, transcription banner and local capture', () => {
     expect(f.mutations('transcript:setEnabled')).toHaveLength(0);
     expect(tr.t.running).toBe(false);
     expect(ctl.getState().status).toBe('ready');
-    expect(texts(ctl).slice(0, 2)).toEqual([expect.stringMatching(/^Transcribing/), expect.stringMatching(/You are muted/)]);
+    expect(texts(ctl).slice(0, 2)).toEqual([expect.stringMatching(/^Transcription is on/), expect.stringMatching(/You are muted/)]);
     await ctl.onMic();
     expect(tr.t.running).toBe(true);
     expect(ctl.getState().status).toBe('listening');

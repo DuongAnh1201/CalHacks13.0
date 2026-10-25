@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AgentMessage, AgentPanelProps } from '../components/agent/types';
 import { api, convex } from '../share/client';
 import { useShare } from '../share/store';
+import { useCall } from '../call/store';
+import { transcriptionKey, useTranscription } from './transcription';
 import { captureCanvas, uploadScreenshot, type CapturedImage, type ScreenshotUpload } from './screenshot';
 import { createTranscriber, type Transcriber, type TranscriptSegment } from './transcribe';
 
@@ -49,7 +51,7 @@ function defaultDownload(url: string, filename: string) {
 
 export const EXPORT_LINE = 'Export summary';
 export const NO_SESSION = 'Start a live session to take notes';
-const BANNER = 'Transcribing · everyone in this session is transcribed in their own browser. Audio stays on your device; only the final text is shared.';
+const BANNER = 'Transcription is on for this session. Only final text is shared with the notes.';
 
 /** All logic of the note-taker panel. No React in here, so it is tested with a fake Convex client. */
 export function createNoteTakerController(deps: NoteTakerDeps) {
@@ -61,7 +63,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
 
   const segments = new Map<string, Segment>();
   let note: NoteView | null = null;
-  let enabled = false, muted = false, ended = false, blocked = false, failed = false, notice: string | null = null;
+  let enabled = false, ended = false, blocked = false, failed = false, notice: string | null = null;
   let stops: (() => void)[] = [];
   let stopTranscript: (() => void) | null = null;
   let started = false;
@@ -73,26 +75,45 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
   const listeners = new Set<() => void>();
   let state: NoteTakerState = { messages: [], status: 'ready' };
 
-  const transcriber = deps.makeTranscriber({
-    onSegment: (s) => {
-      if (ended) return;
-      client.mutation(api.transcript.append, { ...auth, text: s.text, durationMs: Math.max(0, s.endedAt - s.startedAt) }).catch((e: unknown) => {
-        const code = codeOf(e);
-        if (code === 'SESSION_ENDED') markEnded();
-        else if (code !== 'NOT_ALLOWED') { notice = 'A transcript line could not be saved.'; publish(); }
-      });
-    },
-    onError: (code) => {
-      if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') blocked = true;
-      syncCapture(); publish();
-    },
-  });
+  const key = transcriptionKey(creds);
+  const owner = { key };
+  let generation = 0;
+  let subscriptionGeneration = 0;
+  let captureStops: (() => void)[] = [];
+  const memberMuted = () => { const s = useTranscription.getState(); return s.memberKey === key && s.muted; };
+  function canCapture() {
+    const call = useCall.getState();
+    const stored = useShare.getState().stored;
+    return started && enabled && !memberMuted() && !ended && !blocked
+      && useTranscription.getState().owner === owner
+      && !!stored && transcriptionKey(stored) === key && useShare.getState().session?.status !== 'ended'
+      && (call.status === 'idle' || call.status === 'error' || (call.status === 'live' && !call.muted));
+  }
+  function makeTranscriber() {
+    const current = ++generation;
+    return deps.makeTranscriber({
+      onSegment: (s) => {
+        if (current !== generation || !canCapture()) return;
+        client.mutation(api.transcript.append, { ...auth, text: s.text, durationMs: Math.max(0, s.endedAt - s.startedAt) }).catch((e: unknown) => {
+          const code = codeOf(e);
+          if (code === 'SESSION_ENDED') markEnded();
+          else if (code !== 'NOT_ALLOWED') { notice = 'A transcript line could not be saved.'; publish(); }
+        });
+      },
+      onError: (code) => {
+        if (current !== generation || !canCapture()) return;
+        if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') blocked = true;
+        syncCapture(); publish();
+      },
+    });
+  }
+  let transcriber = makeTranscriber();
 
   const capturing = () => transcriber.running();
   function syncCapture() {
-    const want = enabled && !muted && !ended && !blocked && transcriber.supported;
-    if (want && !transcriber.running()) transcriber.start();
-    if (!want && transcriber.running()) transcriber.stop();
+    const want = canCapture() && transcriber.supported;
+    if (!want && transcriber.running()) { generation++; transcriber.stop(); }
+    if (want && !transcriber.running()) { transcriber = makeTranscriber(); transcriber.start(); }
   }
 
   function compute(): NoteTakerState {
@@ -101,9 +122,13 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     if (ended) sys('Meeting ended. The final summary and export link appear below.');
     else if (enabled) {
       sys(BANNER);
+      if (useCall.getState().status === 'live') sys('Voice call audio is carried by LiveKit.');
       if (!transcriber.supported) sys("This browser can't transcribe speech. You will still see everyone else's lines.");
       else if (blocked) sys('Microphone blocked. Allow it in the browser to transcribe your speech.');
-      else if (muted) sys('You are muted: your speech is not transcribed.');
+      else if (memberMuted()) sys('You are muted: your speech is not transcribed.');
+      else if (useCall.getState().status === 'live' && useCall.getState().muted) sys('Your call is muted: your speech is not transcribed.');
+      else if (capturing()) sys('Transcribing your speech.');
+      else sys('Your speech is not being transcribed.');
     } else sys(host ? 'Transcription is off. Press the mic to start it for everyone.' : 'Transcription is off. The host can start it.');
     if (notice) sys(notice);
 
@@ -189,9 +214,13 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     /** Opens the live subscriptions. Safe to call again after dispose (React StrictMode). */
     start() {
       if (started) return;
-      started = true; failed = false;
+      started = true; failed = false; enabled = false;
+      const subscription = ++subscriptionGeneration;
+      useTranscription.setState({ owner });
+      const sync = () => { syncCapture(); publish(); };
+      captureStops = [useCall.subscribe(sync), useTranscription.subscribe(sync), useShare.subscribe(sync)];
       stops = [
-        client.onUpdate(api.transcript.state, auth, ((r: { enabled: boolean }) => { enabled = r.enabled; syncCapture(); publish(); }) as (v: never) => void, fail),
+        client.onUpdate(api.transcript.state, auth, ((r: { enabled: boolean }) => { if (!started || subscription !== subscriptionGeneration) return; enabled = r.enabled; syncCapture(); publish(); }) as (v: never) => void, fail),
         client.onUpdate(api.notes.forSession, auth, ((r: NoteView | null) => { note = r; publish(); }) as (v: never) => void, fail),
       ];
       if (host) stops.push(client.onUpdate(api.screenshots.events, { ...auth, jobId: creds.jobId, since }, ((events: ShotEvent[]) => { if (!ended) for (const e of events) void present(e); }) as (v: never) => void, () => {}));
@@ -204,7 +233,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
       if (host) {
         try {
           await client.mutation(api.transcript.setEnabled, { ...auth, enabled: !enabled });
-          muted = false; blocked = false; notice = null;
+          blocked = false; notice = null;
         } catch (e) {
           if (codeOf(e) === 'SESSION_ENDED') markEnded();
           else { notice = 'Could not change transcription. Try again.'; publish(); }
@@ -212,7 +241,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
         return;
       }
       if (!enabled) return;
-      muted = !muted;
+      useTranscription.setState({ memberKey: key, muted: !memberMuted() });
       syncCapture(); publish();
     },
     /** Script lines. "Export summary" builds a manual export of the meeting so far (members only, same builder). */
@@ -234,10 +263,14 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     },
     markEnded,
     dispose() {
+      started = false;
+      subscriptionGeneration++;
+      generation++;
       if (transcriber.running()) transcriber.stop();
+      captureStops.forEach((s) => s()); captureStops = [];
+      if (useTranscription.getState().owner === owner) useTranscription.setState({ owner: null });
       stops.forEach((s) => s()); stops = [];
       stopTranscript?.(); stopTranscript = null;
-      started = false;
     },
   };
 }

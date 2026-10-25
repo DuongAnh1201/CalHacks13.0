@@ -22,6 +22,7 @@ import type * as agent_validators from "../agent/validators.js";
 import type * as agent_viewerTools from "../agent/viewerTools.js";
 import type * as agentPrompts from "../agentPrompts.js";
 import type * as annotations from "../annotations.js";
+import type * as call from "../call.js";
 import type * as cursors from "../cursors.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
@@ -89,6 +90,7 @@ declare const fullApi: ApiFromModules<{
   "agent/viewerTools": typeof agent_viewerTools;
   agentPrompts: typeof agentPrompts;
   annotations: typeof annotations;
+  call: typeof call;
   cursors: typeof cursors;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
