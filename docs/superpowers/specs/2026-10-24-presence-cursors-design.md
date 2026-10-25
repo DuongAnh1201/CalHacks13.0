@@ -1,10 +1,10 @@
 # Presence + 3D cursors (case pages) — design
 
-Date: 2026-10-24 · Status: approved by user; revised 2026-10-24 to remove Learning Mode · Sub-project 1 of the NeuroVision collaborative-workspace brief
+Date: 2026-10-24 · Status: approved by user; revised 2026-10-24 to remove Learning Mode; revised again 2026-10-24 to reconcile with main (§R) · Sub-project 1 of the NeuroVision collaborative-workspace brief
 
 ## Goal
 
-People in a live session of the sample case see who is online right now (heartbeat-based, expires) and see each other's pointer as a live 3D point on the model on `/jobs/sample/3d`. This builds on the existing MRI/3D share flow (W2): Share popover, Join link, roster, Follow banner. Nothing about how a session is created or joined changes.
+People in a live session of a shared case see who is online right now (heartbeat-based, expires) and see each other's pointer as a live 3D point on the model on `/jobs/<id>/3d`. This builds on the existing MRI/3D share flow (W2): Share popover, Join link, roster, Follow banner. Nothing about how a session is created or joined changes.
 
 ## Decisions
 
@@ -12,9 +12,9 @@ People in a live session of the sample case see who is online right now (heartbe
 |---|---|
 | First sub-project of the brief | Presence + 3D cursors. The rest of the brief (infinite canvas, spatial objects, 4-role workspaces, medical tools, Miro toolset) gets its own spec → plan cycles later. |
 | What a "cursor" is | Raycast hit on the model: `{node, localMm}`, the hit point in the hit mesh's local frame. Others see a coloured dot + name chip. Hidden when the pointer is off the model. No camera ghosts, no screen-space arrows. |
-| Pages | Cursors on `/jobs/sample/3d` only. Presence (face pile, online dots) shows on every case page while a session is active (`/mri` and `/3d`). |
+| Pages | Cursors on `/jobs/<id>/3d` of the session's case (any shared scan, as on main since `154ff7b`). Presence (face pile, online dots) shows on every case page while a session is active (`/mri` and `/3d`). |
 | Learning Mode (`/learn`) | **Removed from the app** (user decision, 2026-10-24: redundant next to the MRI flow). See §0. `sessions` is not widened. |
-| Presence transport | `@convex-dev/presence` on the server, plus our own thin client loop on the existing `ConvexClient`. The stock `usePresence` hook is **not** used: its `heartbeat` args are fixed (`roomId, userId, sessionId, interval`), so there is no slot for our participant token. It also needs a `ConvexProvider`, which would be a second websocket. |
+| Presence transport | **Superseded by §R:** main's Phase 3 presence (`8b779f2`, `6fc8bad`) is used as is. Original text: `@convex-dev/presence` on the server, plus our own thin client loop on the existing `ConvexClient`. The stock `usePresence` hook is **not** used: its `heartbeat` args are fixed (`roomId, userId, sessionId, interval`), so there is no slot for our participant token. It also needs a `ConvexProvider`, which would be a second websocket. |
 | Cursor transport | Separate `cursors` table, one row per participant, ≤ 10 Hz, written only on change. It never touches `sessions` / `sessionParticipants`, so `sessions.get` does not re-run at cursor rate. |
 | Convex review | Sage reviews the PR before merge (schema change + bends guardrail 7, see Limits). |
 
@@ -26,8 +26,29 @@ People in a live session of the sample case see who is online right now (heartbe
 - Camera-pose sync or camera ghosts. An off-screen indicator for a cursor outside the view.
 - Owner / Editor / Commenter / Viewer roles. Roles stay `host | viewer`.
 - Presence `data` / metadata from the component.
-- Uploaded jobs (still sample case only, unchanged from W2).
 - Hashed tokens, single-use invites (accepted demo limits, `docs/CONVEX_BACKEND.md`).
+
+## R. Reconcile with main (2026-10-24, user chose merge-and-reconcile)
+
+Main gained its own presence while this branch was open: Phase 3 (`8b779f2` server, `357a551` roster dots + QR, `6fc8bad` hidden tab stays online), plus chat (`983982d`), any-finished-scan sharing (`154ff7b`) and camera follow (`16074cd`). Merge `origin/main` into this branch and keep main wherever both did the same job.
+
+- **Main wins, ours dropped:**
+  - `convex/presence.ts` + its test. Main's heartbeat args are the stock hook's `{ roomId, userId, sessionId, interval }`, with `userId` = participant token, checked server-side.
+  - `convex/convex.config.ts`, `vitest.config.ts`.
+  - `frontend/src/share/presence.ts` + its test.
+  - Presence wiring in `store.ts`.
+  - `SharePopover` online dots.
+  - Identity stays server-derived either way, so the security property of §1.1 holds.
+- **Ours kept, unchanged in behaviour:**
+  - §0 Learning Mode removal.
+  - The `cursors` table and `cursors.move` / `list`, plus the `sessions.end` cleanup.
+  - `cursorSync.ts`, `RemoteCursors.tsx`, the `sendCursor` / `watchCursors` store functions and the `Cursor` types.
+  - `FacePile` (reads main's `useShare.online`, the same name and type as ours) and its case-route guard.
+- **Changed:**
+  - Cursors run on whichever case the session reviews (`stored.jobId === jobId`), not only `sample`.
+  - `CaseCanvas` carries both main's `camera` prop (follow) and our pointer handlers.
+- **Hidden tabs:** main keeps a hidden tab online by design (`6fc8bad`), so the §2.1 "hidden → disconnect" behaviour and its manual check are void.
+- Where §1.1, the `presence.ts` row of §2.1 and the presence tests of §4 disagree with this section, this section wins.
 
 ## 0. Remove Learning Mode (frontend)
 
@@ -133,6 +154,7 @@ The local frame is explode-safe because each receiver re-projects through its ow
 **Manual (two browsers)**
 - `/jobs/sample/mri` and `/3d`: avatars appear on join, and disappear after a tab close within the timeout (or at once via the beacon).
 - `/jobs/sample/3d`: cursors track correctly across different explode values per browser.
+- After §R: a following guest sees the host's camera move and the host's cursor together. If a finished non-sample job exists, cursors work on its `/3d` too.
 - `/learn` redirects to `/`. Home has no Learning Mode entry.
 
 **Gates:** `npm run typecheck` (also proves the MCP still finds both atlas JSON files), `npm test` (root), `npm --prefix frontend run build`, `npm --prefix frontend test`.

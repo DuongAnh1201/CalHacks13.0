@@ -15,7 +15,7 @@
 - React 19, react-three-fiber 9, drei 10, three 0.186, zustand 5.
 - Frontend vitest uses the node env, runs `src/**/*.test.ts` only, and has no DOM.
 
-Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: Learning Mode removed, T0).
+Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: Learning Mode removed, T0; reconciled with main, spec §R → tasks R1–R5 below. **T0–T7 are done; only R1–R5 are open.**)
 
 ## Global Constraints
 
@@ -30,7 +30,7 @@ Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: L
 - **Cursor sends:** ≤ 10 Hz (trailing 100 ms throttle), only on change, best-effort (errors are swallowed).
 - **Presence heartbeat:** interval 10 000 ms. The component times a tab out after 2.5 × interval.
 - **Frontend Convex types:** no codegen. Use `anyApi` plus hand-written mirror types in `frontend/src/share/types.ts`.
-- **Sharing scope:** sample case only (`jobId === 'sample'`), as in W2.
+- **Sharing scope:** sample case only (`jobId === 'sample'`), as in W2. **Superseded by R4:** any case the session reviews (`stored.jobId`), as on main.
 - **Out of scope:**
   - Cursors on `/mri`. Backend `/learn` cleanup (`convex/agent/eval/*`, `convex/mcp/*`, `convex/exportDoc.ts`, `convex/lib/export*.ts`, `backend/atlas/*`).
   - Only T0 (fe) touches the Learning Mode files. Nobody deletes `frontend/public/atlas/structures.json` or `frontend/src/content/anatomy.json` (`convex/mcp/data.ts` imports both).
@@ -1488,6 +1488,123 @@ Expected: all exit 0. Paste failures verbatim.
 3. Send `hc send lead "T7: <n> PASS / <m> FAIL, commit <hash>"`, and send each FAIL to its owner.
 
 The PR needs Sage's review (schema change + guardrail 7). Do not open it unless the user asks.
+
+---
+
+## Reconcile with main (R1–R5) — open
+
+Spec §R. Main has its own presence (Phase 3), chat, any-scan sharing and camera follow. One merge commit takes main's presence and keeps our cursors, face pile and Learn removal. Then one small commit widens cursors to any shared case.
+
+**Merge-time rules (override "Worker rules" for R1–R3 only):**
+- **be only:** be runs `git merge --no-ff --no-commit origin/main` once, in R1. Nobody else runs `merge`, and nobody runs `merge --abort` without lead.
+- **No commits while the merge is open.** The first `git commit` would seal the merge; only ai commits it, at the end of R3. qa does not commit until R5.
+- **Conflict files:** resolve only your rows of the table below, then `git add <path>` them.
+- **Hand-off:** be → fe → ai, by `hc send`.
+- **Local servers:** lead's `npx convex dev` and `npm --prefix frontend run dev` keep running. Convex re-pushes and regenerates `convex/_generated/` by itself once `convex/` has no conflict markers. Its log is at `/private/tmp/claude-501/-Users-kaydee-Developer-CalHacks13-0/278d7b85-2157-4412-b9ca-aaf8eab96b5e/scratchpad/convex-dev.log`.
+
+**Resolution table** (`git checkout --theirs <path>` = take main):
+
+| Path | Resolution | Owner |
+|---|---|---|
+| `convex/presence.ts` | main's | be |
+| `convex/tests/presence.test.ts` | main's | be |
+| `convex/convex.config.ts` | main's | be |
+| `vitest.config.ts` | main's (inlines `@convex-dev/presence` + `@convex-dev/batch-worker`) | be |
+| `convex/_generated/api.d.ts` | take main's, then let `convex dev` regenerate it. It must list `cursors`, `presence`, `messages` and `jobs`. | be |
+| `package.json`, `package-lock.json`, `frontend/package*.json` (auto-merged) | run `npm install` and `npm --prefix frontend install` (main added `react-qr-code`). Stage any lock change. | be |
+| `docs/CONVEX_BACKEND.md` (auto-merged) | main's §12 is the presence doc. Our cursors text must not describe the old heartbeat args (`clientId`, `participantToken`); fix or remove any line that does. | be |
+| `convex/schema.ts`, `convex/sessions.ts` (auto-merged) | check that `cursors` table + `sessions.end` cursor cleanup survived alongside main's tables (`messages` …) | be |
+| `frontend/src/share/presence.ts`, `presence.test.ts` | main's | fe |
+| `frontend/src/share/SharePopover.tsx` | main's (online dots + QR) | fe |
+| `frontend/src/share/SharePopover.module.css` (auto-merged) | check main's `.qr`, `.on`, `.off` and our face-pile classes are all present, no duplicates | fe |
+| `frontend/src/share/store.ts` | main's, then append our `sendCursor` + `watchCursors` verbatim (code below) and add `Cursor, RemoteCursor` to the `./types` import | fe |
+| `frontend/src/share/store.test.ts` | main's, then append our `describe('cursors', …)` block verbatim from `git show HEAD:frontend/src/share/store.test.ts` | fe |
+| `frontend/src/share/types.ts` | both: main's `setCamera` variant + `ChatMessage`, then our `Cursor` + `RemoteCursor` | fe |
+| `frontend/src/share/client.ts` (auto-merged) | exactly one `convexUrl` export: main's `string \| undefined` line. Delete ours (`string`, `''` when unset). | fe |
+| `frontend/src/routes/Brain3D.tsx` | both: main's `SessionChat`, `useCameraShare`, `camera={camera}`; our `../components/ExplodeSlider` + `../components/StatusPill` imports (no `../learn/*`) | fe |
+| `frontend/src/viewer/CaseCanvas.tsx` | both: main's `cameraSync` import, `CameraShare` + `camera?` prop, the three camera effects; our `cursorOf` + `RemoteCursors` imports, `live`/`push`, pointer handlers, `<RemoteCursors>`, our HOME comment | ai |
+
+Store tail to append (fe, R2), unchanged from T4:
+
+```ts
+/** Any role. Best-effort: a dropped point is replaced by the next one. */
+export function sendCursor(cursor: Cursor | null): void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return;
+  client.mutation(api.cursors.move, { ...auth(s), cursor }).catch(() => {});
+}
+
+/** Everyone else's cursors in this room. An end or stale token is handled by the sessions.get subscription. */
+export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.cursors.list, auth(s), onRows, () => onRows([]));
+}
+```
+
+### Task R1: Start merge, resolve Convex + root (be)
+
+- [ ] `git status` is clean, then run `git merge --no-ff --no-commit origin/main`. Expected conflicts: the 13 paths in the table (`convex/*`, `vitest.config.ts`, `frontend/*`).
+- [ ] Resolve your rows, then `git add` them by path. Leave frontend conflicts untouched.
+- [ ] Run `npm install && npm --prefix frontend install`.
+- [ ] Wait until the convex-dev log shows a successful push after your resolution, then check `grep -c "cursors\|presence" convex/_generated/api.d.ts` > 0 and `git add convex/_generated`.
+- [ ] Run `npm run typecheck && npm test` (root = `convex/` only; main's presence tests replace ours). Expected: exit 0.
+- [ ] `hc send fe "R1 done: convex side resolved, <n> root tests pass; your rows next"`. Send nothing to lead unless blocked.
+
+### Task R2: Resolve frontend share + Brain3D (fe)
+
+- [ ] Run `impact` (or grep) on `useShare`, `startPresence`, `SharePopover`, `Brain3D`.
+- [ ] Resolve your rows per the table, then `git add` them by path.
+- [ ] `grep -rn "<<<<<<<\|>>>>>>>" frontend/src` → only `viewer/CaseCanvas.tsx` remains.
+- [ ] `hc send ai "R2 done: your row (CaseCanvas) next"`.
+
+### Task R3: Resolve CaseCanvas, run all gates, commit the merge (ai)
+
+- [ ] Run `impact` on `CaseScene`, `CaseCanvas`.
+- [ ] Resolve `CaseCanvas.tsx` per the table, keeping `live = jobId === 'sample'` for now (R4 widens it). Then `git add` it.
+- [ ] `git diff --name-only --diff-filter=U` → empty, and `grep -rn "<<<<<<<" convex frontend/src docs` → empty.
+- [ ] Gates: `npm run typecheck && npm test && npm --prefix frontend test && npm --prefix frontend run build`. Expected: all exit 0. Paste failures verbatim. A failure in someone else's row goes back to that owner by `hc send`; do not fix it yourself.
+- [ ] `detect_changes({scope: "compare", base_ref: "main"})` (or `git diff --stat origin/main`): only this branch's files differ from main.
+- [ ] Commit: `git commit -m "Merge origin/main into agents/presence-cursors" -m "Take main's Phase 3 presence (server, client, roster dots); keep cursors, face pile and Learning Mode removal." -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
+- [ ] Do R4 next, then `hc send qa "R3+R4 ready: <merge hash> <R4 hash>"` and `hc send lead "R3 done: <merge hash>, R4 done: <hash>, <root n>/<frontend n> tests"`.
+
+### Task R4: Cursors on any shared case (ai)
+
+**Files:** Modify `frontend/src/viewer/CaseCanvas.tsx` (the `live` line only); import `useShare` from `../share/store`.
+
+- [ ] Replace
+
+```ts
+  const live = jobId === 'sample'; // sharing is sample-only (W2)
+```
+
+with
+
+```ts
+  const live = useShare((s) => s.stored?.jobId === jobId); // cursors on the case this session reviews; useCursorPush / RemoteCursors also require an active session
+```
+
+- [ ] Gates: `npm --prefix frontend test && npm --prefix frontend run build`. Expected: exit 0.
+- [ ] Commit `feat(share): live 3D cursors on any shared case`, with the trailer.
+
+### Task R5: Review + gates + browser re-run (qa)
+
+- [ ] **Merge review.** Check `git show --stat <merge>` and `git diff origin/main..HEAD --stat`. Every path that differs from main must be in T0–T5 or R4's rows. Main's `convex/presence.ts`, `frontend/src/share/presence.ts` and `SharePopover.tsx` must be byte-identical to main's: `git diff origin/main HEAD -- <path>` prints nothing.
+- [ ] **R4 review.** `git show <R4>`: one-line gate change plus the import.
+- [ ] **Gates.** Run `npm run typecheck && npm test && npm --prefix frontend run build && npm --prefix frontend test`, then paste the counts.
+- [ ] **Browser** (servers are already running; ask lead only if one is down). Re-run T7 Step 3, with these changes:
+  - drop the "hide the guest tab → offline" line, because main keeps hidden tabs online by design;
+  - add "a following guest sees the host's camera move and the host's cursor at the same time";
+  - add "if a finished non-sample job exists (`GET http://localhost:8000/jobs`, or the Home list), share it and check cursors on its `/3d`". Otherwise mark that line SKIP and say why.
+  - add "Session chat still sends both ways".
+- [ ] **Report.** Append "## Re-run after merge with main" to `docs/qa/2026-10-24-presence-cursors/README.md`, one PASS/FAIL/SKIP per line. Commit it with the trailer. Send `hc send lead "R5: <n> PASS / <m> FAIL / <k> SKIP, commit <hash>"`, and send each FAIL to its owner.
+
+Reconcile prompts (lead sends):
+
+- **be:** "You are be. Plan `docs/superpowers/plans/2026-10-24-presence-cursors.md`, section 'Reconcile with main (R1–R5)'. Do **R1** exactly as written: superpowers:executing-plans inline, no subagents. You are the only one allowed to run `git merge`, once. Do not commit. Hand off to fe with `hc send fe`. Message lead only if blocked."
+- **fe:** "You are fe. Same plan, section 'Reconcile with main'. Wait for be's 'R1 done', then do **R2**: your table rows only, no commit. Hand off to ai with `hc send ai`. Message lead only if blocked."
+- **ai:** "You are ai. Same plan, section 'Reconcile with main'. Wait for fe's 'R2 done', then do **R3** (you commit the merge) and **R4**. Send owners' gate failures back to them. Done message to qa + lead per the plan."
+- **qa:** "You are qa. Same plan, section 'Reconcile with main'. Do not commit anything while the merge is open. Wait for ai's 'R3+R4 ready', then do **R5**. Report to lead per the plan."
 
 ---
 
