@@ -11,3 +11,7 @@ const target = (url: string) => {
 
 it('/results redirects to /mri', () => expect(target('/jobs/abc/results')).toBe('/jobs/abc/mri'));
 it('/explore redirects to /3d', () => expect(target('/jobs/abc/explore')).toBe('/jobs/abc/3d'));
+it('/learn redirects home', () => {
+  expect(target('/learn')).toBe('/');
+  expect(target('/learn/ab12cd34')).toBe('/');
+});

@@ -35,3 +35,7 @@ export type ViewerCommand =
 
 /** Mirror of convex/messages.ts PublicMessage. */
 export interface ChatMessage { messageId: string; role: 'user' | 'assistant'; author: 'human' | 'agent'; authorName: string; text: string; createdAt: number }
+
+/** A pointer on the model: hit point in the hit mesh's local frame (convex/cursors.ts). */
+export interface Cursor { node: string; localMm: [number, number, number] }
+export interface RemoteCursor { participantId: string; displayName: string; cursor: Cursor | null }

@@ -28,9 +28,9 @@
 
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireSessionMember } from "./lib/auth";
-import { annotationFor } from "./lib/author";
+import { annotationFor, type ResolvedCaller } from "./lib/author";
 import { appError } from "./lib/errors";
 import { isVoxelInBounds, rasMmToVoxel, type Vec3 } from "./lib/transform";
 import { vAnnotationAnchor } from "./schema";
@@ -82,38 +82,13 @@ export const create = mutation({
   },
   handler: async (ctx, args): Promise<{ annotationId: Id<"annotations"> }> => {
     const { session, participant } = await requireSessionMember(ctx, args);
-    const scan = await loadScan(ctx, session.scanId);
-
-    const text = args.text.trim();
-    if (text.length === 0) {
-      throw appError("INVALID_ARGUMENT", "An annotation needs some text.");
-    }
-    if (text.length > MAX_ANNOTATION_LENGTH) {
-      throw appError(
-        "INVALID_ARGUMENT",
-        `An annotation can be at most ${MAX_ANNOTATION_LENGTH} characters.`,
-      );
-    }
-
-    const anchor = validateAnchor(scan, args.anchor);
-
-    const existing = await sessionAnnotations(ctx, session._id);
-    if (existing.length >= MAX_ANNOTATIONS_PER_SESSION) {
-      throw appError(
-        "INVALID_ARGUMENT",
-        `A session can hold at most ${MAX_ANNOTATIONS_PER_SESSION} annotations. Remove some first.`,
-      );
-    }
-
-    const annotationId = await ctx.db.insert("annotations", {
-      ...annotationFor({ kind: "human", displayName: participant.displayName, source: "ui" }),
-      jobId: scan.jobId,
-      sessionId: session._id,
+    const annotationId = await insertAnnotation(ctx, {
+      session,
+      text: args.text,
+      anchor: args.anchor,
+      caller: { kind: "human", displayName: participant.displayName, source: "ui" },
       authorParticipantId: participant._id,
-      text,
-      anchor,
     });
-
     return { annotationId };
   },
 });
@@ -130,25 +105,7 @@ export const list = query({
   },
   handler: async (ctx, args): Promise<PublicAnnotation[]> => {
     const { session, participant } = await requireSessionMember(ctx, args);
-    const isHost = isSessionHost(session, participant);
-
-    const rows = await sessionAnnotations(ctx, session._id);
-    const out: PublicAnnotation[] = [];
-    for (const a of rows) {
-      if (a.status === "dismissed") continue;
-      out.push({
-        annotationId: a._id,
-        text: a.text,
-        anchor: a.anchor,
-        status: a.status,
-        author: a.author,
-        authorName: a.authorName,
-        createdAt: a.createdAt,
-        canRemove: isHost || a.authorParticipantId === participant._id,
-      });
-    }
-    out.sort((a, b) => a.createdAt - b.createdAt);
-    return out;
+    return await listLiveAnnotations(ctx, session, participant);
   },
 });
 
@@ -167,7 +124,6 @@ export const remove = mutation({
   },
   handler: async (ctx, args): Promise<{ removed: true }> => {
     const { session, participant } = await requireSessionMember(ctx, args);
-
     const annotation = await ctx.db.get(args.annotationId);
     if (annotation === null || annotation.sessionId !== session._id) {
       throw appError("NOT_FOUND", "That annotation does not exist in this session.");
@@ -178,6 +134,160 @@ export const remove = mutation({
       throw appError("NOT_ALLOWED", "Only the author or the host can remove this annotation.");
     }
 
+    await ctx.db.delete(annotation._id);
+    return { removed: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Shared logic (human mutations above and the agent/MCP functions below)
+// ---------------------------------------------------------------------------
+
+/**
+ * The ONLY write path for new annotation rows: validates text, anchor and the
+ * per-session cap, then stamps attribution from a server-resolved caller.
+ * Callers must have authenticated before calling this.
+ */
+export async function insertAnnotation(
+  ctx: MutationCtx,
+  args: {
+    session: Doc<"sessions">;
+    text: string;
+    anchor: Anchor;
+    caller: ResolvedCaller;
+    authorParticipantId?: Id<"sessionParticipants">;
+  },
+): Promise<Id<"annotations">> {
+  const { session } = args;
+  const scan = await loadScan(ctx, session.scanId);
+
+  const text = args.text.trim();
+  if (text.length === 0) {
+    throw appError("INVALID_ARGUMENT", "An annotation needs some text.");
+  }
+  if (text.length > MAX_ANNOTATION_LENGTH) {
+    throw appError(
+      "INVALID_ARGUMENT",
+      `An annotation can be at most ${MAX_ANNOTATION_LENGTH} characters.`,
+    );
+  }
+
+  const anchor = validateAnchor(scan, args.anchor);
+
+  const existing = await sessionAnnotations(ctx, session._id);
+  if (existing.length >= MAX_ANNOTATIONS_PER_SESSION) {
+    throw appError(
+      "INVALID_ARGUMENT",
+      `A session can hold at most ${MAX_ANNOTATIONS_PER_SESSION} annotations. Remove some first.`,
+    );
+  }
+
+  return await ctx.db.insert("annotations", {
+    ...annotationFor(args.caller),
+    jobId: scan.jobId,
+    sessionId: session._id,
+    ...(args.authorParticipantId ? { authorParticipantId: args.authorParticipantId } : {}),
+    text,
+    anchor,
+  });
+}
+
+/** Live (not dismissed) notes, oldest first, with `canRemove` for the caller. */
+export async function listLiveAnnotations(
+  ctx: QueryCtx,
+  session: Doc<"sessions">,
+  participant: Doc<"sessionParticipants">,
+  canRemoveRow: (a: Doc<"annotations">) => boolean = (a) =>
+    isSessionHost(session, participant) || a.authorParticipantId === participant._id,
+): Promise<PublicAnnotation[]> {
+  const rows = await sessionAnnotations(ctx, session._id);
+  const out: PublicAnnotation[] = [];
+  for (const a of rows) {
+    if (a.status === "dismissed") continue;
+    out.push({
+      annotationId: a._id,
+      text: a.text,
+      anchor: a.anchor,
+      status: a.status,
+      author: a.author,
+      authorName: a.authorName,
+      createdAt: a.createdAt,
+      canRemove: canRemoveRow(a),
+    });
+  }
+  out.sort((a, b) => a.createdAt - b.createdAt);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Agent side (MCP, #54). Internal only: never callable from a client.
+//
+// `sessionId` + `participantToken` is the human-issued capability that lets an
+// agent act in a room (same rule as export_document); the MCP service token
+// alone is not membership. The agent name comes from the authenticated MCP
+// adapter, never from tool arguments.
+// ---------------------------------------------------------------------------
+
+const vAgentName = v.union(
+  v.literal("Claude Desktop"),
+  v.literal("Navigator"),
+  v.literal("Anatomy tutor"),
+  v.literal("Scribe"),
+);
+
+/** An agent may only withdraw its own (same name) MCP-authored notes. */
+function isOwnAgentNote(a: Doc<"annotations">, agentName: string): boolean {
+  return a.author === "agent" && a.source === "mcp" && a.authorName === agentName;
+}
+
+export const agentAdd = internalMutation({
+  args: {
+    sessionId: v.id("sessions"),
+    participantToken: v.string(),
+    agentName: vAgentName,
+    text: v.string(),
+    anchor: vAnnotationAnchor,
+  },
+  handler: async (ctx, args): Promise<{ annotationId: Id<"annotations">; status: "suggested" }> => {
+    const { session } = await requireSessionMember(ctx, args);
+    const annotationId = await insertAnnotation(ctx, {
+      session,
+      text: args.text,
+      anchor: args.anchor,
+      caller: { kind: "agent", name: args.agentName, source: "mcp" },
+    });
+    return { annotationId, status: "suggested" };
+  },
+});
+
+export const agentList = internalQuery({
+  args: {
+    sessionId: v.id("sessions"),
+    participantToken: v.string(),
+    agentName: vAgentName,
+  },
+  handler: async (ctx, args): Promise<PublicAnnotation[]> => {
+    const { session, participant } = await requireSessionMember(ctx, args);
+    return await listLiveAnnotations(ctx, session, participant, (a) => isOwnAgentNote(a, args.agentName));
+  },
+});
+
+export const agentRemove = internalMutation({
+  args: {
+    sessionId: v.id("sessions"),
+    participantToken: v.string(),
+    agentName: vAgentName,
+    annotationId: v.id("annotations"),
+  },
+  handler: async (ctx, args): Promise<{ removed: true }> => {
+    const { session } = await requireSessionMember(ctx, args);
+    const annotation = await ctx.db.get(args.annotationId);
+    if (annotation === null || annotation.sessionId !== session._id) {
+      throw appError("NOT_FOUND", "That annotation does not exist in this session.");
+    }
+    if (!isOwnAgentNote(annotation, args.agentName)) {
+      throw appError("NOT_ALLOWED", "An agent can only remove its own notes.");
+    }
     await ctx.db.delete(annotation._id);
     return { removed: true };
   },
