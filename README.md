@@ -28,6 +28,11 @@ Built at **CalHacks 13.0** (36 hours).
 
 ## Architecture
 
+![Lobe system architecture](docs/assets/architecture.png)
+
+<details>
+<summary>Text version</summary>
+
 ```
                     4 NIfTI sequences (T1c, T1, T2, FLAIR)
                                    │
@@ -54,6 +59,8 @@ Built at **CalHacks 13.0** (36 hours).
      LiveKit Cloud                                                   ▲
                                               mcp/stdio.mjs ── Claude Desktop / Claude Code
 ```
+
+</details>
 
 Brain and tumor meshes come from the **same scan and affine**, so they share one coordinate frame and no template registration is needed. See SPEC §5.
 
