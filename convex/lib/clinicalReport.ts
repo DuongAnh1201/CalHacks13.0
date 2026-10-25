@@ -1,3 +1,4 @@
+import type { Doc } from "../_generated/dataModel";
 import { Document, ExternalHyperlink, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { BANNED_EXPORT_WORDS, EXPORT_NOTICE, exportText, offset, type ExportSnapshot } from "./exportMarkdown";
 import type { ExportReport } from "./exportReport";
@@ -10,7 +11,7 @@ const INTERIM_SUMMARY = "Interim summary (the final summary could not be written
 const TRANSCRIPT_NOTE = "Speech-to-text from the participants' browsers. It may contain recognition errors.";
 const REGIONS = [["whole", "Whole tumor"], ["core", "Tumor core"], ["enhancing", "Enhancing tumor"]] as const;
 
-export interface ReportInput { jobId: string; endedAt: number; participants: string[]; report: ExportReport | null; data: ExportSnapshot }
+export interface ReportInput { jobId: string; endedAt: number; participants: string[]; report: ExportReport | null; data: ExportSnapshot; board?: Doc<"boardItems">[]; replies?: Doc<"annotationReplies">[] }
 /** Format-neutral report; every string is already redacted, not yet escaped. */
 export interface ReportDoc {
   caseId: string;
@@ -20,7 +21,9 @@ export interface ReportDoc {
   measurements: [string, string][] | null;
   summary: string | null;
   summaryInterim: boolean;
-  annotations: { author: string; anchor: string; text: string; status: string }[];
+  annotations: { author: string; anchor: string; text: string; status: string; resolved: boolean; replies: { author: string; text: string }[] }[];
+  board: { author: string; kind: "Sticky" | "Text"; color: string | null; text: string }[];
+  sketches: number;
   chat: { at: string; author: string; text: string }[];
   screenshots: { at: string; caption: string; url: string | null }[];
   transcript: { at: string; speaker: string; text: string }[];
@@ -44,7 +47,7 @@ function measurements(r: ExportReport): [string, string][] {
   return rows;
 }
 
-export function buildReportDoc({ jobId, endedAt, participants, report, data }: ReportInput): ReportDoc {
+export function buildReportDoc({ jobId, endedAt, participants, report, data, board = [], replies = [] }: ReportInput): ReportDoc {
   return {
     caseId: clean(jobId),
     date: `${new Date(endedAt).toISOString().slice(0, 10)} (UTC)`,
@@ -58,7 +61,15 @@ export function buildReportDoc({ jobId, endedAt, participants, report, data }: R
         : row.anchor.kind === "point" ? `point (${row.anchor.ras_mm.join(", ")}) mm` : "tumor",
       text: clean(row.text),
       status: clean(row.status),
+      resolved: row.resolvedAt != null,
+      replies: replies.filter((r) => r.annotationId === row._id).sort((a, b) => a.createdAt - b.createdAt)
+        .map((r) => ({ author: clean(`${r.author === "human" ? "Human" : "AI"}: ${r.authorName}`), text: clean(r.text) })),
     })),
+    board: board.slice().sort((a, b) => a.createdAt - b.createdAt).flatMap((r) => r.item.kind === "stroke" ? [] : [{
+      author: clean(r.authorName), kind: r.item.kind === "sticky" ? "Sticky" as const : "Text" as const,
+      color: r.item.kind === "sticky" ? r.item.color : null, text: clean(r.item.text),
+    }]),
+    sketches: board.filter((r) => r.item.kind === "stroke").length,
     chat: data.messages.slice().sort((a, b) => a.createdAt - b.createdAt).map((row) => ({
       at: offset(row.createdAt, data.startedAt),
       author: clean(`${row.author === "human" ? "Human" : "AI"}: ${row.authorName}`),
@@ -74,6 +85,8 @@ export function buildReportDoc({ jobId, endedAt, participants, report, data }: R
   };
 }
 
+const sketchLine = (n: number) => n ? `${n} sketch${n === 1 ? " was" : "es were"} drawn on the board.` : "";
+
 export function renderMarkdown(doc: ReportDoc, t = exportText): string {
   return [
     `# ${REPORT_TITLE}`,
@@ -83,7 +96,8 @@ export function renderMarkdown(doc: ReportDoc, t = exportText): string {
       ? ["Measure | Value", "--- | ---", ...doc.measurements.map(([k, v]) => `${k} | ${t(v)}`)].join("\n") + `\n\n${CERTAINTY_NOTE}`
       : "Measurements unavailable."),
     "## Session discussion\n\n" + (doc.summaryInterim ? `**${INTERIM_SUMMARY}**\n\n` : "") + (doc.summary ? t(doc.summary) : "Summary unavailable."),
-    "## Annotations\n\n" + (doc.annotations.map((a) => `- **${t(a.author)}** · ${t(a.status)} · ${t(a.anchor)}: ${t(a.text)}`).join("\n") || "No annotations."),
+    "## Annotations\n\n" + (doc.annotations.map((a) => `- **${t(a.author)}** · ${t(a.status)} · ${t(a.anchor)}${a.resolved ? " · resolved" : ""}: ${t(a.text)}${a.replies.map((r) => `\n  - ↳ **${t(r.author)}**: ${t(r.text)}`).join("")}`).join("\n") || "No annotations."),
+    "## Sticky notes & text\n\n" + ([...doc.board.map((b) => `- **${t(b.author)}** · ${b.kind}${b.color ? ` (${b.color})` : ""}: ${t(b.text)}`), sketchLine(doc.sketches)].filter(Boolean).join("\n") || "Nothing was added to the board."),
     "## Chat\n\n" + (doc.chat.map((r) => `- ${r.at} **${t(r.author)}**: ${t(r.text)}`).join("\n") || "No chat was recorded."),
     "## Screenshots\n\n" + (doc.screenshots.map((s) => `- ${s.at} ${t(s.caption)} · ${s.url ? `[View screenshot](${s.url})` : "image unavailable"}`).join("\n") || "No screenshots were taken."),
     `## Transcript\n\n${TRANSCRIPT_NOTE}\n\n` + (doc.transcript.map((r) => `- ${r.at} **${t(r.speaker)}**: ${t(r.text)}`).join("\n") || "No transcript was recorded."),
@@ -109,7 +123,10 @@ export function renderHtml(doc: ReportDoc): string {
     + section("Measurements (model output)", doc.measurements ? pairs(doc.measurements) + para(CERTAINTY_NOTE) : para("Measurements unavailable."))
     + section("Session discussion", (doc.summaryInterim ? para(INTERIM_SUMMARY) : "") + para(doc.summary ?? "Summary unavailable."))
     + section("Annotations", doc.annotations.length
-      ? `<ul>${doc.annotations.map((a) => `<li><b>${esc(a.author)}</b> · ${esc(a.status)} · ${esc(a.anchor)}: ${esc(a.text)}</li>`).join("")}</ul>` : para("No annotations."))
+      ? `<ul>${doc.annotations.map((a) => `<li><b>${esc(a.author)}</b> · ${esc(a.status)} · ${esc(a.anchor)}${a.resolved ? " · resolved" : ""}: ${esc(a.text)}${a.replies.length ? `<ul>${a.replies.map((r) => `<li><b>${esc(r.author)}</b>: ${esc(r.text)}</li>`).join("")}</ul>` : ""}</li>`).join("")}</ul>` : para("No annotations."))
+    + section("Sticky notes & text", (doc.board.length
+      ? `<ul>${doc.board.map((b) => `<li><b>${esc(b.author)}</b> · ${b.kind}${b.color ? ` (${esc(b.color)})` : ""}: ${esc(b.text)}</li>`).join("")}</ul>` : doc.sketches ? "" : para("Nothing was added to the board."))
+      + (doc.sketches ? para(sketchLine(doc.sketches)) : ""))
     + section("Chat", doc.chat.length ? pairs(doc.chat.map((r) => [`${r.at} ${r.author}`, r.text])) : para("No chat was recorded."))
     + section("Screenshots", doc.screenshots.length
       ? `<ul>${doc.screenshots.map((s) => `<li>${s.at} ${esc(s.caption)} · ${s.url ? `<a href="${esc(s.url)}">View screenshot</a>` : "image unavailable"}</li>`).join("")}</ul>` : para("No screenshots were taken."))
@@ -137,7 +154,10 @@ export async function renderDocx(doc: ReportDoc): Promise<string> {
     ...(doc.summaryInterim ? [p(INTERIM_SUMMARY)] : []),
     ...(doc.summary ?? "Summary unavailable.").split("\n").map(p),
     h2("Annotations"),
-    ...(doc.annotations.length ? doc.annotations.map((a) => p(`${a.author} · ${a.status} · ${a.anchor}: ${a.text}`)) : [p("No annotations.")]),
+    ...(doc.annotations.length ? doc.annotations.flatMap((a) => [p(`${a.author} · ${a.status} · ${a.anchor}${a.resolved ? " · resolved" : ""}: ${a.text}`), ...a.replies.map((r) => p(`↳ ${r.author}: ${r.text}`))]) : [p("No annotations.")]),
+    h2("Sticky notes & text"),
+    ...doc.board.map((b) => p(`${b.author} · ${b.kind}${b.color ? ` (${b.color})` : ""}: ${b.text}`)),
+    ...(doc.sketches ? [p(sketchLine(doc.sketches))] : doc.board.length ? [] : [p("Nothing was added to the board.")]),
     h2("Chat"),
     ...(doc.chat.length ? [table(doc.chat.map((r) => [`${r.at} ${r.author}`, r.text]))] : [p("No chat was recorded.")]),
     h2("Screenshots"),

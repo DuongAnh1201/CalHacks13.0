@@ -44,6 +44,11 @@ describe("report mail", () => {
   it("sends one report per recipient, once", async () => {
     const spy = sendFetch;
     const { t, host, end, rows } = await room();
+    const auth = { sessionId: host.sessionId, participantToken: host.participantToken };
+    await t.mutation(api.board.create, { ...auth, item: { kind: "sticky", anchor: { kind: "tumor" }, text: "Board reminder", color: "pink" } });
+    const { annotationId } = await t.mutation(api.annotations.create, { ...auth, anchor: { kind: "tumor" }, text: "Comment root" });
+    await t.mutation(api.annotations.reply, { ...auth, annotationId, text: "Thread reply" });
+    await t.mutation(api.annotations.resolve, { ...auth, annotationId });
     await end();
     await t.action(internal.reportMail.send, { sessionId: host.sessionId });
     await t.action(internal.reportMail.send, { sessionId: host.sessionId });
@@ -55,6 +60,9 @@ describe("report mail", () => {
     expect(spy.mock.calls[0][1]).toMatchObject({ method: "POST", headers: { Authorization: "Bearer test-key", "Content-Type": "application/json" } });
     expect(spy.mock.calls.map((c) => JSON.parse(c[1]!.body as string).to).sort()).toEqual(["sage@example.com", "tom@example.com"]);
     const args = JSON.parse(spy.mock.calls[0][1]!.body as string);
+    expect(args.text).toContain("Board reminder");
+    expect(args.text).toContain("Thread reply");
+    expect(args.text).toContain("resolved");
     expect(args.subject).toBe("Neuro Imaging Session Report — sample");
     expect(args.html).toContain("Educational visualization; not clinically validated");
     expect(args.attachments?.map((a: { filename: string }) => a.filename)).toEqual(["report.md", "report.docx"]);
