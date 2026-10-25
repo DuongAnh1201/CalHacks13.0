@@ -11,7 +11,10 @@ async function main() {
   const url = new URL(process.env.NEURO_MCP_URL);
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(url.hostname))) throw new Error('NEURO_MCP_URL must use HTTPS (HTTP allowed only for local testing).');
   const remote = new Client({ name:'neuro-mcp-stdio', version:'0.1.0' });
-  await remote.connect(new StreamableHTTPClientTransport(url, { requestInit:{ headers:{ Authorization:`Bearer ${process.env.MCP_TOKEN}` } } }));
+  await remote.connect(new StreamableHTTPClientTransport(url, { requestInit:{ headers:{ Authorization:`Bearer ${process.env.MCP_TOKEN}`,
+    ...(process.env.NEURO_SESSION_ID ? { 'X-Neuro-Session-Id': process.env.NEURO_SESSION_ID } : {}),
+    ...(process.env.NEURO_PARTICIPANT_TOKEN ? { 'X-Neuro-Participant-Token': process.env.NEURO_PARTICIPANT_TOKEN } : {}),
+  } } }));
   const server = new Server({ name:'neuro-mcp',version:'0.1.0' }, { capabilities:{tools:{},resources:{}} });
   server.setRequestHandler(ListToolsRequestSchema, req=>remote.listTools(req.params));
   server.setRequestHandler(CallToolRequestSchema, req=>remote.callTool(req.params));
