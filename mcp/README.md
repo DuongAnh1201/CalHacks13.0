@@ -21,6 +21,7 @@ Strict object schemas (unknown properties rejected), snake_case names:
 | `explain_structure` | `name`, optional `depth: brief/detailed` | anatomy.json + atlas structures.json; bilateral names return both sides |
 | `explain_finding` | optional `job_id`, `page` | fixed template over report.json |
 | `get_tumor_metrics` | optional `job_id`, `page`, `fields[]` | original volumesCm3, side, lesionCount, centroid/bbox, source, expertDice, certainty; sizeCm derives bbox extent / 10 |
+| `summarize_tumor` | optional `job_id`, `page` | read-only card built by code from report.json, no model: side, lesion count, volume and outline certainty per region, source line (AI vs expert segmentation), the 3D layer names (edema, core, enhancing), and `No tumor detected in this scan` when relevant. `page: "learn"` or no job returns no report |
 | `get_report` | optional `job_id`, `page` | original scan facts/report with model metadata |
 | `search` | `query`, optional `sources: [atlas,report]`, `job_id`, `page` | atlas name/group and report field/value matches with source URIs |
 | `post_message` | `job_id`, `text`, optional `session_id`, `participant_token` | shared trimmed 1–2000-character AI message; requires room capability |

@@ -22,6 +22,9 @@ import { toolRegistry } from "./agent/viewerTools";
 import { vAgentStep, vHistory } from "./agent/validators";
 import { createClaudeClient } from "./agent/anthropic";
 import { runLoop, safeReply } from "./agent/loop";
+import { buildTumorCard, tumorSummaryIntent } from "./lib/tumorSummary";
+import { fileData } from "./mcp/data";
+import { config as mcpConfig } from "./mcp/config";
 import { openAgentMcp } from "./agent/mcpClient";
 import { redactToolArgs } from "./agent/redact";
 import { insertMessage, MAX_MESSAGE_LENGTH, publicMessage } from "./lib/messages";
@@ -117,7 +120,8 @@ export async function reserveDailyRun(ctx: MutationCtx, now: number): Promise<st
   return day;
 }
 async function reserveSpend(ctx: MutationCtx, text: string, now: number) {
-  if (settings.ANTHROPIC_API_KEY && classifyHint(text) === null)
+  // The code-built tumor summary never calls Claude, so it never takes a daily run.
+  if (settings.ANTHROPIC_API_KEY && classifyHint(text) === null && !tumorSummaryIntent(text))
     return await reserveDailyRun(ctx, now);
   return undefined;
 }
@@ -312,6 +316,7 @@ export const claim = internalMutation({
     if (
       settings.ANTHROPIC_API_KEY &&
       classifyHint(row.text) === null &&
+      !tumorSummaryIntent(row.text) &&
       spendDay !== new Date(Date.now()).toISOString().slice(0, 10)
     ) {
       try {
@@ -382,6 +387,31 @@ export const run = internalAction({
         agent: "Router",
         error: "PAGE_REMOVED",
       });
+      return null;
+    }
+    if (row.jobId && tumorSummaryIntent(row.text)) {
+      // Fast path: the exact "summarize the tumor" ask is answered by code from report.json.
+      // No Claude call and no API key needed; follow-up questions use the normal loop.
+      const started = Date.now();
+      try {
+        const report = await fileData(mcpConfig.IMAGING_API_URL).readReport(row.jobId);
+        const reply = report ? buildTumorCard(report).text : "There is no report for this case.";
+        await ctx.runMutation(stepRef, {
+          runId,
+          step: {
+            id: `${runId}:summarize_tumor`, tool: "summarize_tumor", args: {}, ok: Boolean(report),
+            message: report ? "Summary built from report.json." : "No report for this case.",
+            ms: Math.max(0, Date.now() - started), kind: "mcp",
+          },
+        });
+        await ctx.runMutation(finishRef, { runId, reply, agent: "Router", error: null });
+        const fastScope = noteScope(row);
+        if (fastScope && settings.ANTHROPIC_API_KEY) await ctx.runMutation(scheduleNotesRef, { scope: fastScope }).catch(() => null);
+      } catch {
+        await ctx.runMutation(finishRef, {
+          runId, reply: "The report is unavailable right now. Please try again.", agent: "Router", error: "AGENT_ERROR",
+        });
+      }
       return null;
     }
     try {

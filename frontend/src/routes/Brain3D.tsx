@@ -9,7 +9,7 @@ import { ApiError, getReport, modelUrl } from '../api/client';
 import type { Report } from '../api/types';
 import checkIcon from '../assets/figma/7e35a.svg';
 import { AgentPanel } from '../components/agent/AgentPanel';
-import { demoMessages } from '../components/agent/demo';
+import { useAgent } from '../agent/useAgent';
 import { ExplodeSlider } from '../components/ExplodeSlider';
 import { HomeIcon, InfoIcon, PinIcon, SlidersIcon, SparkIcon, TargetIcon } from '../components/workspace/icons';
 import { Workspace, type Tool } from '../components/workspace/Workspace';
@@ -50,6 +50,8 @@ class LoadBoundary extends Component<{ id: string; onFail: (failed: boolean) => 
   }
 }
 
+const SUMMARY_SCRIPT = ['Summarize tumor'];
+
 export default function Brain3D() {
   const { id = '' } = useParams();
   const [attempt, setAttempt] = useState(0);
@@ -87,6 +89,7 @@ export default function Brain3D() {
 
   const result = res?.key === key ? res.result : null;
   useShareSync(id, '3d', result?.kind === 'ready');
+  const agent = useAgent('3d', id);
   const camera = useCameraShare(id);
   if (result?.kind === 'pending') return <Navigate to={`/jobs/${id}/processing`} replace />;
 
@@ -147,7 +150,7 @@ export default function Brain3D() {
     { id: 'info', label: 'Case info', icon: <InfoIcon />, panel: <CaseInfo report={report} /> },
     { id: 'notes', label: 'Notes', icon: <PinIcon />, badge: notes.length, panel: <NotesPanel report={report} notes={notes} mode="3d" /> },
     { id: 'view', label: 'View', icon: <SlidersIcon />, panel: view },
-    { id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><AgentPanel messages={demoMessages(report, '3d')} status="offline" /></div> },
+    { id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><AgentPanel {...agent} script={SUMMARY_SCRIPT} /></div> },
   ] : [];
 
   const dock = report && !modelFailed && (

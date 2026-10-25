@@ -372,6 +372,7 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
             if (
               [
                 "get_report",
+                "summarize_tumor",
                 "get_tumor_metrics",
                 "explain_finding",
                 "search",

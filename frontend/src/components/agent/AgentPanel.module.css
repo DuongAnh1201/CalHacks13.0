@@ -26,7 +26,7 @@
 .system img { vertical-align: middle; margin-right: 8px; }
 .user { display: flex; flex-direction: column; gap: 4px; width: 280px; max-width: 100%; margin-left: auto; padding: 10px 12px; background: var(--nv-primary); color: #fff; border-radius: 10px; font-size: 12px; font-weight: 600; }
 .user .meta { display: inline-flex; align-items: center; gap: 6px; color: #cfe0eb; font-size: 10px; font-weight: 600; }
-.agent { display: flex; flex-direction: column; gap: 8px; font-size: 12px; font-weight: 500; }
+.agent { display: flex; flex-direction: column; gap: 8px; font-size: 12px; font-weight: 500; white-space: pre-line; }
 .meta { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 500; color: var(--nv-text-3); }
 .meta b { font-size: 11px; font-weight: 700; color: var(--nv-primary); }
 .calls { display: flex; flex-direction: column; gap: 4px; }

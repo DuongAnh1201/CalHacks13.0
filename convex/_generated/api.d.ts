@@ -41,6 +41,7 @@ import type * as lib_screenshotPolicy from "../lib/screenshotPolicy.js";
 import type * as lib_summaries from "../lib/summaries.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_transform from "../lib/transform.js";
+import type * as lib_tumorSummary from "../lib/tumorSummary.js";
 import type * as lib_viewCommands from "../lib/viewCommands.js";
 import type * as mcp_annotationTools from "../mcp/annotationTools.js";
 import type * as mcp_config from "../mcp/config.js";
@@ -108,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   "lib/summaries": typeof lib_summaries;
   "lib/tokens": typeof lib_tokens;
   "lib/transform": typeof lib_transform;
+  "lib/tumorSummary": typeof lib_tumorSummary;
   "lib/viewCommands": typeof lib_viewCommands;
   "mcp/annotationTools": typeof mcp_annotationTools;
   "mcp/config": typeof mcp_config;

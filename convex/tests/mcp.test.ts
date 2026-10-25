@@ -26,9 +26,9 @@ async function tool(name: string, args: unknown, data?: KnowledgeData) {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('neuro-mcp tools over the real stateless SDK transport', () => {
-  it('lists five snake_case tools with closed JSON schemas and both resource types', async () => {
+  it('lists six snake_case tools with closed JSON schemas and both resource types', async () => {
     const { result } = await rpc('tools/list');
-    expect(result.tools.map((t: {name: string}) => t.name).sort()).toEqual(['explain_finding','explain_structure','get_report','get_tumor_metrics','search']);
+    expect(result.tools.map((t: {name: string}) => t.name).sort()).toEqual(['explain_finding','explain_structure','get_report','get_tumor_metrics','search','summarize_tumor']);
     for (const entry of result.tools) {
       expect(entry.name).toMatch(/^[a-z_]+$/);
       expect(entry.inputSchema.additionalProperties).toBe(false);

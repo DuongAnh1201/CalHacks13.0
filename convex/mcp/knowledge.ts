@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { anatomy, atlas, MISSING_REPORT, NO_TUMOR, NOTICE, reportFor, type KnowledgeData } from "./data";
 import { knowledgeSchemas } from "./definitions";
+import { buildTumorCard } from "../lib/tumorSummary";
 
 const blocked = /\b(diagnos\w*|prognos\w*|survival|malignant|benign|healthy|treatment)\b/i;
 /** File text is data, not instructions. Apply the wording guard to every reply. */
@@ -39,6 +40,11 @@ export function registerKnowledge(server: McpServer, data: KnowledgeData) {
   server.registerTool('get_report', { description: 'Read actual report.json scan facts and model metadata. No job or atlas page means no patient report.', inputSchema: knowledgeSchemas.get_report, annotations }, async args => {
     const { report, message } = await reportFor(data, args);
     return result({ report, message, source: report ? `report://${report.jobId}` : null });
+  });
+  server.registerTool('summarize_tumor', { description: 'Read-only tumor summary card built by code from report.json (no model): side, lesion count, volume and outline certainty per region, the segmentation source, and the 3D layer names. Returns "No tumor detected in this scan" when there is none. Prefer this for "summarize the tumor" requests and show its text unchanged.', inputSchema: knowledgeSchemas.summarize_tumor, annotations }, async args => {
+    const { report, message } = await reportFor(data, args);
+    if (!report) return result({ message, card: null, source: null });
+    return result({ source: `report://${report.jobId}`, message: report.tumorDetected ? null : NO_TUMOR, card: buildTumorCard(report) });
   });
   server.registerTool('get_tumor_metrics', { description: 'Read exact report volumes, side, lesion count, source, expertDice and outline certainty. sizeCm is bbox extent in mm divided by 10, not a tissue interpretation.', inputSchema: knowledgeSchemas.get_tumor_metrics, annotations }, async args => {
     const { report, message } = await reportFor(data, args);
