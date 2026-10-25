@@ -76,7 +76,6 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
       )}
 
       {dock && <div className={css.dock}>{dock}</div>}
-      <p className={css.disclaimer}>Educational visualization — not for diagnosis or surgical planning.</p>
       <ChatDock />
     </div>
   );

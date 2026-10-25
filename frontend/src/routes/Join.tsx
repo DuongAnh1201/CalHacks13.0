@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { NOT_CONFIGURED } from '../share/copy';
 import { joinShare, shareConfigured, useShare } from '../share/store';
@@ -41,7 +40,6 @@ export default function Join() {
         {!ready && <p role="status">{NOT_CONFIGURED}</p>}
         {error && <p role="alert">{error}</p>}
       </main>
-      <Footer />
     </div>
   );
 }
