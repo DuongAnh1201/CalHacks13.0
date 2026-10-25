@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, getLibrary } from '../api/client';
 import type { LibraryCase } from '../api/types';
-import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { saveWorkspace } from '../home/workspaces';
 import css from './Explore.module.css';
@@ -90,7 +89,6 @@ export default function Explore() {
         </ul>
         <p className={css.credit}>Cases from the Medical Segmentation Decathlon (BraTS), CC-BY-SA 4.0. For learning only, not for diagnosis.</p>
       </main>
-      <Footer />
     </div>
   );
 }

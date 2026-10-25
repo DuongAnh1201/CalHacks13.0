@@ -14,4 +14,3 @@
 .rows dd { margin: 0; color: var(--nv-text); text-align: right; overflow-wrap: anywhere; }
 .mono { font-family: var(--nv-mono); }
 .export { align-self: flex-start; padding: 7px 12px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; color: var(--nv-primary); font: 700 12px var(--nv-font); text-decoration: none; }
-.limits { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--nv-text-3); }

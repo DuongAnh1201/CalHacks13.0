@@ -1,6 +1,6 @@
 import type { Report } from '../api/types';
 import { segUrl } from '../api/client';
-import { SAMPLES, SEQUENCE_LABEL, SEQUENCES, type Sequence } from '../api/upload';
+import { SEQUENCE_LABEL, SEQUENCES, type Sequence } from '../api/upload';
 import { Legend } from '../components/Legend';
 import css from './CaseInfo.module.css';
 import { certaintyText, cm3, headline, sideLabel } from './summary';
@@ -15,7 +15,6 @@ function dimensions(r: Report) {
 
 /** Everything the report says about the case: findings first, then the dataset and the caveats. */
 export function CaseInfo({ report }: { report: Report }) {
-  const sample = SAMPLES.some((s) => s.id === report.jobId);
   const dims = dimensions(report);
   const certainty = certaintyText(report.certainty);
   return (
@@ -50,12 +49,6 @@ export function CaseInfo({ report }: { report: Report }) {
 
       <a className={css.export} href={segUrl(report.jobId)} download={`${report.jobId}-seg.nii.gz`}>Export NIfTI mask</a>
 
-      <ul className={css.limits}>
-        <li>Educational visualization; not clinically validated.</li>
-        <li>Shown where the model segmented it, in the scan's own coordinates.</li>
-        <li>BraTS-style preprocessed MRI only.</li>
-        {sample && <li>Sample case from the BraTS dataset; it may be part of the model's training data.</li>}
-      </ul>
     </div>
   );
 }

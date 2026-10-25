@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { joinPlayground, playConfigured, usePlay } from '../play/store';
 import { NOT_CONFIGURED } from '../share/copy';
@@ -40,7 +39,6 @@ export default function PlayJoin() {
         {!playConfigured() && <p role="alert">{NOT_CONFIGURED}</p>}
         {error && <p role="alert">{error}</p>}
       </main>
-      <Footer />
     </div>
   );
 }
