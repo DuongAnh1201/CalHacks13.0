@@ -68,7 +68,7 @@ describe('without a live session', () => {
   it('is offline with the start-a-session message and no controls', () => {
     expect(OFFLINE_NOTE_TAKER.hidden).toBe(true);
     expect(OFFLINE_NOTE_TAKER.status).toBe('offline');
-    expect(OFFLINE_NOTE_TAKER.messages).toEqual([{ kind: 'system', agent: 'Neuro Agent', text: NO_SESSION }]);
+    expect(OFFLINE_NOTE_TAKER.messages).toEqual([{ kind: 'system', agent: 'Pons Assistant', text: NO_SESSION }]);
     expect(NO_SESSION).toBe('Start a live session to take notes');
     expect(OFFLINE_NOTE_TAKER.onMic).toBeUndefined();
     expect(OFFLINE_NOTE_TAKER.onSend).toBeUndefined();

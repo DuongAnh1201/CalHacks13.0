@@ -1,0 +1,43 @@
+.page { min-height: 100%; display: flex; flex-direction: column; background: var(--nv-flow-bg); }
+.main { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto; padding: 28px 24px 40px; display: flex; flex-direction: column; gap: 20px; }
+
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.title { margin: 0; font: 700 28px/36px var(--nv-font); letter-spacing: -.6px; color: var(--nv-text); }
+.lede { margin: 6px 0 0; max-width: 560px; font-size: 14px; color: var(--nv-text-2); }
+.upload { padding: 9px 16px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill); background: #fff; color: var(--nv-primary); font: 700 13px var(--nv-font); text-decoration: none; }
+
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.search { flex: 1 1 220px; min-width: 0; padding: 8px 12px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill); background: #fff; font: 13px var(--nv-font); }
+.group { display: flex; gap: 2px; padding: 3px; border-radius: var(--nv-radius-pill); background: #fff; border: 1px solid var(--nv-border); }
+.group button { padding: 5px 12px; border: 0; border-radius: var(--nv-radius-pill); background: transparent; font: 600 12px var(--nv-font); color: var(--nv-text-2); }
+.group button[aria-pressed='true'] { background: var(--nv-primary); color: #fff; }
+
+.grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); background: #fff; box-shadow: var(--nv-shadow-card); transition: transform .15s, box-shadow .15s; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -8px rgba(30, 37, 43, .16); }
+
+/* A tiny top-down brain: two hemispheres, tumor spot on the case's side, sized by volume. */
+.thumb { position: relative; display: flex; justify-content: center; gap: 3px; height: 112px; padding: 18px 0; background: radial-gradient(ellipse at center, #22343f 0%, #14222c 80%); }
+.hemi { width: 46px; border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%; background: linear-gradient(160deg, #d9cfc4, #b9ab9c); opacity: .9; }
+.spot { position: absolute; top: 44%; width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, #eb5757 30%, #f2c94c 75%); box-shadow: 0 0 12px rgba(235, 87, 87, .7); transform: translate(-50%, -50%); }
+.spot[data-size='small'] { width: 11px; height: 11px; }
+.spot[data-size='large'] { width: 27px; height: 27px; }
+.thumb[data-side='left'] .spot { left: calc(50% - 26px); }
+.thumb[data-side='right'] .spot { left: calc(50% + 26px); }
+.thumb[data-side='bilateral'] .spot, .thumb[data-side='none'] .spot { left: 50%; }
+
+.body { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 8px; }
+.name { margin: 0; font: 700 16px/22px var(--nv-font); color: var(--nv-text); }
+.blurb { margin: 0; font-size: 12px; color: var(--nv-text-3); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tags span { padding: 2px 8px; border-radius: var(--nv-radius-pill); background: var(--nv-primary-soft); color: var(--nv-primary); font: 700 10px/16px var(--nv-font); }
+.actions { display: flex; gap: 8px; padding: 8px 16px 16px; }
+.primary, .secondary { padding: 8px 12px; border-radius: var(--nv-radius-control); font: 700 12px var(--nv-font); text-decoration: none; text-align: center; }
+.primary { flex: 1; background: var(--nv-primary); color: #fff; }
+.secondary { border: 1px solid var(--nv-border); color: var(--nv-text); background: #fff; }
+
+.note { margin: 0; color: var(--nv-text-3); }
+.alert { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--nv-accent-warm); border-radius: 12px; background: #fff; color: var(--nv-accent-warm); }
+.alert p { margin: 0; }
+.retry { padding: 6px 14px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; font: 700 12px var(--nv-font); }
+.credit { margin: 8px 0 0; font-size: 11px; color: var(--nv-text-3); }

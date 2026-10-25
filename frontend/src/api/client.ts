@@ -1,4 +1,4 @@
-import type { Health, JobStatus, Report } from './types';
+import type { Health, JobStatus, LibraryCase, Report } from './types';
 import type { Sequence } from './upload';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -23,6 +23,7 @@ async function json<T>(r: Response): Promise<T> {
   throw new ApiError(r.status, b?.code ?? `HTTP_${r.status}`, b?.message ?? detail ?? `HTTP ${r.status}`);
 }
 
+export const getLibrary = (signal?: AbortSignal) => fetch(`${API_URL}/library`, { signal }).then((r) => json<LibraryCase[]>(r));
 export const getHealth = (signal?: AbortSignal) => fetch(`${API_URL}/health`, { signal }).then((r) => json<Health>(r));
 export const getJob = (id: string, signal?: AbortSignal) => fetch(`${API_URL}/jobs/${encodeURIComponent(id)}`, { signal }).then((r) => json<JobStatus>(r));
 export const getReport = (id: string, signal?: AbortSignal) => fetch(`${API_URL}/jobs/${encodeURIComponent(id)}/report`, { signal }).then((r) => json<Report>(r));

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -196,3 +197,43 @@ def test_initialize_jobs_keep_jobs(tmp_path, monkeypatch, keep_jobs, preserved):
     if preserved:
         assert (job / "report.json").read_text() == '{"jobId":"job-x"}'
     assert (api.JOBS / "sample-new" / "value").read_text() == "seed"
+
+
+def seed_case(root, job_id, report, meta=None):
+    folder = root / job_id
+    folder.mkdir(parents=True)
+    (folder / "report.json").write_text(json.dumps(report))
+    (folder / "status.json").write_text(json.dumps({"jobId": job_id, "status": "done", "stage": None, "error": None, "createdAt": "2026-10-24T00:00:00Z"}))
+    if meta is not None:
+        (folder / "meta.json").write_text(json.dumps(meta))
+
+
+def test_library_lists_seeded_cases_by_title(tmp_path, monkeypatch):
+    seed = tmp_path / "seed"
+    report = {"tumorDetected": True, "side": "left", "lesionCount": 1, "volumesCm3": {"whole": 50.0, "core": 9.0, "enhancing": 4.0},
+              "segmentationSource": "expert", "brain": {"not": "listed"}}
+    seed_case(seed, "case-b", report, {"title": "Case B", "blurb": "Left frontal glioma"})
+    seed_case(seed, "case-a", {**report, "side": "right"})
+    (seed / "notes.txt").write_text("not a case")
+    monkeypatch.setattr(api, "JOBS", tmp_path / "jobs")
+    monkeypatch.setattr(api, "SEED", seed)
+    monkeypatch.setattr(api, "run", Mock())
+    with TestClient(api.app) as c:
+        cases = c.get("/library").json()
+        assert [x["jobId"] for x in cases] == ["case-b", "case-a"]  # "Case B" sorts before the bare id "case-a"
+        assert cases[0] == {"jobId": "case-b", "title": "Case B", "blurb": "Left frontal glioma", "tumorDetected": True, "side": "left",
+                            "lesionCount": 1, "volumesCm3": {"whole": 50.0, "core": 9.0, "enhancing": 4.0}, "segmentationSource": "expert"}
+        assert cases[1]["title"] == "case-a"
+        assert c.get("/jobs/case-a/report").status_code == 200  # seeded into jobs on startup
+
+
+def test_restart_keeps_seeded_cases_but_drops_uploads(tmp_path, monkeypatch):
+    seed, jobs = tmp_path / "seed", tmp_path / "jobs"
+    seed_case(seed, "lib-001", {"tumorDetected": False})
+    (jobs / "lib-001").mkdir(parents=True)
+    (jobs / "job-upload").mkdir()
+    monkeypatch.setattr(api, "JOBS", jobs)
+    monkeypatch.setattr(api, "SEED", seed)
+    monkeypatch.delenv("KEEP_JOBS", raising=False)
+    api.initialize_jobs()
+    assert sorted(p.name for p in jobs.iterdir()) == ["lib-001"]
