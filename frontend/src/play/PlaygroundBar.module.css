@@ -1,0 +1,9 @@
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 16px; border: 1px solid rgba(242, 153, 74, .55); border-radius: var(--nv-radius-card); background: #fff7ef; font-family: var(--nv-font); }
+.invite { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1 1 420px; min-width: 0; }
+.invite b { font-size: 14px; color: #8a4a0f; }
+.link { flex: 1 1 220px; min-width: 0; padding: 7px 10px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); font: 12px var(--nv-mono); }
+.btn { padding: 7px 12px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; font: 700 12px var(--nv-font); color: var(--nv-text); }
+.hint { font-size: 12px; color: var(--nv-text-2); }
+.members { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.members li { padding: 3px 10px; border-radius: var(--nv-radius-pill); background: #fff; border: 1px solid var(--nv-border); font: 600 12px var(--nv-font); color: var(--nv-text); }
+.qr { flex-basis: 100%; display: flex; justify-content: center; padding: 8px; }

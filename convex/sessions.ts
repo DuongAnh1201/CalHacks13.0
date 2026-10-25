@@ -67,6 +67,7 @@ import {
   type ViewerCommand,
 } from "./lib/viewCommands";
 import { loadScan, toPublicScan, type PublicScan } from "./scans";
+import { vSessionKind } from "./schema";
 
 // ---------------------------------------------------------------------------
 // Read model
@@ -192,6 +193,8 @@ export const create = mutation({
     scanId: v.id("scans"),
     /** Untrusted label for the roster. Never used as identity (schema.ts). */
     hostDisplayName: v.string(),
+    /** "play" opens a games playground; default a review room (schema.ts). */
+    kind: v.optional(vSessionKind),
   },
   handler: async (
     ctx,
@@ -223,6 +226,7 @@ export const create = mutation({
       scene: view.scene,
       viewVersion: 1,
       status: "active",
+      ...(args.kind === "play" ? { kind: "play" as const } : {}),
       createdAt: now,
       updatedAt: now,
     });
@@ -288,7 +292,10 @@ export const join = mutation({
   args: {
     inviteCode: v.string(),
     displayName: v.string(),
-    email: v.string(),
+    /** Required in review rooms (the report goes there); playgrounds send no report. */
+    email: v.optional(v.string()),
+    /** The kind of room the joining page expects; default "review". */
+    kind: v.optional(vSessionKind),
   },
   handler: async (
     ctx,
@@ -300,9 +307,10 @@ export const join = mutation({
     role: "viewer";
     /** Which case to open: the guest's page is /jobs/<jobId>/... */
     jobId: string;
+    kind: "review" | "play";
   }> => {
     const displayName = normaliseDisplayName(args.displayName);
-    const email = normaliseEmail(args.email);
+    const email = (args.kind ?? "review") === "play" ? null : normaliseEmail(args.email ?? "");
 
     // Oversized input cannot be a code; answer exactly like an unknown one.
     const inviteCode = args.inviteCode.trim();
@@ -317,6 +325,16 @@ export const join = mutation({
 
     if (session === null || session.status === "ended") {
       throw appError("INVALID_INVITE", "That invite link is not valid any more.");
+    }
+    // A playground invite opened on the review join page (or the reverse) is
+    // refused, so one invite never lands someone in the wrong kind of room.
+    if ((session.kind ?? "review") !== (args.kind ?? "review")) {
+      throw appError(
+        "INVALID_INVITE",
+        session.kind === "play"
+          ? "That invite is for a Lobe playground. Open it from Play."
+          : "That invite is for a case workspace, not a playground.",
+      );
     }
 
     const now = Date.now();
@@ -334,10 +352,10 @@ export const join = mutation({
     });
 
     // Mandatory for guests: the report goes out when the host ends the session.
-    await ctx.db.insert("reportRecipients", { sessionId: session._id, participantId, email, status: "pending" });
+    if (email) await ctx.db.insert("reportRecipients", { sessionId: session._id, participantId, email, status: "pending" });
 
     const scan = await loadScan(ctx, session.scanId);
-    return { sessionId: session._id, participantToken, participantId, role: "viewer", jobId: scan.jobId };
+    return { sessionId: session._id, participantToken, participantId, role: "viewer", jobId: scan.jobId, kind: session.kind ?? "review" };
   },
 });
 

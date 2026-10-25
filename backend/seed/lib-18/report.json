@@ -1,0 +1,73 @@
+{
+  "jobId": "lib-18",
+  "coordinateFrame": "RAS_mm",
+  "model": {
+    "name": "BraTS MRI segmentation",
+    "arch": "SegResNet",
+    "version": "0.5.4"
+  },
+  "segmentationSource": "expert",
+  "tumorDetected": true,
+  "side": "left",
+  "lesionCount": 1,
+  "centroidMm": [
+    93.1,
+    125.9,
+    80.0
+  ],
+  "bboxMm": {
+    "min": [
+      65.0,
+      88.0,
+      43.0
+    ],
+    "max": [
+      124.0,
+      167.0,
+      118.0
+    ]
+  },
+  "volumesCm3": {
+    "whole": 139.23,
+    "core": 65.5,
+    "enhancing": 19.67
+  },
+  "brain": {
+    "centroidMm": [
+      120.8,
+      105.2,
+      76.0
+    ],
+    "bboxMm": {
+      "min": [
+        50.0,
+        38.0,
+        1.0
+      ],
+      "max": [
+        192.0,
+        195.0,
+        143.0
+      ]
+    }
+  },
+  "input": {
+    "shape": [
+      240,
+      240,
+      155
+    ],
+    "spacingMm": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "sequences": [
+      "t1c",
+      "t1",
+      "t2",
+      "flair"
+    ]
+  },
+  "certainty": null
+}

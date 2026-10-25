@@ -9,6 +9,7 @@ import { appError } from "./lib/errors";
 import { buildMarkdown, EXPORT_SECTIONS, OPTIONAL_EXPORT_SECTIONS, PRIVATE_SECTIONS, type ExportSnapshot } from "./lib/exportMarkdown";
 import { loadExportScreenshots } from "./lib/exportScreenshots";
 import { readExportReport } from "./lib/exportReport";
+import { meetingEnd } from "./lib/meetingEnd";
 
 const sectionsValidator = v.array(v.string());
 const suggested = "suggested_annotations";
@@ -39,8 +40,11 @@ export async function snapshot(ctx: QueryCtx, jobId: string, sections: string[],
   if (wantsShots || wantsTranscript || sections.includes("summary")) {
     const session = await ctx.db.get(sessionId);
     data.startedAt = session?._creationTime;
-    if (sections.includes("summary") && data.summary && session)
-      data.summaryState = session.status === "ended" && data.summary.coversUpTo >= session.updatedAt ? "final" : "interim";
+    if (sections.includes("summary") && data.summary && session) {
+      const settings = await ctx.db.query("transcriptSettings").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).unique();
+      const end = meetingEnd(session, settings);
+      data.summaryState = end !== undefined && data.summary.coversUpTo >= end ? "final" : "interim";
+    }
     else if (auto && sections.includes("summary")) data.summaryState = "unavailable";
   }
   if (wantsShots) data.screenshots = await loadExportScreenshots(ctx, sessionId, jobId);
@@ -99,11 +103,15 @@ export const autoReserve = internalMutation({
   args: { sessionId: v.id("sessions") },
   handler: async (ctx, { sessionId }) => {
     const session = await ctx.db.get(sessionId);
-    if (!session || session.status !== "ended") return null;
+    if (!session) return null;
+    const settings = await ctx.db.query("transcriptSettings").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).unique();
+    if (meetingEnd(session, settings) === undefined) return null;
     const scan = await ctx.db.get(session.scanId);
     if (!scan) return null;
     const existing = await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
-    if (existing.some((row) => row.trigger === "auto" && row.status !== "failed")) return null;
+    // One auto export per meeting: a newer "on" event starts a new meeting.
+    const lastOn = Math.max(0, ...(settings?.events ?? []).filter((e) => e.kind === "on").map((e) => e.at));
+    if (existing.some((row) => row.trigger === "auto" && row.status !== "failed" && row._creationTime >= lastOn)) return null;
     return reserveRow(ctx, { jobId: scan.jobId, sessionId, sections: AUTO_EXPORT_SECTIONS, trigger: "auto", caller: { kind: "agent", name: "Scribe", source: "agent" } });
   },
 });

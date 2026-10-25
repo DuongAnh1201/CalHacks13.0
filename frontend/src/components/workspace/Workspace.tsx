@@ -45,13 +45,12 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
       <main className={css.stage}>{children}</main>
 
       <header className={css.case}>
-        <NavLink to="/" className={css.brand} aria-label="Pons home"><img src={brandMark} alt="" width={19} height={20} /></NavLink>
+        <NavLink to="/" className={css.brand} aria-label="Lobe home"><img src={brandMark} alt="" width={19} height={20} /></NavLink>
         <span className={css.title} title={title}>{title}</span>
         <nav className={css.views} aria-label="View">
           <NavLink to={`/jobs/${jobId}/3d`} className={({ isActive }) => (isActive ? `${css.view} ${css.active}` : css.view)}>3D</NavLink>
           <NavLink to={`/jobs/${jobId}/mri`} className={({ isActive }) => (isActive ? `${css.view} ${css.active}` : css.view)}>Slices</NavLink>
         </nav>
-        <NavLink to="/play" className={css.play}>Play</NavLink>
       </header>
 
       <div className={css.shareBar}><ShareControls css={css} /></div>
@@ -77,7 +76,6 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
       )}
 
       {dock && <div className={css.dock}>{dock}</div>}
-      <p className={css.disclaimer}>Educational visualization — not for diagnosis or surgical planning.</p>
       <ChatDock />
     </div>
   );

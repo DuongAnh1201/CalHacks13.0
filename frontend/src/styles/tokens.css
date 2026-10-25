@@ -28,5 +28,4 @@
   --nv-mono: 'Cousine', ui-monospace, monospace;
   /* 43:1406 border-box: 30px row + 24px pad + 4px chrome. 43:1387: 18px row + 16px pad + 4px chrome. */
   --nv-header-h: 58px;
-  --nv-footer-h: 38px;
 }

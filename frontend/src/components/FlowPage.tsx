@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Footer } from './Footer';
 import { FlowStepper } from './FlowStepper';
 import { TopNavBar } from './TopNavBar';
 import css from './FlowPage.module.css';
@@ -16,7 +15,6 @@ export function FlowPage({ step, title, lede, children }: { step: 1 | 2 | 3; tit
         </header>
         {children}
       </main>
-      <Footer />
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import brainIcon from '../assets/figma/664bf.svg';
 import { ApiError, getReport } from '../api/client';
-import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { ago, hrefOf, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from '../home/workspaces';
 import css from './Home.module.css';
@@ -67,7 +66,6 @@ export default function Home() {
           )}
         </main>
       </div>
-      <Footer />
     </div>
   );
 }

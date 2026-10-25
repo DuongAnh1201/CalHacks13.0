@@ -95,7 +95,8 @@ it('hands one recognizer across panel disposal and remount while call mute survi
 it('preserves the host global switch, uses a separate call mute, and never resumes capture after Leave', async () => {
   const f = setup('host'); f.live(); const old = f.active()[0];
   await f.ctl.onMic();
-  expect(f.calls.at(-1)).toMatchObject({ name: 'transcript:setEnabled', args: { enabled: false } });
+  expect(f.calls.find((c) => c.name === 'transcript:setEnabled')).toMatchObject({ args: { enabled: false } });
+  expect(f.calls.at(-1)).toMatchObject({ name: 'notes:endMeeting' }); // switching AI notes off ends the meeting
   f.enable(false); expect(f.active()).toHaveLength(0);
   old.emit(segment); expect(f.lines()).toHaveLength(0);
   f.enable(true); await f.ctl.muteSelf(); expect(useCall.getState().muted).toBe(true);

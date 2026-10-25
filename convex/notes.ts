@@ -21,6 +21,7 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  mutation,
   query,
   type ActionCtx,
   type MutationCtx,
@@ -30,8 +31,9 @@ import type { Id } from "./_generated/dataModel";
 import { createClaudeClient, type ClaudeClient } from "./agent/anthropic";
 import { acceptItems, generateFinal, generateNote, ITEM_MAX_CHARS, type FinalParts } from "./agent/scribe";
 import { reserveDailyRun } from "./agent";
-import { requireParticipant } from "./lib/auth";
-import { TICK_MS } from "./transcript";
+import { requireParticipant, requirePresenter } from "./lib/auth";
+import { settleSession, TICK_MS } from "./transcript";
+import { meetingEnd } from "./lib/meetingEnd";
 import { appError } from "./lib/errors";
 import { insertSummary, latestSummary, type SummaryScope } from "./lib/summaries";
 import { allowedNumbers, composeFinalSummary, type FinalFacts } from "./lib/finalSummary";
@@ -167,10 +169,14 @@ async function collect(
   };
 }
 
+async function settingsOf(ctx: QueryCtx, sessionId: Id<"sessions">) {
+  return ctx.db.query("transcriptSettings").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).unique();
+}
+
 async function sessionEnd(ctx: QueryCtx, scope: SummaryScope): Promise<number | undefined> {
   if (scope.kind !== "session") return undefined;
   const session = await ctx.db.get(scope.sessionId);
-  return session?.status === "ended" ? session.updatedAt : undefined;
+  return session ? meetingEnd(session, await settingsOf(ctx, scope.sessionId)) : undefined;
 }
 
 /** Everything the model call needs, plus the daily reservation (taken only if useful). */
@@ -255,6 +261,7 @@ export const forSession = query({
     if (!session || !scan) throw appError("NOT_FOUND", "That review session does not exist.");
     const row = await latestSummary(ctx, { kind: "session", sessionId: session._id, jobId: scan.jobId });
     // The newest export of the session (auto at the end, or a member's manual one), failed included so the panel can offer a retry.
+    const end = meetingEnd(session, await settingsOf(ctx, session._id));
     const latestExport = await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", session._id)).order("desc").first();
     const exportInfo = latestExport
       ? { exportId: latestExport._id, version: latestExport.version, status: latestExport.status, trigger: latestExport.trigger,
@@ -265,7 +272,7 @@ export const forSession = query({
       text: row?.text ?? null,
       version: row?.version ?? 0,
       // Derived, not stored: the final note is the one covering the session's end time.
-      isFinal: !!row && session.status === "ended" && row.coversUpTo >= session.updatedAt,
+      isFinal: !!row && end !== undefined && row.coversUpTo >= end,
       coversUpTo: row?.coversUpTo ?? 0,
       authorName: row?.authorName ?? null,
       author: row?.author ?? null,
@@ -468,6 +475,33 @@ export const finalizeSession = internalAction({
     // Email the report to everyone who gave an address; never fails finalize.
     await ctx.runAction(sendReportRef, { sessionId }).catch(() => null);
     return null;
+  },
+});
+const finalizeRef = makeFunctionReference<"action", { sessionId: Id<"sessions"> }, null>("notes:finalizeSession");
+
+/**
+ * Host only: the meeting is over (the host left the call, or switched AI notes
+ * off) but the session goes on. Schedules the same final summary + automatic
+ * export as sessions.end. Idempotent per meeting: it records the end time and
+ * does nothing again until transcription is turned on for a new meeting.
+ * A session that already ended is a no-op (sessions.end did it).
+ */
+export const endMeeting = mutation({
+  args: { sessionId: v.id("sessions"), participantToken: v.string() },
+  handler: async (ctx, args): Promise<{ scheduled: boolean }> => {
+    const participant = await requireParticipant(ctx, args.participantToken);
+    if (participant.sessionId !== args.sessionId) throw appError("NOT_A_MEMBER", "You are not a member of that review session.");
+    const session = await ctx.db.get(args.sessionId);
+    if (session?.status === "ended") return { scheduled: false };
+    const { session: live } = await requirePresenter(ctx, args);
+    const row = await settingsOf(ctx, live._id);
+    if (!row) return { scheduled: false }; // transcription was never on: no meeting to summarize
+    if (meetingEnd(live, row) !== undefined) return { scheduled: false };
+    const lastOn = Math.max(0, ...(row.events ?? []).filter((e) => e.kind === "on").map((e) => e.at));
+    await settleSession(ctx, live._id);
+    await ctx.db.patch(row._id, { meetingEndedAt: Math.max(Date.now(), lastOn + 1) });
+    await ctx.scheduler.runAfter(0, finalizeRef, { sessionId: live._id });
+    return { scheduled: true };
   },
 });
 const sessionJobRef = makeFunctionReference<"query", { sessionId: Id<"sessions"> }, string | null>("notes:sessionJob");

@@ -65,7 +65,7 @@ export default function Upload() {
   const ready = SEQUENCES.every((s) => slots[s]);
 
   return (
-    <FlowPage step={1} title="Load an MRI study" lede="Explore a ready-made case, or upload the 4 MRI sequences of one study. Pons segments the tumor and places it on the 3D brain.">
+    <FlowPage step={1} title="Load an MRI study" lede="Explore a ready-made case, or upload the 4 MRI sequences of one study. Lobe segments the tumor and places it on the 3D brain.">
       <div className={css.stack}>
         <BackendBanner />
         <div className={css.sample}>

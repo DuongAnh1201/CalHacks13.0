@@ -51,7 +51,6 @@
 .iconBtn svg { width: 16px; height: 16px; }
 
 .dock { bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px; }
-.disclaimer { position: absolute; left: 16px; bottom: 12px; z-index: 10; margin: 0; max-width: 260px; font: 500 10px/14px var(--nv-font); color: var(--nv-text-3); pointer-events: none; }
 
 @media (max-width: 760px) {
   .title { display: none; }
@@ -59,6 +58,4 @@
   .rail { top: auto; bottom: 16px; flex-direction: row; }
   .panel { top: 128px; left: 16px; width: calc(100vw - 32px); max-height: calc(100vh - 200px); }
   .dock { bottom: 72px; }
-  .disclaimer { display: none; }
-}
-.play { padding: 6px 12px; border-radius: var(--nv-radius-control); background: #f2994a; color: #fff; font: 700 12px var(--nv-font); text-decoration: none; }
+  }
