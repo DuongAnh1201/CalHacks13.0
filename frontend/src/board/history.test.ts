@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { codeOf } from '../share/copy';
-import { createItem, updateItem } from './commands';
+import { clearRefs, createItem, updateItem } from './commands';
 import { createHistory, type Command } from './history';
 
 const board = vi.hoisted(() => {
@@ -109,6 +109,25 @@ describe('history', () => {
     h.clear();
     const row = { itemId: created.id, item, authorName: 'A', mine: true, canRemove: true, createdAt: 0, updatedAt: 0 };
     await expect(h.run(updateItem(row, { text: 'Z' }))).rejects.toThrow();
+  });
+
+  it('edit after someone else changed it succeeds', async () => {
+    board.reset();
+    clearRefs();
+    const skipped: string[] = [];
+    const h = createHistory({ skippable: (e) => codeOf(e) === 'STALE', onSkip: (label) => skipped.push(label) });
+    const item = { kind: 'sticky' as const, anchor: { kind: 'point' as const, ras_mm: [1, 2, 3] }, text: 'A', color: 'yellow' as const };
+    await h.run(createItem(item));
+    const created = board.row;
+    if (!created) throw new Error('missing row');
+    await board.call('board.update', { itemId: created.id, expectedUpdatedAt: created.updatedAt, patch: { text: 'guest' } });
+    const guest = board.row;
+    if (!guest) throw new Error('missing row');
+    await h.run(updateItem({
+      itemId: guest.id, item, authorName: 'A', mine: true, canRemove: true, createdAt: 0, updatedAt: guest.updatedAt,
+    }, { text: 'mine' }));
+    expect(board.row?.updatedAt).toBeGreaterThan(guest.updatedAt);
+    expect(skipped).toEqual([]);
   });
 
   it('a failed do is not recorded', async () => {

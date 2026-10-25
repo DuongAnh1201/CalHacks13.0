@@ -28,7 +28,7 @@ function Anchored({ cs, mm, children }: { cs: CaseScene; mm: Vec3; children: Rea
   useFrame(() => { if (ref.current) worldOf(cs, mm, ref.current.position); });
   return (
     <group ref={ref}>
-      <Html center occlude zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>{children}</Html>
+      <Html center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>{children}</Html>
     </group>
   );
 }

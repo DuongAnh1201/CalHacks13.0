@@ -11,7 +11,7 @@ const refs = new Map<string, Ref>();
 /** Existing ref for this id, or a new one. An empty id is a not-yet-created item and is not stored, so two new items do not share a ref. */
 export function refOf(id: string, updatedAt: number): Ref {
   const hit = id ? refs.get(id) : undefined;
-  if (hit) return hit;
+  if (hit) { hit.updatedAt = Math.max(hit.updatedAt, updatedAt); return hit; }
   const ref: Ref = { id, updatedAt };
   if (id) refs.set(id, ref);
   return ref;
