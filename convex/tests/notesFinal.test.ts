@@ -193,6 +193,48 @@ describe("final meeting summary (#138)", () => {
   });
 });
 
+describe("screenshots in the auto export (#137 + #138)", () => {
+  async function shot(t: T, sessionId: unknown, caption: string, over: Record<string, unknown> = {}) {
+    return t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" }));
+      return ctx.db.insert("screenshots", {
+        jobId: "sample", sessionId: sessionId as never, storageId, caption, reason: "Tumor focused",
+        takenAt: Date.now(), width: 10, height: 10, ...over,
+      });
+    });
+  }
+
+  it("embeds the session's real screenshots in order, and leaves out other cases and times outside the meeting", async () => {
+    const t = convexTest(schema);
+    const { host, viewer, cap } = await meeting(t);
+    await shot(t, host.sessionId, "Second view", { takenAt: Date.now() + 2000 });
+    await shot(t, host.sessionId, "First view", { takenAt: Date.now() + 1000 });
+    await shot(t, host.sessionId, "Other case", { jobId: "other" });
+    await shot(t, host.sessionId, "Before the meeting", { takenAt: 1 });
+    const stranger = await meeting(t);
+    await shot(t, stranger.host.sessionId, "Another room's private shot");
+    tick(10_000);
+    await t.mutation(api.sessions.end, cap(host));
+    await shot(t, host.sessionId, "After the meeting", { takenAt: Date.now() + 60_000 });
+    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+
+    const exports = (await exportsOf(t)).filter((e) => e.sessionId === host.sessionId);
+    expect(exports).toHaveLength(1);
+    const md = await exportText(t, exports[0]._id);
+    expect(md).toMatch(/1\. \*\*First view\*\* · \+\d\d:\d\d\n\n   !\[First view\]\(http/);
+    expect(md).toMatch(/2\. \*\*Second view\*\*/);
+    expect(md.indexOf("First view")).toBeLessThan(md.indexOf("Second view"));
+    for (const hidden of ["Other case", "Before the meeting", "After the meeting", "Another room"]) expect(md).not.toContain(hidden);
+    expect(md).not.toContain("No screenshots were taken.");
+
+    // Members see them via forSession; another room's member is refused.
+    const view = await t.query(api.notes.forSession, cap(viewer));
+    expect(view?.screenshots.map((x) => x.caption)).toEqual(["First view", "Second view"]);
+    expect(view?.screenshots[0].url).toMatch(/^https?:\/\//);
+    await expect(t.query(api.notes.forSession, { sessionId: host.sessionId, participantToken: stranger.host.participantToken })).rejects.toThrow();
+  });
+});
+
 describe("generateFinal and the export builder", () => {
   const input = { previous: null, events: {}, humanText: ["The margin looks irregular."], allowedNumbers: ["136.28"] };
   it("keeps only guarded, number-checked, single-line items and tolerates fenced JSON", async () => {
