@@ -14,11 +14,11 @@ Members of a live session talk to each other by voice while they review the shar
 | Transport | **LiveKit Cloud**, token-only. Convex mints a room token after the member check; LiveKit carries the audio (SFU + built-in TURN). Chosen over a P2P WebRTC mesh because TURN removes the venue-Wi-Fi/NAT failure mode and active-speaker detection comes for free. |
 | `convex-livekit` component | **Not used.** It is v0.0.9 from a single maintainer, and its webhook-synced tables, egress and ingress are surface we do not need. The official `livekit-server-sdk` mints the token. |
 | Where the call lives | The whole session. The connection lives in a module-scope store, not a component, so it survives `/mri` ↔ `/3d` navigation for the same session. |
-| Join model | Explicit **Join call** button in `TopNavBar`, next to `FacePile`. The mic is live on join, with Mute and Leave next to it. The click is the user gesture for mic permission and audio autoplay. |
+| Join model | Explicit **Join call** button in `share/ShareControls.tsx` (hosted by `TopNavBar`), next to `FacePile`. The mic is live on join, with Mute and Leave next to it. The click is the user gesture for mic permission and audio autoplay. |
 | Host controls | None. Everyone controls only their own mic. Tokens carry no admin grant. |
 | Speaking indicator | From LiveKit's `ActiveSpeakersChanged` event on the client. Nothing about speaking goes through Convex. |
-| Transcript | Reuse #135 (`frontend/src/agent/transcribe.ts`, `convex/transcript.ts`) unchanged. The call store starts the transcriber while `live && !muted` and stops it otherwise. |
-| Convex review | Sage reviews the PR before merge (new Node action, new secrets, new dependencies). |
+| Transcript | Reuse #135 (`frontend/src/agent/transcribe.ts`, `convex/transcript.ts`) unchanged. `call/transcribeLink.ts` starts the transcriber while `live && !muted` and the host's transcript switch is on, and stops it otherwise. |
+| Convex review | Sage reviews the PR before merge (new action, new secrets, new dependencies). |
 
 ## Non-goals
 
@@ -33,7 +33,7 @@ Members of a live session talk to each other by voice while they review the shar
 ## 1. Architecture
 
 ```
-Join click ──► call.token (Convex "use node" action)
+Join click ──► call.token (Convex action)
                  ├─ runQuery(internal.call.member) ─► requireSessionMember + session active
                  └─ livekit-server-sdk AccessToken ─► {url, token}
            ──► livekit-client Room.connect(url, token) ─► LiveKit Cloud (room = sessionId)
@@ -45,7 +45,7 @@ useCall (live && !muted) ─► createTranscriber().start() ─► transcript.ap
 ### Units
 
 1. **`convex/call.ts`, `member` internalQuery** (new). Args `{sessionId, participantToken}`. Runs `requireSessionMember`, refuses an ended session with `SESSION_ENDED`, and returns `{participantId, displayName}`. Actions have no `db`, so the check lives in a query.
-2. **`convex/callToken.ts`, `token` public action** (new, `"use node"`). Args `{sessionId, participantToken}`.
+2. **`convex/call.ts`, `token` public action** (new, default runtime: `livekit-server-sdk` has no Node built-ins, it signs with `jose` on Web Crypto). Args `{sessionId, participantToken}`.
    - Reads `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` and `LIVEKIT_URL`. If any is missing, it throws `appError("UNAVAILABLE", "Call unavailable")`.
    - Calls `ctx.runQuery(internal.call.member, args)`.
    - Mints an `AccessToken`: identity = `participantId`, name = `displayName`, ttl 15 min. Grant: `{roomJoin: true, room: sessionId, canPublish: true, canPublishSources: [microphone], canSubscribe: true, canPublishData: false}`. No `roomAdmin`, `roomCreate` or `roomList`.
@@ -54,9 +54,9 @@ useCall (live && !muted) ─► createTranscriber().start() ─► transcript.ap
    - State: `status: 'idle' | 'connecting' | 'live' | 'error'`, `muted: boolean`, `speaking: Set<string>` (participantIds), `error: string | null`.
    - Actions: `join()`, `leave()`, `toggleMute()`.
    - The LiveKit `Room` and the transcriber are module-scope singletons. The `Room` constructor and the transcriber factory are injectable for tests, following the `ctor` pattern of `createTranscriber`.
-4. **`frontend/src/call/CallControls.tsx`** (new). Renders Join, or Mute/Unmute + Leave, plus an inline error. It is rendered in `TopNavBar` under the same condition as `FacePile`: active session on `/jobs/<id>/(mri|3d)`.
+4. **`frontend/src/call/CallControls.tsx`** (new). Renders Join, or Mute/Unmute + Leave, plus an inline error. It is rendered in `share/ShareControls.tsx` (which `TopNavBar` hosts since #140) under the same condition as `FacePile`: active session on `/jobs/<id>/(mri|3d)`.
 5. **Speaking rings** (modified `FacePile.tsx`, `RemoteCursors.tsx` + CSS). A face or cursor whose `participantId` is in `useCall.speaking` gets a `colorOf(participantId)` ring. The self face rings when the local user speaks.
-6. **Transcriber coupling** (in `store.ts`). One subscription: when `status === 'live' && !muted`, call `transcriber.start()`, otherwise `transcriber.stop()`. `onSegment` calls `transcript.append` with the session credentials from `useShare`, as #135 does. **Blocked on #135 merging into `main`.** Units 1–5 ship without it.
+6. **Transcriber coupling** (`frontend/src/call/transcribeLink.ts`). The transcriber runs only while `status === 'live' && !muted && transcriptEnabled`, where `transcriptEnabled` comes from a `transcript.state` subscription (the host switch, #135; `append` refuses while it is off). `onSegment` posts through a new `sendTranscript` sender in `share/store.ts`. #135/#136 are merged into `main`; the host toggle UI stays with #139.
 
 ## 2. Data flow
 
@@ -100,7 +100,7 @@ Route changes between `/mri` and `/3d` do nothing to the call. Navigating to a p
 
 **Convex (`convex/tests`, convex-test)**
 - `call.member`: bad token → `NOT_AUTHENTICATED`; member of another session → `NOT_A_MEMBER`; ended session → `SESSION_ENDED`; member → `{participantId, displayName}`.
-- `callToken.token`: env missing → `UNAVAILABLE`. With env stubbed, decode the JWT payload (base64 of the middle segment) and check:
+- `call.token`: env missing → `UNAVAILABLE`. With env stubbed, decode the JWT payload (base64 of the middle segment) and check:
   - `sub === participantId`
   - `video.room === sessionId`
   - `video.roomJoin === true`
@@ -113,7 +113,7 @@ Route changes between `/mri` and `/3d` do nothing to the call. Navigating to a p
 - `toggleMute` flips `muted` and calls `setMicrophoneEnabled`.
 - An emitted `ActiveSpeakersChanged` updates `speaking`.
 - Clearing `useShare.session` calls `leave()` and disconnects.
-- Transcriber `start` runs only while `live && !muted`; `stop` runs on mute, leave and error.
+- Transcriber `start` runs only while `live && !muted` and the switch is on; `stop` runs on mute, leave and error.
 - `FacePile` renders a ring class for a speaking participant.
 
 **Manual (early, on the venue Wi-Fi)**
@@ -125,7 +125,7 @@ Route changes between `/mri` and `/3d` do nothing to the call. Navigating to a p
 
 ## 6. Dependencies and setup
 
-- Root (Convex): `livekit-server-sdk` (exact pin, Node runtime only).
-- Frontend: `livekit-client` (exact pin). `@livekit/components-react` is not used.
+- Root (Convex): `livekit-server-sdk@2.19.1` (exact pin; versions at least two weeks old).
+- Frontend: `livekit-client@2.22.4` (exact pin), loaded with a dynamic `import()` on first Join. `@livekit/components-react` is not used.
 - User sets `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` and `LIVEKIT_URL` from a LiveKit Cloud project on the Convex deployment.
 - `docs/CONVEX_BACKEND.md` gets a short "Live call" section: the three env vars, and the third-party audio note.
