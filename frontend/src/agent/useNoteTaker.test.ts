@@ -1,7 +1,7 @@
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNoteTakerController, EXPORT_LINE, NO_SESSION, OFFLINE_NOTE_TAKER, type Creds, type NoteTakerClient } from './useNoteTaker';
+import { createNoteTakerController, EXPORT_LINE, panelVisible, NO_SESSION, OFFLINE_NOTE_TAKER, type Creds, type NoteTakerClient } from './useNoteTaker';
 import { useTranscription } from './transcription';
 import { useShare } from '../share/store';
 import { useCall } from '../call/store';
@@ -306,5 +306,83 @@ describe('lifecycle', () => {
     const before = f.subs.length;
     ctl.start();
     expect(f.subs.length).toBeGreaterThan(before);
+  });
+});
+
+describe('meeting end: leaving the call, AI notes off, panel stays', () => {
+  it('the host leaving the call asks the server for the final summary once, and the panel shows Meeting ended state', async () => {
+    const { f, ctl, download } = setup(HOST);
+    await ctl.leaveMeeting();
+    await ctl.leaveMeeting();
+    expect(f.mutations('notes:endMeeting')).toEqual([['mutation', 'notes:endMeeting', { sessionId: 's1', participantToken: 'host-tok' }]]);
+    expect(ctl.getState().left).toBe(true);
+    expect(texts(ctl)[0]).toMatch(/You left the call.*final summary/);
+    expect(texts(ctl).at(-1)).toBe('Preparing export…');
+
+    f.live('notes:forSession').push(note({ text: 'Done', isFinal: true, export: exp('pending', { trigger: 'auto' }) }));
+    expect(texts(ctl)).toContain('Final meeting summary\nDone');
+    expect(download).not.toHaveBeenCalled();
+    f.live('notes:forSession').push(note({ text: 'Done', isFinal: true, export: exp('ready', { trigger: 'auto' }) }));
+    expect(ctl.getState().messages.at(-1)).toMatchObject({ kind: 'confirm', confirmLabel: 'Download summary (.md)' });
+    // The host's download starts by itself, once.
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(download).toHaveBeenCalledWith('https://files/e1.md', 'meeting-summary-v1.md');
+    f.live('notes:forSession').push(note({ text: 'Done', isFinal: true, export: exp('ready', { trigger: 'auto' }) }));
+    expect(download).toHaveBeenCalledTimes(1);
+    await ctl.onConfirm(); // the button still works
+    expect(download).toHaveBeenCalledTimes(2);
+  });
+
+  it('a member leaving does not end the meeting: no server call, no automatic download, export is still offered', async () => {
+    const { f, ctl, download } = setup(VIEWER);
+    await ctl.leaveMeeting();
+    expect(f.mutations('notes:endMeeting')).toHaveLength(0);
+    expect(texts(ctl)[0]).toMatch(/host ends the meeting/);
+    expect(texts(ctl)).not.toContain('Preparing export…');
+    f.live('notes:forSession').push(note({ export: exp('ready', { trigger: 'auto' }) }));
+    expect(kinds(ctl)).toContain('confirm');
+    expect(download).not.toHaveBeenCalled();
+    useCall.setState({ status: 'live' });
+    ctl.resumeMeeting();
+    expect(ctl.getState().left).toBe(false);
+  });
+
+  it('session end for the host also downloads the auto export once', () => {
+    const { f, ctl, download } = setup(HOST);
+    ctl.markEnded();
+    f.live('notes:forSession').push(note({ text: 'Done', isFinal: true, export: exp('ready', { trigger: 'auto' }) }));
+    f.live('notes:forSession').push(note({ text: 'Done', isFinal: true, export: exp('ready', { trigger: 'auto' }) }));
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(ctl.getState().ended).toBe(true);
+  });
+
+  it('a manual export never downloads by itself', async () => {
+    const { f, ctl, download } = setup(HOST);
+    await ctl.leaveMeeting();
+    f.live('notes:forSession').push(note({ export: exp('ready', { trigger: 'manual' }) }));
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it('switching AI notes off ends the meeting; switching on does not; a refused call is reported', async () => {
+    const { f, ctl } = setup(HOST);
+    await ctl.toggleEnabled(); // off -> on
+    expect(f.mutations('notes:endMeeting')).toHaveLength(0);
+    f.live('transcript:state').push({ enabled: true });
+    await ctl.toggleEnabled(); // on -> off
+    expect(f.calls.map((c) => c[1]).filter((n) => n === 'transcript:setEnabled' || n === 'notes:endMeeting')).toEqual(['transcript:setEnabled', 'transcript:setEnabled', 'notes:endMeeting']);
+  });
+
+  it('a failed endMeeting says so and keeps the manual export available', async () => {
+    const { ctl } = setup(HOST, { mutation: (n) => { if (n === 'notes:endMeeting') throw new Error('x'); return { ok: true }; } });
+    await ctl.leaveMeeting();
+    expect(texts(ctl).join('\n')).toMatch(/Could not start the final summary/);
+  });
+
+  it('the panel stays visible after the call or session ends until the user closes it', () => {
+    expect(panelVisible({ live: true, over: false, joined: true, closed: false })).toBe(true);
+    expect(panelVisible({ live: false, over: true, joined: true, closed: false })).toBe(true); // call left or session ended
+    expect(panelVisible({ live: false, over: false, joined: true, closed: false })).toBe(false);
+    expect(panelVisible({ live: false, over: true, joined: true, closed: true })).toBe(false);
+    expect(panelVisible({ live: true, over: false, joined: false, closed: false })).toBe(false); // never joined the call
   });
 });

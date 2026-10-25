@@ -5,7 +5,7 @@ import { CaptionLine, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } 
 import { CONSENT_BANNER, type NoteTakerBinding, type NoteTakerState } from './useNoteTaker';
 const time = new Date('2026-10-24T12:00:00Z').getTime();
 const m: NoteTakerState = {
-  status: 'listening', messages: [], enabled: true, muted: false, callActive: true, ended: false, host: true, promptDismissed: true, selfId: 'me',
+  status: 'listening', messages: [], enabled: true, muted: false, callActive: true, ended: false, left: false, host: true, promptDismissed: true, selfId: 'me',
   segments: [
     { segmentId: 'a', participantId: 'me', speakerName: 'Host', text: 'Final words.', final: true, startedAt: time, endedAt: time + 100 },
     { segmentId: 'b', participantId: 'me', speakerName: 'Host', text: 'Interim words', final: false, startedAt: time + 200, endedAt: time + 300 },

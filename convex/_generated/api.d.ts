@@ -38,6 +38,7 @@ import type * as lib_exportReport from "../lib/exportReport.js";
 import type * as lib_exportScreenshots from "../lib/exportScreenshots.js";
 import type * as lib_finalSummary from "../lib/finalSummary.js";
 import type * as lib_games from "../lib/games.js";
+import type * as lib_meetingEnd from "../lib/meetingEnd.js";
 import type * as lib_messages from "../lib/messages.js";
 import type * as lib_screenshotImage from "../lib/screenshotImage.js";
 import type * as lib_screenshotPolicy from "../lib/screenshotPolicy.js";
@@ -108,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   "lib/exportScreenshots": typeof lib_exportScreenshots;
   "lib/finalSummary": typeof lib_finalSummary;
   "lib/games": typeof lib_games;
+  "lib/meetingEnd": typeof lib_meetingEnd;
   "lib/messages": typeof lib_messages;
   "lib/screenshotImage": typeof lib_screenshotImage;
   "lib/screenshotPolicy": typeof lib_screenshotPolicy;

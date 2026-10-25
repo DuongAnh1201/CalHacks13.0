@@ -45,7 +45,7 @@ export interface NoteTakerDeps {
 }
 export interface NoteTakerState {
   messages: AgentMessage[]; status: AgentPanelProps['status']; segments: Segment[]; note: NoteView | null;
-  enabled: boolean; muted: boolean; callActive: boolean; ended: boolean; host: boolean; promptDismissed: boolean; events: MeetingEvent[]; selfId?: string;
+  enabled: boolean; muted: boolean; callActive: boolean; ended: boolean; left: boolean; host: boolean; promptDismissed: boolean; events: MeetingEvent[]; selfId?: string;
 }
 
 const fmt = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -72,7 +72,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
 
   const segments = new Map<string, Segment>();
   let note: NoteView | null = null;
-  let enabled = false, ended = false, blocked = false, failed = false, notice: string | null = null;
+  let enabled = false, ended = false, left = false, blocked = false, failed = false, notice: string | null = null;
   let stops: (() => void)[] = [];
   let transcriptStops: (() => void)[] = [];
   let promptDismissed = true, selfId: string | undefined;
@@ -82,6 +82,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
   const dismissed = new Set<string>(); // `${exportId}:${status}` of confirm rows the user closed
   let waitingFor: string | null = null; // export we just requested, until forSession shows it settled
   let confirmAction: 'download' | 'retry' | null = null;
+  const downloaded = new Set<string>(); // exports already saved automatically for the host
   const since = now();
   const listeners = new Set<() => void>();
   let state: NoteTakerState;
@@ -143,7 +144,9 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
   function compute(): NoteTakerState {
     const out: AgentMessage[] = [];
     const sys = (text: string) => out.push({ kind: 'system', agent: 'Lobe Assistant', text });
+    const over = ended || (left && host);
     if (ended) sys('Meeting ended. The final summary and export link appear below.');
+    else if (left) sys(host ? 'You left the call. The final summary and export link appear below.' : 'You left the call. The host ends the meeting for everyone; you can still export the notes so far.');
     else if (enabled) {
       sys(BANNER);
       if (!transcriber.supported) sys("This browser can't transcribe speech. You will still see everyone else's lines.");
@@ -167,21 +170,29 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     confirmAction = null;
     const e = note?.export ?? null;
     if (waitingFor && e?.exportId === waitingFor && e.status !== 'pending') waitingFor = null;
-    const preparing = (waitingFor !== null && e?.exportId !== waitingFor) || e?.status === 'pending' || (ended && !e);
+    const preparing = (waitingFor !== null && e?.exportId !== waitingFor) || e?.status === 'pending' || (over && !e);
     if (preparing) out.push({ kind: 'agent', agent: 'Scribe', at: time(now()), text: 'Preparing export…' });
     else if (e && !dismissed.has(`${e.exportId}:${e.status}`)) {
       if (e.status === 'ready' && e.url) {
         confirmAction = 'download';
-        out.push({ kind: 'confirm', agent: 'Scribe', text: ended ? 'The meeting summary is ready.' : `Export v${e.version} is ready.`, confirmLabel: 'Download summary (.md)', dismissLabel: 'Close' });
+        out.push({ kind: 'confirm', agent: 'Scribe', text: over ? 'The meeting summary is ready.' : `Export v${e.version} is ready.`, confirmLabel: 'Download summary (.md)', dismissLabel: 'Close' });
       } else if (e.status === 'failed') {
         confirmAction = 'retry';
         out.push({ kind: 'confirm', agent: 'Scribe', text: 'The export failed.', confirmLabel: 'Try again', dismissLabel: 'Close' });
       }
     }
     const status: NoteTakerState['status'] = failed ? 'offline' : capturing() ? 'listening' : 'ready';
-    return { messages: out, status, segments: [...segments.values()].sort((a, b) => a.startedAt - b.startedAt), note, enabled, muted: memberMuted(), callActive: useCall.getState().status === 'live', ended, host, promptDismissed, events, selfId };
+    return { messages: out, status, segments: [...segments.values()].sort((a, b) => a.startedAt - b.startedAt), note, enabled, muted: memberMuted(), callActive: useCall.getState().status === 'live', ended, left, host, promptDismissed, events, selfId };
   }
-  function publish() { state = compute(); listeners.forEach((l) => l()); }
+  function autoDownload() {
+    const e = note?.export;
+    if (!host || !(ended || left) || !e || e.trigger !== 'auto' || e.status !== 'ready' || !e.url || downloaded.has(e.exportId)) return;
+    downloaded.add(e.exportId);
+    const mark = `pons.exportSaved.${e.exportId}`;
+    try { if (localStorage.getItem(mark)) return; localStorage.setItem(mark, '1'); } catch { /* storage unavailable: once per page visit */ }
+    (deps.download ?? defaultDownload)(e.url, `meeting-summary-v${e.version}.md`);
+  }
+  function publish() { state = compute(); listeners.forEach((l) => l()); autoDownload(); }
 
   const pages = new Map<string, Segment[]>();
   function watchTranscript(after?: number) {
@@ -234,9 +245,25 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     publish();
   }
 
+  /** The meeting is over for this member (left the call). The host also asks the server for the final summary + export; the session stays open. */
+  async function leaveMeeting() {
+    if (left || ended) return;
+    left = true; syncCapture(); publish();
+    if (host) await client.mutation(api.notes.endMeeting, auth).catch(() => { notice = 'Could not start the final summary. Use Export summary.'; publish(); });
+  }
+  /** The member joined the call again: a fresh meeting view (the host turns AI notes on again for a new one). */
+  function resumeMeeting() {
+    if (!left || ended) return;
+    left = false; dismissed.clear(); syncCapture(); publish();
+  }
+
   async function toggleEnabled() {
     if (ended || !host) return;
-    try { await client.mutation(api.transcript.setEnabled, { ...auth, enabled: !enabled }); blocked = false; notice = null; }
+    const turningOff = enabled;
+    try {
+      await client.mutation(api.transcript.setEnabled, { ...auth, enabled: !enabled }); blocked = false; notice = null;
+      if (turningOff) await client.mutation(api.notes.endMeeting, auth).catch(() => { notice = 'Could not start the final summary. Use Export summary.'; publish(); });
+    }
     catch (e) { if (codeOf(e) === 'SESSION_ENDED') markEnded(); else { notice = 'Could not change transcription. Try again.'; publish(); } }
   }
   async function muteSelf() {
@@ -302,6 +329,8 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
       if (e) { dismissed.add(`${e.exportId}:${e.status}`); publish(); }
     },
     markEnded,
+    leaveMeeting,
+    resumeMeeting,
     dispose() {
       started = false; subscriptionGeneration++;
       generation++;
@@ -329,12 +358,19 @@ export const OFFLINE_NOTE_TAKER: NoteTakerBinding = {
  * Outside an active session the Assistant is hidden. The controller retains its
  * own capability during this page visit so final processing can settle gracefully.
  */
+/** The Assistant shows during the live call and, once the call or session ends, stays in its "Meeting ended" state until the user closes it. */
+export function panelVisible(p: { live: boolean; over: boolean; joined: boolean; closed: boolean }): boolean {
+  return p.joined && !p.closed && (p.live || p.over);
+}
+
 export function useNoteTaker(jobId: string): NoteTakerBinding {
   const stored = useShare((s) => s.stored);
   const sessionStatus = useShare((s) => s.session?.status);
   const callStatus = useCall((s) => s.status);
   const key = stored && stored.jobId === jobId ? transcriptionKey(stored) : null;
   const [ctl, setCtl] = useState<{ id: string; ctl: NoteTakerController } | null>(null);
+  const [joined, setJoined] = useState<string | null>(null); // controller id whose member has been in the call
+  const [closed, setClosed] = useState<string | null>(null); // controller id whose panel the user closed
   const latest = useRef(ctl);
   useEffect(() => { latest.current = ctl; }, [ctl]);
 
@@ -353,10 +389,18 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
   }, [key, jobId, stored]);
   useEffect(() => { if (sessionStatus === 'ended') latest.current?.ctl.markEnded(); }, [sessionStatus]);
   useEffect(() => { const c = latest.current; c?.ctl.start(); return () => c?.ctl.dispose(); }, [ctl?.id]);
+  // Joining the call opens the Assistant; leaving it ends the meeting for this member, and the panel stays for the summary.
+  useEffect(() => {
+    if (!ctl) return;
+    if (callStatus === 'live') { setJoined(ctl.id); setClosed(null); ctl.ctl.resumeMeeting(); }
+    else if (callStatus === 'idle' && joined === ctl.id) void ctl.ctl.leaveMeeting();
+  }, [callStatus, ctl, joined]);
 
   const active = ctl?.ctl;
   const state = useSyncExternalStore(active ? active.subscribe : noop, active ? active.getState : offlineState);
-  if (!active || !key || sessionStatus !== 'active' || callStatus !== 'live' || ctl?.id !== key) return OFFLINE_NOTE_TAKER;
+  if (!active || ctl?.id == null || joined !== ctl.id || closed === ctl.id) return OFFLINE_NOTE_TAKER;
+  const over = state.ended || state.left;
+  if (!panelVisible({ live: key === ctl.id && sessionStatus === 'active' && callStatus === 'live', over, joined: true, closed: false })) return OFFLINE_NOTE_TAKER;
   return {
     hidden: false, meeting: state, messages: state.messages, status: state.status, script: SCRIPT,
     muteSelf: () => { void active.muteSelf(); },
@@ -365,9 +409,10 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
     onMic: () => { void active.onMic(); },
     onRun: (lines) => { void active.run(lines); },
     onConfirm: () => { void active.onConfirm(); },
-    onDismiss: () => active.onDismiss(),
+    // Closing the confirm row after the meeting is the user closing the Assistant.
+    onDismiss: () => { active.onDismiss(); if (over) setClosed(ctl.id); },
   };
 }
 const noop = () => () => {};
-const offline: NoteTakerState = { messages: OFFLINE_NOTE_TAKER.messages, status: 'offline', segments: [], note: null, enabled: false, muted: false, callActive: false, ended: true, host: false, promptDismissed: true, events: [] };
+const offline: NoteTakerState = { messages: OFFLINE_NOTE_TAKER.messages, status: 'offline', segments: [], note: null, enabled: false, muted: false, callActive: false, ended: true, left: false, host: false, promptDismissed: true, events: [] };
 const offlineState = () => offline;

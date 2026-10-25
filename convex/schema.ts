@@ -478,6 +478,7 @@ export default defineSchema({
     enabled: v.boolean(),
     updatedAt: v.number(),
     tickAt: v.optional(v.number()), // the live Scribe tick chain (#136); a tick runs only if it matches
+    meetingEndedAt: v.optional(v.number()), // the host ended the meeting (left the call / turned notes off) without ending the session
     promptDismissed: v.optional(v.boolean()),
     muted: v.optional(v.array(v.id("sessionParticipants"))),
     events: v.optional(v.array(v.object({
