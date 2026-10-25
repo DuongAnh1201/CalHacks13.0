@@ -58,6 +58,22 @@ describe("report mail", () => {
     expect((await rows()).every((r) => r.email === undefined)).toBe(true);
   });
 
+  it("keeps email text unescaped while escaping the markdown attachment", async () => {
+    const spy = vi.spyOn(AgentMail.prototype, "sendMessage").mockResolvedValue("out-1" as never);
+    const { t, host, end } = await room();
+    await t.run(async (ctx) => {
+      await ctx.db.patch(host.participantId, { displayName: "Host (learner) <notes> & malignant" });
+    });
+    await end();
+    await t.action(internal.reportMail.send, { sessionId: host.sessionId });
+    const args = spy.mock.calls[0][2];
+    expect(args.text).toContain("Host (learner) <notes> & [redacted]");
+    expect(args.text).not.toContain("malignant");
+    const md = args.attachments!.find((a) => a.filename === "report.md")!;
+    const text = new TextDecoder().decode(Uint8Array.from(atob(md.content!), (c) => c.charCodeAt(0)));
+    expect(text).toContain(String.raw`Host \(learner\) &lt;notes&gt; &amp; \[redacted\]`);
+  });
+
   it("runs from finalizeSession", async () => {
     const spy = vi.spyOn(AgentMail.prototype, "sendMessage").mockResolvedValue("out-1" as never);
     const { t, host, end } = await room();

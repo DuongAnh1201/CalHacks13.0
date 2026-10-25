@@ -77,7 +77,7 @@ export const send = internalAction({
     const message = {
       subject: `${REPORT_TITLE} — ${loaded.jobId}`,
       html: renderHtml(doc),
-      text: md,
+      text: renderMarkdown(doc, (s) => s),
       attachments: [
         { filename: "report.md", content: toBase64(md), contentType: "text/markdown" },
         { filename: "report.docx", content: await renderDocx(doc), contentType: DOCX_TYPE },

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import JSZip from "jszip";
 import { buildReportDoc, NEXT_STEPS, renderDocx, renderHtml, renderMarkdown, REPORT_TITLE, toBase64 } from "../lib/clinicalReport";
 import { EXPORT_NOTICE, type ExportSnapshot } from "../lib/exportMarkdown";
 import { readExportReport } from "../lib/exportReport";
@@ -28,7 +29,7 @@ describe("clinical report", () => {
   });
   it("lists model measurements from report.json", async () => {
     const doc = buildReportDoc(await input());
-    expect(doc.date).toBe("2026-10-24");
+    expect(doc.date).toBe("2026-10-24 (UTC)");
     expect(doc.measurements?.map(([k]) => k)).toContain("Lesion count");
     expect(doc.measurements?.map(([k]) => k)).toContain("Whole tumor volume (cm³)");
   });
@@ -54,6 +55,43 @@ describe("clinical report", () => {
   it("renders a docx (zip) as base64", async () => {
     const b64 = await renderDocx(buildReportDoc(await input()));
     expect(atob(b64).slice(0, 2)).toBe("PK");
+    const zip = await JSZip.loadAsync(b64, { base64: true });
+    expect(await zip.file("word/document.xml")!.async("string")).toContain(EXPORT_NOTICE);
+  });
+  it("labels the UTC date when a local evening falls on the next UTC day", async () => {
+    const doc = buildReportDoc({ ...await input(), endedAt: Date.parse("2026-10-24T23:43:00-07:00") });
+    expect(doc.date).toBe("2026-10-25 (UTC)");
+    for (const out of [renderMarkdown(doc), renderHtml(doc)]) expect(out).toContain("2026-10-25 (UTC)");
+    const zip = await JSZip.loadAsync(await renderDocx(doc), { base64: true });
+    expect(await zip.file("word/document.xml")!.async("string")).toContain("2026-10-25 (UTC)");
+  });
+  it("labels an interim summary in every format while preserving its text", async () => {
+    const doc = buildReportDoc({ ...await input(), data: { ...data, summaryState: "interim" } });
+    const label = "Interim summary (the final summary could not be written)";
+    for (const out of [renderMarkdown(doc), renderHtml(doc)]) {
+      expect(out).toContain(label);
+      expect(out).toContain("Then volumes.");
+    }
+    const zip = await JSZip.loadAsync(await renderDocx(doc), { base64: true });
+    const xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain(label);
+    expect(xml).toContain("Then volumes.");
+  });
+  it("keeps final summaries unlabelled and missing summaries unavailable", async () => {
+    const final = buildReportDoc({ ...await input(), data: { ...data, summaryState: "final" } });
+    const missing = buildReportDoc({ ...await input(), data: { ...data, summary: null, summaryState: "interim" } });
+    for (const render of [renderMarkdown, renderHtml]) {
+      expect(render(final)).not.toContain("Interim summary");
+      expect(render(missing)).not.toContain("Interim summary");
+      expect(render(missing)).toContain("Summary unavailable.");
+    }
+  });
+  it("includes only present certainty values, including zero", async () => {
+    const source = await input();
+    const doc = buildReportDoc({ ...source, report: { ...source.report!, certainty: { whole: 0, core: null, enhancing: null } } });
+    expect(doc.measurements?.filter(([label]) => label.endsWith("outline certainty"))).toEqual([["Whole tumor outline certainty", "0"]]);
+    const without = buildReportDoc({ ...source, report: { ...source.report!, certainty: null } });
+    expect(without.measurements?.filter(([label]) => label.endsWith("outline certainty"))).toEqual([]);
   });
   it("base64-encodes utf-8 text", () => {
     const text = "cm³ — Tom";

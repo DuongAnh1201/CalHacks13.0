@@ -6,6 +6,7 @@ export const REPORT_TITLE = "Neuro Imaging Session Report";
 export const NEXT_STEPS = ["Review findings with a supervising clinician.", "Compare with the radiology report of record."];
 export const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CERTAINTY_NOTE = "Outline certainty is the mean model probability within the outlined region. It is not calibrated and describes the outline, not the tissue.";
+const INTERIM_SUMMARY = "Interim summary (the final summary could not be written)";
 const TRANSCRIPT_NOTE = "Speech-to-text from the participants' browsers. It may contain recognition errors.";
 const REGIONS = [["whole", "Whole tumor"], ["core", "Tumor core"], ["enhancing", "Enhancing tumor"]] as const;
 
@@ -18,6 +19,7 @@ export interface ReportDoc {
   /** [label, value] rows; null when the case has no report.json. */
   measurements: [string, string][] | null;
   summary: string | null;
+  summaryInterim: boolean;
   annotations: { author: string; anchor: string; text: string }[];
   transcript: { at: string; speaker: string; text: string }[];
 }
@@ -33,17 +35,21 @@ function measurements(r: ExportReport): [string, string][] {
     ["Lesion count", String(r.lesionCount)],
   ];
   for (const [key, label] of REGIONS) rows.push([`${label} volume (cm³)`, String(r.volumesCm3[key])]);
-  for (const [key, label] of REGIONS) rows.push([`${label} outline certainty`, String(r.certainty?.[key] ?? "not available")]);
+  for (const [key, label] of REGIONS) {
+    const certainty = r.certainty?.[key];
+    if (certainty != null) rows.push([`${label} outline certainty`, String(certainty)]);
+  }
   return rows;
 }
 
 export function buildReportDoc({ jobId, endedAt, participants, report, data }: ReportInput): ReportDoc {
   return {
     caseId: clean(jobId),
-    date: new Date(endedAt).toISOString().slice(0, 10),
+    date: `${new Date(endedAt).toISOString().slice(0, 10)} (UTC)`,
     participants: participants.map(clean),
     measurements: report ? measurements(report) : null,
     summary: data.summary ? clean(data.summary.text) : null,
+    summaryInterim: !!data.summary && data.summaryState === "interim",
     annotations: data.annotations.map((row) => ({
       author: clean(`${row.author === "human" ? "Human" : "AI"}: ${row.authorName}`),
       anchor: row.anchor.kind === "structure" ? clean(`structure ${row.anchor.id}`)
@@ -56,8 +62,7 @@ export function buildReportDoc({ jobId, endedAt, participants, report, data }: R
   };
 }
 
-export function renderMarkdown(doc: ReportDoc): string {
-  const t = exportText;
+export function renderMarkdown(doc: ReportDoc, t = exportText): string {
   return [
     `# ${REPORT_TITLE}`,
     `**${EXPORT_NOTICE}**`,
@@ -65,7 +70,7 @@ export function renderMarkdown(doc: ReportDoc): string {
     "## Measurements (model output)\n\n" + (doc.measurements
       ? ["Measure | Value", "--- | ---", ...doc.measurements.map(([k, v]) => `${k} | ${t(v)}`)].join("\n") + `\n\n${CERTAINTY_NOTE}`
       : "Measurements unavailable."),
-    "## Session discussion\n\n" + (doc.summary ? t(doc.summary) : "Summary unavailable."),
+    "## Session discussion\n\n" + (doc.summaryInterim ? `**${INTERIM_SUMMARY}**\n\n` : "") + (doc.summary ? t(doc.summary) : "Summary unavailable."),
     "## Annotations\n\n" + (doc.annotations.map((a) => `- **${t(a.author)}** · ${t(a.anchor)}: ${t(a.text)}`).join("\n") || "No annotations."),
     `## Transcript\n\n${TRANSCRIPT_NOTE}\n\n` + (doc.transcript.map((r) => `- ${r.at} **${t(r.speaker)}**: ${t(r.text)}`).join("\n") || "No transcript was recorded."),
     "## Next steps for learners\n\n" + NEXT_STEPS.map((s, i) => `${i + 1}. ${s}`).join("\n"),
@@ -88,7 +93,7 @@ export function renderHtml(doc: ReportDoc): string {
     + `<h1 style="font-size:22px;margin:0 0 12px;color:#0b3d5c">${esc(REPORT_TITLE)}</h1>`
     + pairs([["Case ID", doc.caseId], ["Session date", doc.date], ["Participants", doc.participants.join(", ") || "none recorded"]])
     + section("Measurements (model output)", doc.measurements ? pairs(doc.measurements) + para(CERTAINTY_NOTE) : para("Measurements unavailable."))
-    + section("Session discussion", para(doc.summary ?? "Summary unavailable."))
+    + section("Session discussion", (doc.summaryInterim ? para(INTERIM_SUMMARY) : "") + para(doc.summary ?? "Summary unavailable."))
     + section("Annotations", doc.annotations.length
       ? `<ul>${doc.annotations.map((a) => `<li><b>${esc(a.author)}</b> · ${esc(a.anchor)}: ${esc(a.text)}</li>`).join("")}</ul>` : para("No annotations."))
     + section("Transcript", para(TRANSCRIPT_NOTE) + (doc.transcript.length
@@ -112,6 +117,7 @@ export async function renderDocx(doc: ReportDoc): Promise<string> {
     h2("Measurements (model output)"),
     ...(doc.measurements ? [table(doc.measurements), p(CERTAINTY_NOTE)] : [p("Measurements unavailable.")]),
     h2("Session discussion"),
+    ...(doc.summaryInterim ? [p(INTERIM_SUMMARY)] : []),
     ...(doc.summary ?? "Summary unavailable.").split("\n").map(p),
     h2("Annotations"),
     ...(doc.annotations.length ? doc.annotations.map((a) => p(`${a.author} · ${a.anchor}: ${a.text}`)) : [p("No annotations.")]),
