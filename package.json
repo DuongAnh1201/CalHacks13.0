@@ -17,6 +17,7 @@
     "test:mcp-stdio": "node --test mcp/proxy.test.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@convex-dev/presence": "^0.4.0",
     "@convex-dev/static-hosting": "^0.2.1",
     "@modelcontextprotocol/sdk": "^1.32.2",
