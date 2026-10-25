@@ -16,6 +16,7 @@ import type * as agent_evalRunner from "../agent/evalRunner.js";
 import type * as agent_guard from "../agent/guard.js";
 import type * as agent_loop from "../agent/loop.js";
 import type * as agent_mcpClient from "../agent/mcpClient.js";
+import type * as agent_redact from "../agent/redact.js";
 import type * as agent_scribe from "../agent/scribe.js";
 import type * as agent_validators from "../agent/validators.js";
 import type * as agent_viewerTools from "../agent/viewerTools.js";
@@ -74,6 +75,7 @@ declare const fullApi: ApiFromModules<{
   "agent/guard": typeof agent_guard;
   "agent/loop": typeof agent_loop;
   "agent/mcpClient": typeof agent_mcpClient;
+  "agent/redact": typeof agent_redact;
   "agent/scribe": typeof agent_scribe;
   "agent/validators": typeof agent_validators;
   "agent/viewerTools": typeof agent_viewerTools;
