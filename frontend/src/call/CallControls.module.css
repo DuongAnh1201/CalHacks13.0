@@ -1,7 +1,11 @@
-.call { position: relative; display: flex; align-items: center; gap: 6px; }
-.btn { padding: 4px 10px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; font: 600 12px/1.4 system-ui, sans-serif; cursor: pointer; }
-.btn:disabled { opacity: 0.6; cursor: default; }
-.btn[aria-pressed="true"] { background: #c92a2a; border-color: #c92a2a; color: #fff; }
-.btn:focus-visible { outline: 2px solid #4dabf7; outline-offset: 2px; }
-.leave { border-color: #c92a2a; color: #c92a2a; }
-.error { position: absolute; top: 100%; right: 0; margin: 4px 0 0; padding: 4px 8px; border-radius: 4px; background: #c92a2a; color: #fff; font: 12px/1.4 system-ui, sans-serif; white-space: nowrap; }
+.call { position: relative; display: flex; align-items: center; gap: 8px; }
+.btn {
+  padding: 7px 16px; border: 0; border-radius: var(--nv-radius-control);
+  background: var(--nv-primary); color: #fff; font: 700 12px var(--nv-font);
+}
+.btn[aria-pressed="true"] { background: var(--nv-accent-warm); }
+.leave { background: var(--nv-primary-soft); color: var(--nv-primary); }
+.error {
+  position: absolute; top: 100%; right: 0; margin: 4px 0 0;
+  font: 12px/1.4 var(--nv-font); color: var(--nv-accent-warm); white-space: nowrap;
+}
