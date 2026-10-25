@@ -12,7 +12,8 @@
  */
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
+import { env, internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
+import { makeFunctionReference } from "convex/server";
 import { requireParticipant, requirePresenter, requireSessionMember } from "./lib/auth";
 import { appError } from "./lib/errors";
 import { loadScan } from "./scans";
@@ -22,6 +23,11 @@ export const MAX_SEGMENT_MS = 60_000;
 export const RATE_LIMIT_PER_MINUTE = 30;
 export const DEFAULT_LIST_LIMIT = 100;
 export const MAX_LIST_LIMIT = 200;
+
+/** Cadence of the live note updates while transcription is on (#136); same as the debounce. */
+export const TICK_MS = 60_000;
+const tickRef = makeFunctionReference<"mutation", { sessionId: Id<"sessions">; at: number }, null>("notes:tick");
+const hasKey = () => Boolean((env as typeof env & { ANTHROPIC_API_KEY?: string }).ANTHROPIC_API_KEY);
 
 export type PublicSegment = {
   segmentId: Id<"transcriptSegments">;
@@ -76,7 +82,10 @@ export async function readSegments(
   return { segments: rows.slice(0, n).map(toPublic), hasMore: rows.length > n };
 }
 
-/** Host only: turn transcription on or off for the session. */
+/**
+ * Host only: turn transcription on or off for the session. Turning it on also
+ * starts the live Scribe tick (about every 60 s, #136) when an API key exists.
+ */
 export const setEnabled = mutation({
   args: { sessionId: v.id("sessions"), participantToken: v.string(), enabled: v.boolean() },
   handler: async (ctx, args) => {
@@ -86,8 +95,12 @@ export const setEnabled = mutation({
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .unique();
     const now = Date.now();
-    if (row) await ctx.db.patch(row._id, { enabled: args.enabled, updatedAt: now });
-    else await ctx.db.insert("transcriptSettings", { sessionId: args.sessionId, enabled: args.enabled, updatedAt: now });
+    const start = args.enabled && hasKey() && !(row?.enabled && row.tickAt !== undefined);
+    const tickAt = start ? now + TICK_MS : args.enabled ? row?.tickAt : undefined;
+    const fields = { enabled: args.enabled, updatedAt: now, tickAt };
+    if (row) await ctx.db.patch(row._id, fields);
+    else await ctx.db.insert("transcriptSettings", { sessionId: args.sessionId, ...fields });
+    if (start) await ctx.scheduler.runAfter(TICK_MS, tickRef, { sessionId: args.sessionId, at: tickAt! });
     return { enabled: args.enabled };
   },
 });

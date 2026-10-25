@@ -23,6 +23,7 @@ import {
   internalQuery,
   query,
   type ActionCtx,
+  type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
@@ -30,6 +31,7 @@ import { createClaudeClient, type ClaudeClient } from "./agent/anthropic";
 import { generateNote } from "./agent/scribe";
 import { reserveDailyRun } from "./agent";
 import { requireParticipant } from "./lib/auth";
+import { MAX_SEGMENT_MS, TICK_MS } from "./transcript";
 import { appError } from "./lib/errors";
 import { insertSummary, latestSummary, type SummaryScope } from "./lib/summaries";
 
@@ -37,6 +39,7 @@ export const NOTES_DEBOUNCE_MS = 60_000;
 const MAX_RUNS = 20;
 const MAX_MESSAGES = 50;
 const MAX_ANNOTATIONS = 30;
+const MAX_SEGMENTS = 60;
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
 
 const settings = env as typeof env & { ANTHROPIC_API_KEY?: string };
@@ -48,7 +51,7 @@ const vScope = v.union(
 const scopeKey = (s: SummaryScope) =>
   s.kind === "client" ? `client:${s.clientId}:${s.jobId}` : `session:${s.sessionId}:${s.jobId}`;
 
-type Collected = { events: unknown; coversUpTo: number; count: number };
+type Collected = { events: unknown; coversUpTo: number; count: number; humanText: string[] };
 
 /** Read-only gathering of everything newer than `since`, bounded and truncated. */
 async function collect(
@@ -106,6 +109,8 @@ async function collect(
   // Human chat and notes: session scope only, read-only.
   const chat: unknown[] = [];
   const notes: unknown[] = [];
+  const transcript: unknown[] = [];
+  const humanText: string[] = [];
   if (scope.kind === "session") {
     const sid = scope.sessionId;
     const messages = await ctx.db
@@ -129,13 +134,35 @@ async function collect(
     }
   }
 
-  const count = runs.length + chat.length + notes.length;
+  if (scope.kind === "session") {
+    // Segments are stamped at append time (endedAt) but start earlier, so look back one
+    // maximum segment length and filter on endedAt, the watermark the note advances by.
+    const sid = scope.sessionId;
+    const rows = await ctx.db
+      .query("transcriptSegments")
+      .withIndex("by_session_time", (q) =>
+        q.eq("sessionId", sid).gt("startedAt", Math.max(0, since - MAX_SEGMENT_MS)),
+      )
+      .take(200);
+    const fresh = rows
+      .filter((x) => x.jobId === scope.jobId && x.endedAt > since)
+      .sort((a, b) => a.endedAt - b.endedAt)
+      .slice(0, MAX_SEGMENTS);
+    for (const x of fresh) {
+      seen(x.endedAt);
+      transcript.push({ at: x.endedAt, speaker: clip(x.speakerName, 60), text: clip(x.text, 500) });
+      humanText.push(clip(x.text, 500));
+    }
+  }
+
+  const count = runs.length + chat.length + notes.length + transcript.length;
   // The final summary covers the whole meeting up to the end time.
   const coversUpTo = endedAt !== undefined ? Math.max(endedAt, latest) : Math.min(latest, cap);
   return {
-    events: { runs, session_chat: chat, annotations: notes },
+    events: { runs, session_chat: chat, annotations: notes, transcript },
     coversUpTo,
     count: coversUpTo > since ? count : 0,
+    humanText,
   };
 }
 
@@ -161,7 +188,7 @@ export const prepare = internalMutation({
     const endedAt = final ? await sessionEnd(ctx, scope) : undefined;
     if (final && endedAt === undefined) return { status: "empty" as const, ...base };
     if (final && previous && previous.coversUpTo >= endedAt!) return { status: "empty" as const, ...base }; // written once
-    const { events, coversUpTo, count } = await collect(ctx, scope, previous?.coversUpTo ?? 0, endedAt);
+    const { events, coversUpTo, count, humanText } = await collect(ctx, scope, previous?.coversUpTo ?? 0, endedAt);
     if (count === 0) {
       // Nothing new at the end: restate the existing note as the final version (no model call).
       if (final && previous) {
@@ -175,7 +202,7 @@ export const prepare = internalMutation({
     } catch {
       return { status: "limit" as const, ...base };
     }
-    return { status: "ready" as const, ...base, events, coversUpTo };
+    return { status: "ready" as const, ...base, events, coversUpTo, humanText };
   },
 });
 
@@ -265,6 +292,7 @@ type Prep = {
   version: number;
   events?: unknown;
   coversUpTo?: number;
+  humanText?: string[];
 };
 const prepareRef = makeFunctionReference<"mutation", { scope: SummaryScope; clearPending: boolean; final: boolean }, Prep>("notes:prepare");
 const writeRef = makeFunctionReference<"mutation", { scope: SummaryScope; text: string; coversUpTo: number }, { version: number; written: boolean }>("notes:write");
@@ -295,7 +323,7 @@ export async function runNotes(
     return { status: prep.status === "limit" ? "limit" : "unchanged", version: prep.version, text: prep.previous };
   let text: string | null = null;
   try {
-    text = await generateNote(client, { previous: prep.previous, events: prep.events });
+    text = await generateNote(client, { previous: prep.previous, events: prep.events, humanText: prep.humanText });
   } catch {
     text = null;
   }
@@ -356,21 +384,51 @@ const sessionJobRef = makeFunctionReference<"query", { sessionId: Id<"sessions">
  * books a single trailing update at lastRunAt + 60 s; further finishes while
  * one is pending add nothing (that update picks them up).
  */
+async function scheduleScope(ctx: MutationCtx, scope: SummaryScope): Promise<null> {
+  if (!settings.ANTHROPIC_API_KEY) return null; // no key: skip silently
+  const now = Date.now();
+  const key = scopeKey(scope);
+  const state = await ctx.db
+    .query("scribeNotesState")
+    .withIndex("by_scope", (q) => q.eq("scopeKey", key))
+    .unique();
+  if (state?.pending) return null;
+  const due = Math.max(now, (state?.lastRunAt ?? 0) + NOTES_DEBOUNCE_MS);
+  if (state) await ctx.db.patch(state._id, { lastRunAt: due, pending: true });
+  else await ctx.db.insert("scribeNotesState", { scopeKey: key, lastRunAt: due, pending: true });
+  await ctx.scheduler.runAfter(due - now, updateRef, { scope });
+  return null;
+}
+
 export const schedule = internalMutation({
   args: { scope: vScope },
-  handler: async (ctx, { scope }) => {
-    if (!settings.ANTHROPIC_API_KEY) return null; // no key: skip silently
-    const now = Date.now();
-    const key = scopeKey(scope);
-    const state = await ctx.db
-      .query("scribeNotesState")
-      .withIndex("by_scope", (q) => q.eq("scopeKey", key))
+  handler: async (ctx, { scope }) => scheduleScope(ctx, scope),
+});
+
+const tickRef = makeFunctionReference<"mutation", { sessionId: Id<"sessions">; at: number }, null>("notes:tick");
+
+/**
+ * Live cadence (#136): while the meeting is active and the host has
+ * transcription on, ask for a notes update about every minute. It goes through
+ * the same debounce as every other trigger, and an update with nothing new
+ * makes no model call. A tick that no longer matches the settings row (turned
+ * off, restarted, session ended, no key) simply ends the chain.
+ */
+export const tick = internalMutation({
+  args: { sessionId: v.id("sessions"), at: v.number() },
+  handler: async (ctx, { sessionId, at }) => {
+    const row = await ctx.db
+      .query("transcriptSettings")
+      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
       .unique();
-    if (state?.pending) return null;
-    const due = Math.max(now, (state?.lastRunAt ?? 0) + NOTES_DEBOUNCE_MS);
-    if (state) await ctx.db.patch(state._id, { lastRunAt: due, pending: true });
-    else await ctx.db.insert("scribeNotesState", { scopeKey: key, lastRunAt: due, pending: true });
-    await ctx.scheduler.runAfter(due - now, updateRef, { scope });
+    if (!row || !row.enabled || row.tickAt !== at || !settings.ANTHROPIC_API_KEY) return null;
+    const session = await ctx.db.get(sessionId);
+    const scan = session ? await ctx.db.get(session.scanId) : null;
+    if (!session || session.status === "ended" || !scan) return null;
+    await scheduleScope(ctx, { kind: "session", sessionId, jobId: scan.jobId });
+    const next = Date.now() + TICK_MS;
+    await ctx.db.patch(row._id, { tickAt: next });
+    await ctx.scheduler.runAfter(TICK_MS, tickRef, { sessionId, at: next });
     return null;
   },
 });

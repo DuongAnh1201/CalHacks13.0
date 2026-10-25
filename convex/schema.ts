@@ -456,6 +456,7 @@ export default defineSchema({
     sessionId: v.id("sessions"),
     enabled: v.boolean(),
     updatedAt: v.number(),
+    tickAt: v.optional(v.number()), // the live Scribe tick chain (#136); a tick runs only if it matches
   }).index("by_session", ["sessionId"]),
 
   // Conservative daily reservations, shared across clients; no key means no spend.
