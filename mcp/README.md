@@ -176,3 +176,33 @@ agents/core-67 tip 6e91315, loop.ts loggedArgs redacts keys matching
 /token|secret|api_key/i, which already covers participant_token. agent.ts
 appendStep itself stores supplied steps without boundary redaction; verify a
 redaction guard there as a part-2 follow-up, not a #126 change in this PR.
+
+## Agent Panel persistence (#58 part 2)
+
+There are two chat boxes backed by distinct scopes in the messages table.
+SessionChat uses by_session_time. Completed Agent Panel runs instead insert a
+human user row (You) and a specialist assistant row under clientId/jobId, with
+**no sessionId**, even when the run itself references a live session. They use
+the same shared validation/insert helper; no run reply is sent through the MCP
+post_message tool or the session send API.
+
+The pair and terminal run transition commit in one mutation. Duplicate run or
+finish delivery therefore cannot append another pair. Done/failed runs with a
+reply are recorded, including queued daily-budget failures; cancelled runs and
+late completion after cancellation write nothing. Learn with no job uses atlas;
+mri/3d with no job skip persistence. Replies are guarded and capped to 2000
+characters with an ellipsis when needed, and the stored run/message text agrees.
+The run's client/job context is the authority, never model-supplied tool args.
+
+AgentPanel can subscribe to agent.listChat({clientId, jobId?, limit}) (limit 1–100,
+newest first). It filters client rows without sessionId, optionally by job, and
+returns messageId/role/author/authorName/text/createdAt/jobId/runId/toolSteps,
+without the client capability. Reverse for chronological display if desired.
+Only the assistant message carries the redacted tool-step summary. The loop and
+appendStep persistence boundary share recursive redaction of credential-like
+argument keys; summaries and panel query reapply it for pre-existing step rows.
+
+Local part-2 smoke on 3380/3381 completed a real no-key run carrying a live
+session reference, repeated delivery, and read agent.listChat: exactly two
+client-chat rows. The same room's public messages.list still returned only its
+unchanged human message. The disposable room was ended and test server stopped.

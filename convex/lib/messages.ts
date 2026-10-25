@@ -17,8 +17,13 @@ export function validateMessageText(input: string): string {
 }
 
 /** Callers must authenticate/resolve the scope and author before this shared write. */
-export async function insertMessage(ctx: MutationCtx, input: {
-  jobId: string; sessionId: Id<"sessions">; text: string; role: "user" | "assistant";
+type MessageScope =
+  | { sessionId: Id<"sessions">; clientId?: never }
+  | { clientId: string; sessionId?: never };
+
+export async function insertMessage(ctx: MutationCtx, input: MessageScope & {
+  jobId: string; text: string; role: "user" | "assistant";
+  runId?: Id<"agentRuns">; toolSteps?: Doc<"messages">["toolSteps"];
 }, caller: ResolvedCaller): Promise<Id<"messages">> {
   return ctx.db.insert("messages", { ...input, text: validateMessageText(input.text), ...authorFor(caller) });
 }

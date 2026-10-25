@@ -16,6 +16,7 @@ import type * as agent_evalRunner from "../agent/evalRunner.js";
 import type * as agent_guard from "../agent/guard.js";
 import type * as agent_loop from "../agent/loop.js";
 import type * as agent_mcpClient from "../agent/mcpClient.js";
+import type * as agent_redact from "../agent/redact.js";
 import type * as agent_scribe from "../agent/scribe.js";
 import type * as agent_validators from "../agent/validators.js";
 import type * as agent_viewerTools from "../agent/viewerTools.js";
@@ -48,6 +49,7 @@ import type * as mcp_messageTools from "../mcp/messageTools.js";
 import type * as mcp_rateLimit from "../mcp/rateLimit.js";
 import type * as mcp_server from "../mcp/server.js";
 import type * as mcp_summaryTools from "../mcp/summaryTools.js";
+import type * as mcp_transcriptTools from "../mcp/transcriptTools.js";
 import type * as mcp_types from "../mcp/types.js";
 import type * as mcpTokens from "../mcpTokens.js";
 import type * as messageMcp from "../messageMcp.js";
@@ -58,6 +60,7 @@ import type * as scans from "../scans.js";
 import type * as seed from "../seed.js";
 import type * as sessionParticipants from "../sessionParticipants.js";
 import type * as sessions from "../sessions.js";
+import type * as transcript from "../transcript.js";
 
 import type {
   ApiFromModules,
@@ -74,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   "agent/guard": typeof agent_guard;
   "agent/loop": typeof agent_loop;
   "agent/mcpClient": typeof agent_mcpClient;
+  "agent/redact": typeof agent_redact;
   "agent/scribe": typeof agent_scribe;
   "agent/validators": typeof agent_validators;
   "agent/viewerTools": typeof agent_viewerTools;
@@ -106,6 +110,7 @@ declare const fullApi: ApiFromModules<{
   "mcp/rateLimit": typeof mcp_rateLimit;
   "mcp/server": typeof mcp_server;
   "mcp/summaryTools": typeof mcp_summaryTools;
+  "mcp/transcriptTools": typeof mcp_transcriptTools;
   "mcp/types": typeof mcp_types;
   mcpTokens: typeof mcpTokens;
   messageMcp: typeof messageMcp;
@@ -116,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   sessionParticipants: typeof sessionParticipants;
   sessions: typeof sessions;
+  transcript: typeof transcript;
 }>;
 
 /**

@@ -38,7 +38,7 @@ describe("combined /api/mcp HTTP adapter", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name).sort()).toEqual([
-        "add_annotation", "explain_finding", "explain_structure", "export_document", "get_report", "get_tumor_metrics",
+        "add_annotation", "explain_finding", "explain_structure", "export_document", "get_report", "get_transcript", "get_tumor_metrics",
         "list_annotations", "list_messages", "post_message", "remove_annotation", "search", "summarize",
       ]);
       expect(tools.find((tool) => tool.name === "export_document")?.description).toContain("session_id AND participant_token");
