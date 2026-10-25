@@ -53,6 +53,7 @@ import {
   type PublicParticipant,
 } from "./lib/auth";
 import { appError } from "./lib/errors";
+import { normaliseEmail } from "./lib/email";
 import { MAX_CREDENTIAL_LENGTH, newInviteCode, newParticipantToken } from "./lib/tokens";
 import { sliceIndexFromCursor, type Plane } from "./lib/transform";
 import {
@@ -287,6 +288,7 @@ export const join = mutation({
   args: {
     inviteCode: v.string(),
     displayName: v.string(),
+    email: v.string(),
   },
   handler: async (
     ctx,
@@ -300,6 +302,7 @@ export const join = mutation({
     jobId: string;
   }> => {
     const displayName = normaliseDisplayName(args.displayName);
+    const email = normaliseEmail(args.email);
 
     // Oversized input cannot be a code; answer exactly like an unknown one.
     const inviteCode = args.inviteCode.trim();
@@ -329,6 +332,9 @@ export const join = mutation({
       joinedAt: now,
       lastSeenAt: now,
     });
+
+    // Mandatory for guests: the report goes out when the host ends the session.
+    await ctx.db.insert("reportRecipients", { sessionId: session._id, participantId, email, status: "pending" });
 
     const scan = await loadScan(ctx, session.scanId);
     return { sessionId: session._id, participantToken, participantId, role: "viewer", jobId: scan.jobId };

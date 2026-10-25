@@ -21,7 +21,7 @@ const cap = (x: Who): Who => ({ sessionId: x.sessionId, participantToken: x.part
 async function room(t: T) {
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Dr Host" });
-  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge" });
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Judge" });
   return { host, viewer };
 }
 const say = (t: T, who: Who, text: string, durationMs?: number) =>

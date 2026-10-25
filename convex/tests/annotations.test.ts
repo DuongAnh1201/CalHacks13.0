@@ -41,7 +41,7 @@ async function setUpRoom() {
   const t = convexTest({ schema });
   const scanId: Id<"scans"> = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Presenter" });
-  const viewer = await t.mutation(api.sessions.join, {
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com",
     inviteCode: host.inviteCode,
     displayName: "Judge",
   });

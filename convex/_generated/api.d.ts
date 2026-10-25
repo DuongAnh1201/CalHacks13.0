@@ -31,6 +31,7 @@ import type * as http from "../http.js";
 import type * as jobs from "../jobs.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_author from "../lib/author.js";
+import type * as lib_email from "../lib/email.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_exportMarkdown from "../lib/exportMarkdown.js";
@@ -101,6 +102,7 @@ declare const fullApi: ApiFromModules<{
   jobs: typeof jobs;
   "lib/auth": typeof lib_auth;
   "lib/author": typeof lib_author;
+  "lib/email": typeof lib_email;
   "lib/env": typeof lib_env;
   "lib/errors": typeof lib_errors;
   "lib/exportMarkdown": typeof lib_exportMarkdown;
@@ -171,4 +173,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
   presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+  agentmail: import("@agentmail/convex/_generated/component.js").ComponentApi<"agentmail">;
 };
