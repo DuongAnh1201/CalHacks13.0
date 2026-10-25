@@ -839,3 +839,12 @@ cross-room and malformed room ids; ended session; interval bounds.
 
 Not yet checked in a browser. The two-tab check and the QR join flow are the
 next increment.
+
+## Live call (LiveKit)
+
+`convex/call.ts` mints LiveKit join tokens; audio flows through LiveKit Cloud, never Convex.
+
+- Env (set by the deployment owner, never committed): `npx convex env set LIVEKIT_API_KEY …`, `LIVEKIT_API_SECRET …`, `LIVEKIT_URL wss://<project>.livekit.cloud`.
+- Unset → `call.token` throws `UNAVAILABLE` and the Join button shows "Call unavailable".
+- Token: 15 min, room = `sessionId`, identity = `participantId`, mic publish + subscribe only, no data, no admin.
+- Privacy: a third party carries the audio. De-identified sample case only; nothing is recorded.

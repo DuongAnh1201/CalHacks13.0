@@ -2,6 +2,7 @@ import { Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { useCall } from '../call/store';
 import { colorOf, cursorSender } from './cursorSync';
 import css from './RemoteCursors.module.css';
 import { sendCursor, useShare, watchCursors } from './store';
@@ -24,13 +25,14 @@ export function useCursorPush(enabled: boolean): ((c: Cursor | null) => void) | 
 export function RemoteCursors({ enabled }: { enabled: boolean }) {
   const sessionId = useLiveSession(enabled);
   const online = useShare((s) => s.online);
+  const speaking = useCall((s) => s.speaking);
   const [rows, setRows] = useState<RemoteCursor[]>([]);
   useEffect(() => (sessionId ? watchCursors(setRows) : undefined), [sessionId]);
   if (!sessionId) return null;
-  return <>{rows.map((r) => (r.cursor && online.has(r.participantId) ? <RemoteDot key={r.participantId} id={r.participantId} name={r.displayName} cursor={r.cursor} /> : null))}</>;
+  return <>{rows.map((r) => (r.cursor && online.has(r.participantId) ? <RemoteDot key={r.participantId} id={r.participantId} name={r.displayName} cursor={r.cursor} speaking={speaking.has(r.participantId)} /> : null))}</>;
 }
 
-function RemoteDot({ id, name, cursor }: { id: string; name: string; cursor: Cursor }) {
+function RemoteDot({ id, name, cursor, speaking }: { id: string; name: string; cursor: Cursor; speaking: boolean }) {
   const scene = useThree((s) => s.scene);
   const node = useMemo(() => scene.getObjectByName(cursor.node), [scene, cursor.node]);
   const ref = useRef<THREE.Group>(null);
@@ -51,7 +53,7 @@ function RemoteDot({ id, name, cursor }: { id: string; name: string; cursor: Cur
         <sphereGeometry args={[DOT_MM, 16, 12]} />
         <meshBasicMaterial color={color} depthTest={false} transparent />
       </mesh>
-      <Html style={{ pointerEvents: 'none' }}><span className={css.chip} style={{ background: color }}>{name}</span></Html>
+      <Html style={{ pointerEvents: 'none' }}><span className={speaking ? `${css.chip} ${css.speaking}` : css.chip} style={{ background: color, outlineColor: color }}>{name}</span></Html>
     </group>
   );
 }
