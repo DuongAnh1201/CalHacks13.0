@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { codeOf } from '../share/copy';
+import { clearRefs } from './commands';
 
 export interface Command { label: string; do(): Promise<void>; undo(): Promise<void> }
 
@@ -29,7 +30,7 @@ export function createHistory({ skippable, onSkip, cap = 100 }: { skippable(e: u
     },
     undo: () => step(past, future, (c) => c.undo()),
     redo: () => step(future, past, (c) => c.do()),
-    clear() { past.length = 0; future.length = 0; },
+    clear() { past.length = 0; future.length = 0; clearRefs(); },
     sizes: () => ({ past: past.length, future: future.length }),
   };
 }

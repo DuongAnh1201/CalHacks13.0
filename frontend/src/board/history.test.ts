@@ -84,7 +84,8 @@ describe('history', () => {
 
   it('undo of an edit then undo of the create removes the item', async () => {
     board.reset();
-    const h = createHistory({ skippable: (e) => codeOf(e) === 'STALE', onSkip: () => {} });
+    const skipped: string[] = [];
+    const h = createHistory({ skippable: (e) => codeOf(e) === 'STALE', onSkip: (label) => skipped.push(label) });
     const item = { kind: 'sticky' as const, anchor: { kind: 'point' as const, ras_mm: [1, 2, 3] }, text: 'A', color: 'yellow' as const };
     await h.run(createItem(item));
     const created = board.row;
@@ -95,6 +96,19 @@ describe('history', () => {
     await h.undo();
     await h.undo();
     expect(board.row).toBeNull();
+    expect(skipped).toEqual([]);
+  });
+
+  it('history.clear drops refs so the next edit uses the row it was given', async () => {
+    board.reset();
+    const h = createHistory({ skippable: (e) => codeOf(e) === 'STALE', onSkip: () => {} });
+    const item = { kind: 'sticky' as const, anchor: { kind: 'point' as const, ras_mm: [1, 2, 3] }, text: 'A', color: 'yellow' as const };
+    await h.run(createItem(item));
+    const created = board.row;
+    if (!created) throw new Error('missing row');
+    h.clear();
+    const row = { itemId: created.id, item, authorName: 'A', mine: true, canRemove: true, createdAt: 0, updatedAt: 0 };
+    await expect(h.run(updateItem(row, { text: 'Z' }))).rejects.toThrow();
   });
 
   it('a failed do is not recorded', async () => {
