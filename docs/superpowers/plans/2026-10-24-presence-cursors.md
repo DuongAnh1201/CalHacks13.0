@@ -727,7 +727,7 @@ Send `hc send qa "T2 ready: <hash>"` and `hc send lead "T2 done: <hash>, <n> tes
     - `cursorOf(object: THREE.Object3D, point: THREE.Vector3): Cursor | null`
     - `cursorSender(send: (c: Cursor | null) => void, ms = 100): { push(c: Cursor | null): void; flush(): void }`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `frontend/src/share/cursorSync.test.ts`:
 
@@ -817,7 +817,7 @@ describe('sample case GLB mesh node names are unique', () => {
 });
 ```
 
-- [ ] **Step 2: Run, expect failure**
+- [x] **Step 2: Run, expect failure**
 
 Run: `npm --prefix frontend test -- src/share/cursorSync.test.ts src/viewer/glbNames.test.ts`
 
@@ -825,7 +825,7 @@ Expected:
 - cursorSync: FAIL (module not found).
 - GLB test: passes, or reports real duplicates. On duplicates, stop and send `hc send lead "T3 blocked: duplicate GLB node names: <list>"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `frontend/src/share/cursorSync.ts`:
 
@@ -879,14 +879,14 @@ export interface Cursor { node: string; localMm: [number, number, number] }
 export interface RemoteCursor { participantId: string; displayName: string; cursor: Cursor | null }
 ```
 
-- [ ] **Step 4: Tests + build**
+- [x] **Step 4: Tests + build**
 
 Run: `npm --prefix frontend test && npm --prefix frontend run build`
 
 - Expected: PASS.
 - If `tsc -b` rejects `node:fs` in `glbNames.test.ts` despite the triple-slash reference: add `"node"` to `types` in `frontend/tsconfig.app.json` (`["vite/client", "node"]`) and re-run. `@types/node` is already installed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run GitNexus `detect_changes()`. Then:
 
