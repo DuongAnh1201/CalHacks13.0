@@ -58,6 +58,8 @@ useCall (live && !muted) ─► createTranscriber().start() ─► transcript.ap
 5. **Speaking rings** (modified `FacePile.tsx`, `RemoteCursors.tsx` + CSS). A face or cursor whose `participantId` is in `useCall.speaking` gets a `colorOf(participantId)` ring. The self face rings when the local user speaks.
 6. **Transcriber coupling** (`frontend/src/call/transcribeLink.ts`). The transcriber runs only while `status === 'live' && !muted && transcriptEnabled`, where `transcriptEnabled` comes from a `transcript.state` subscription (the host switch, #135; `append` refuses while it is off). `onSegment` posts through a new `sendTranscript` sender in `share/store.ts`. #135/#136 are merged into `main`; the host toggle UI stays with #139.
 
+**Integration with the note-taker panel (#148):** The panel owns capture while mounted on `/3d`; the call link captures on `/mri` when the panel is absent. Shared local state prevents concurrent recognizers and preserves a member's transcription opt-out across routes. Both paths suppress capture and late results while the call is muted or the member has opted out. The host mic remains the global transcription switch. Leaving or failing to join a call restores standalone panel transcription if that switch remains on. Disposal, session changes, and subscription changes invalidate stale callbacks.
+
 ## 2. Data flow
 
 **Join**
