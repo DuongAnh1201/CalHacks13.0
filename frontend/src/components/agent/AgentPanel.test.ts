@@ -25,7 +25,7 @@ describe('AgentPanel', () => {
   });
   it('renders every message kind', () => {
     const h = html({});
-    for (const s of ['Pons Assistant', 'Segmentation done', 'show the tumor', 'Focused on the tumor', 'focusTumor()', '41 ms', 'Place in 3D', 'Not now']) expect(h).toContain(s);
+    for (const s of ['Lobe Assistant', 'Segmentation done', 'show the tumor', 'Focused on the tumor', 'focusTumor()', '41 ms', 'Place in 3D', 'Not now']) expect(h).toContain(s);
   });
   it('disables input, mic and confirm buttons when their handler is absent', () => {
     const h = html({});

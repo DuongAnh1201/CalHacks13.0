@@ -8,11 +8,14 @@
  *   games.reveal   public mutation  host shows the answer and every score
  *   games.current  public query     the latest round + the leaderboard, reactive
  *
- * The host is the quizmaster: they chose the target or know the answer, so
- * they do not answer. While a round is open, `current` shows who has answered
- * but not what, and never the secret; after the reveal it shows everything.
- * Points reach the leaderboard only when a round closes (reveal, or the next
- * start), or a score change would give away who was right.
+ * Games run only in a PLAYGROUND (a session created with kind "play"), never
+ * in a case review room. Everyone plays, the host included: the host's client
+ * generates each round, so for the quiz kinds the host could know the answer,
+ * which is fine among study partners. While a round is open, `current` shows
+ * who has answered but not what, and never the secret; after the reveal it
+ * shows everything. Points reach the leaderboard only when a round closes
+ * (reveal, or the next start), or a score change would give away who was
+ * right. The leaderboard lists every member, at 0 until they score.
  */
 
 import { v } from "convex/values";
@@ -50,6 +53,7 @@ export const start = mutation({
   args: { ...auth, prompt: vGamePrompt, secret: v.optional(vGameSecret) },
   handler: async (ctx, args): Promise<{ roundId: Id<"gameRounds"> }> => {
     const { session } = await requirePresenter(ctx, args);
+    requirePlayground(session);
     const bad = invalidRound(args.prompt, args.secret);
     if (bad) throw appError("INVALID_ARGUMENT", bad);
 
@@ -70,8 +74,8 @@ export const answer = mutation({
   args: { ...auth, roundId: v.id("gameRounds"), answer: vGameAnswer },
   handler: async (ctx, args): Promise<{ answered: true }> => {
     const { session, participant } = await requireSessionMember(ctx, args);
+    requirePlayground(session);
     const round = await roundIn(ctx, args.roundId, session._id);
-    if (participant.role === "host") throw appError("NOT_ALLOWED", "The host runs the round, so the host does not answer.");
     if (round.status !== "open") throw appError("INVALID_ARGUMENT", "This round is over.");
     const bad = invalidAnswer(round.prompt, args.answer);
     if (bad) throw appError("INVALID_ARGUMENT", bad);
@@ -95,6 +99,7 @@ export const reveal = mutation({
   args: { ...auth, roundId: v.id("gameRounds") },
   handler: async (ctx, args): Promise<{ revealed: true }> => {
     const { session } = await requirePresenter(ctx, args);
+    requirePlayground(session);
     const round = await roundIn(ctx, args.roundId, session._id);
     if (round.status === "open") await closeRound(ctx, round);
     return { revealed: true };
@@ -105,15 +110,21 @@ export const current = query({
   args: auth,
   handler: async (ctx, args): Promise<{ round: PublicRound | null; leaderboard: LeaderboardRow[] }> => {
     const { session, participant } = await requireSessionMember(ctx, args);
+    requirePlayground(session);
     const latest = await ctx.db
       .query("gameRounds")
       .withIndex("by_session", (q) => q.eq("sessionId", session._id))
       .order("desc")
       .first();
 
+    // Every member, at 0 until a round of theirs closes. Both reads are bounded by the room's players.
     const scores = await ctx.db.query("gameScores").withIndex("by_session", (q) => q.eq("sessionId", session._id)).collect();
-    const leaderboard = scores
-      .map((s) => ({ participantId: s.participantId, displayName: s.displayName, points: s.points, rounds: s.rounds }))
+    const members = await ctx.db.query("sessionParticipants").withIndex("by_session", (q) => q.eq("sessionId", session._id)).collect();
+    const leaderboard = members
+      .map((m) => {
+        const s = scores.find((x) => x.participantId === m._id);
+        return { participantId: m._id, displayName: m.displayName, points: s?.points ?? 0, rounds: s?.rounds ?? 0 };
+      })
       .sort((a, b) => b.points - a.points || a.displayName.localeCompare(b.displayName));
 
     if (latest === null) return { round: null, leaderboard };
@@ -148,6 +159,12 @@ export const current = query({
 
 async function sessionRounds(ctx: QueryCtx, sessionId: Id<"sessions">): Promise<Doc<"gameRounds">[]> {
   return await ctx.db.query("gameRounds").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
+}
+
+function requirePlayground(session: Doc<"sessions">): void {
+  if (session.kind !== "play") {
+    throw appError("NOT_ALLOWED", "Games run in a playground, not in a case workspace. Start one from Play.");
+  }
 }
 
 /** Reveals a round and adds its points to the running totals. Callers check it is open, so points land once. */

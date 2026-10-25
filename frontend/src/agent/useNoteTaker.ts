@@ -142,7 +142,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
 
   function compute(): NoteTakerState {
     const out: AgentMessage[] = [];
-    const sys = (text: string) => out.push({ kind: 'system', agent: 'Pons Assistant', text });
+    const sys = (text: string) => out.push({ kind: 'system', agent: 'Lobe Assistant', text });
     if (ended) sys('Meeting ended. The final summary and export link appear below.');
     else if (enabled) {
       sys(BANNER);
@@ -320,7 +320,7 @@ export type NoteTakerController = ReturnType<typeof createNoteTakerController>;
 const SCRIPT = [EXPORT_LINE];
 export const OFFLINE_NOTE_TAKER: NoteTakerBinding = {
   hidden: true,
-  messages: [{ kind: 'system', agent: 'Pons Assistant', text: NO_SESSION }],
+  messages: [{ kind: 'system', agent: 'Lobe Assistant', text: NO_SESSION }],
   status: 'offline',
 };
 
