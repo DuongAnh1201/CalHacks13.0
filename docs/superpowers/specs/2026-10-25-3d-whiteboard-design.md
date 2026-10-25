@@ -91,10 +91,9 @@ Cross-session ids answer `NOT_FOUND`.
 | `create` | member | Validates, inserts, returns `{ itemId, updatedAt }`. |
 | `update` | member | Patches `anchor` / `text` / `color` (not strokes). Takes `expectedUpdatedAt`; mismatch → `STALE`. Returns new `updatedAt`. |
 | `remove` | author or host | Deletes. Takes optional `expectedUpdatedAt` (undo path) → `STALE` on mismatch. |
-| `restore` | original author | Re-inserts an item payload removed in this session (undo of delete). Same validation and caps as `create`. |
 
-Caps: 500 board items per session, of which at most 300 strokes → `LIMIT_REACHED`
-("Board is full (500 items)." / "Too many sketches (300)."). Strokes > 2000 points
+Caps: 500 board items per session, of which at most 300 strokes → `INVALID_ARGUMENT`
+("Board is full (500 items)." / "Too many sketches (300)."), same code as the existing annotation cap. Strokes > 2000 points
 → `INVALID_ARGUMENT`.
 
 `convex/annotations.ts` additions:
@@ -103,10 +102,10 @@ Caps: 500 board items per session, of which at most 300 strokes → `LIMIT_REACH
 - `removeReply` — reply author or host.
 - `resolve` / `unresolve` — annotation author or host; sets/clears `resolvedAt`, `resolvedBy`.
 - `list` returns each annotation with `replies` (oldest first), `resolvedAt`.
-- `remove` (and `agentRemove`) cascade-delete the annotation's replies.
+- `remove` (and `agentRemove`) cascade-delete the annotation's replies. `remove` takes optional
+  `ifNoReplies: true` (undo path) → `STALE` when the thread has replies.
 
-New error codes in `convex/lib` `AppErrorCode`: `STALE`, `LIMIT_REACHED` (reuse if
-an equivalent exists).
+New error code in `convex/lib/errors.ts` `AppErrorCode`: `STALE`.
 
 Agent tools and MCP are unchanged; they keep reading/writing `annotations`.
 
@@ -178,8 +177,9 @@ Every board change made by this user pushes `{ do, undo }` (async mutation calls
 
 | Action | Undo |
 |---|---|
-| create item / comment | remove |
-| remove item | `restore(payload)` |
+| create item | remove |
+| create comment | `annotations.remove({ ifNoReplies: true })` |
+| remove item | `board.create(payload)` (new id; the command tracks it) |
 | move / edit / recolor | update back to previous values |
 | resolve | unresolve (and vice versa) |
 
@@ -193,12 +193,12 @@ Every board change made by this user pushes `{ do, undo }` (async mutation calls
 
 ### Errors
 
-Mutation failures use the existing `messageFor(e)` copy. `LIMIT_REACHED` shows its
+Mutation failures use the existing `messageFor(e)` copy. Cap errors show their
 message. `SESSION_ENDED` follows the existing share-store drop.
 
 ### Tests
 
-- `convex/tests/board.test.ts`: create/update/remove/restore; author-or-host delete,
+- `convex/tests/board.test.ts`: create/update/remove; author-or-host delete,
   any-member edit, non-member `NOT_FOUND`; caps; `STALE`; reply/resolve; reply
   cascade on delete.
 - `convex/tests/clinicalReport.test.ts` / `reportMail.test.ts`: stickies, replies,
