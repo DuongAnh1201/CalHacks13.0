@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { CaptionLine, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } from './MeetingNotes';
+import { LiveTranscript, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } from './MeetingNotes';
 import { CONSENT_BANNER, type NoteTakerBinding, type NoteTakerState } from './useNoteTaker';
 const time = new Date('2026-10-24T12:00:00Z').getTime();
 const m: NoteTakerState = {
@@ -31,9 +31,9 @@ describe('live meeting views', () => {
     expect(h).toContain('<b>Guest</b>'); expect(h).toContain('<time>');
     expect(h).toContain('AI notes on by You (host)'); expect(h).toContain('You muted transcription'); expect(h).toContain('Screenshot: Tumor focused');
   });
-  it('distinguishes interim grey text and finalized text in the live caption bar', () => {
-    const h = renderToStaticMarkup(createElement(CaptionLine, { segments: m.segments.slice(0, 2), selfId: 'me' }));
-    expect(h).toContain('You'); expect(h).toContain('data-final="true"'); expect(h).toContain('data-final="false"'); expect(h).toContain('hsl(');
+  it('shows the Listening panel in the overlay only while AI notes are on', () => {
+    expect(renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding() }))).toContain('aria-label="Live transcript"');
+    expect(renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ enabled: false }) }))).not.toContain('Listening');
   });
   it('shows host opt-in once, a separate toggle, truthful consent, captions control and member mute', () => {
     const prompt = renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ enabled: false, promptDismissed: false }) }));
@@ -54,5 +54,39 @@ describe('live meeting views', () => {
   it('renders an empty transcript before the host opts in', () => {
     const h = renderToStaticMarkup(createElement(TranscriptView, { meeting: { ...m, enabled: false, segments: [], events: [], note: null } }));
     expect(h).toContain('AI notes are off. The host can turn them on.');
+  });
+});
+
+describe('live transcript panel', () => {
+  const seg = (i: number) => ({ segmentId: `s${i}`, participantId: i % 2 ? 'guest' : 'me', speakerName: i % 2 ? 'Guest' : 'Host', text: `Line ${i}.`, final: true, startedAt: time + i * 1000, endedAt: time + i * 1000 + 500 });
+  const live = (over: Partial<NoteTakerState> = {}) => renderToStaticMarkup(createElement(LiveTranscript, { meeting: { ...m, ...over } }));
+
+  it('shows Listening, a live clock and real speaker names, never You', () => {
+    const h = live();
+    expect(h).toContain('Listening'); expect(h).toContain('aria-label="Live transcript"'); expect(h).toContain('· Live');
+    const hosts = [...h.matchAll(/<p class="([^"]*)"[^>]*>Host<\/p>/g)];
+    expect(hosts.map((m) => m[1].includes('liveRepeat'))).toEqual([false, true]);
+    expect(h).toContain('>Guest</p>');
+    expect(h).not.toContain('>You<');
+  });
+  it('keeps only the last 4 lines, oldest first', () => {
+    const h = live({ segments: [5, 0, 1, 2, 3, 4].map(seg) });
+    expect(h).not.toContain('Line 0.'); expect(h).not.toContain('Line 1.');
+    expect(h.indexOf('Line 2.')).toBeLessThan(h.indexOf('Line 5.'));
+  });
+  it('marks interim text separately from final text', () => {
+    const h = live();
+    expect(h).toContain('data-final="false"'); expect(h).toContain('data-final="true"');
+  });
+  it('puts the speaker name on every line, hidden when it repeats', () => {
+    const h = live({ segments: [0, 1, 2, 3].map((i) => ({ segmentId: `s${i}`, participantId: 'me', speakerName: 'Host', text: `Line ${i}.`, final: true, startedAt: time + i * 1000, endedAt: time + i * 1000 + 500 })) });
+    const names = [...h.matchAll(/<p class="([^"]*)"[^>]*>Host<\/p>/g)];
+    expect(names).toHaveLength(4);
+    expect(names[0][1]).not.toContain('liveRepeat');
+    expect(names.slice(1).every((m) => m[1].includes('liveRepeat'))).toBe(true);
+  });
+  it('shows muted and empty states', () => {
+    expect(live({ muted: true })).toContain('you&#x27;re muted');
+    expect(live({ segments: [] })).toContain('Waiting for speech…');
   });
 });

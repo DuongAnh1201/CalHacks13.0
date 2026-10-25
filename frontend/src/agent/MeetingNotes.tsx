@@ -12,21 +12,39 @@ function speakerColour(id: string) {
 const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const speaker = (s: { participantId?: string; speakerName: string }, selfId?: string) => s.participantId && s.participantId === selfId ? 'You' : s.speakerName;
 
-export function CaptionLine({ segments, selfId }: { segments: Segment[]; selfId?: string }) {
-  const last = [...segments].sort((a, b) => (b.updatedAt ?? b.endedAt) - (a.updatedAt ?? a.endedAt))[0];
-  if (!last) return null;
-  const sameSpeaker = segments.filter((s) => s.participantId === last.participantId && s.speakerName === last.speakerName && s.startedAt >= last.startedAt - 12_000).slice(-2);
-  return <div className={css.caption} aria-live="polite" aria-atomic="true">
-    <b><span className={css.dot} style={{ background: speakerColour(last.participantId ?? last.speakerName) }} />{speaker(last, selfId)}</b>{' '}
-    {sameSpeaker.map((s) => <span key={s.segmentId} className={s.final === false ? css.interim : undefined} data-final={s.final !== false}>{s.text}{' '}</span>)}
-  </div>;
+const LIVE_LINES = 4;
+const elapsed = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+
+/** Glass panel in the top-right: newest few transcript lines, labelled by real speaker name. */
+export function LiveTranscript({ meeting: m }: { meeting: NoteTakerState }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const since = Math.max(0, ...m.events.filter((e) => e.kind === 'on').map((e) => e.at));
+  const lines = [...m.segments].sort((a, b) => a.startedAt - b.startedAt).slice(-LIVE_LINES);
+  return <section className={css.live}>
+    <header className={css.liveHead}>
+      <span className={m.muted ? css.liveMuted : css.liveOn}><span className={css.pulse} />Listening{m.muted && " · you're muted"}</span>
+      {since > 0 && <time>{elapsed(now - since)} · Live</time>}
+    </header>
+    <div role="log" aria-live="polite" aria-label="Live transcript">
+      {!lines.length && <p className={css.liveEmpty}>Waiting for speech…</p>}
+      {lines.map((s, i) => {
+        const id = s.participantId ?? s.speakerName;
+        const prev = lines[i - 1];
+        const same = !!prev && (prev.participantId ?? prev.speakerName) === id;
+        return <div key={s.segmentId} className={css.liveLine}>
+          <p className={same ? `${css.liveWho} ${css.liveRepeat}` : css.liveWho} style={{ color: speakerColour(id) }}>{s.speakerName}</p>
+          <p className={s.final === false ? css.interim : undefined} data-final={s.final !== false}>{s.text || '…'}</p>
+        </div>;
+      })}
+    </div>
+  </section>;
 }
 
 /** Mount once over each case viewer. Its controls remain reachable when the panel is closed. */
 export function MeetingOverlay({ binding: b }: { binding: NoteTakerBinding }) {
   const [captions, setCaptions] = useState(() => typeof localStorage === 'undefined' || localStorage.getItem('neuro-captions') !== 'off');
   const m = b.meeting;
-  const latest = Math.max(0, ...(m?.segments ?? []).map((s) => s.updatedAt ?? s.endedAt));
   if (b.hidden || !m || m.ended || !m.callActive) return null;
   return <div className={css.overlay}>
     <div className={css.controls}>
@@ -41,17 +59,8 @@ export function MeetingOverlay({ binding: b }: { binding: NoteTakerBinding }) {
       <p>Turn on AI notes for this meeting?</p><p>{CONSENT_BANNER}</p>
       <button type="button" onClick={b.toggleEnabled}>Turn on AI notes</button>{' '}<button type="button" onClick={b.dismissPrompt}>Not now</button>
     </div>}
-    {m.enabled && captions && latest > 0 && <FadingCaption key={latest} meeting={m} latest={latest} />}
+    {m.enabled && captions && <LiveTranscript meeting={m} />}
   </div>;
-}
-
-function FadingCaption({ meeting, latest }: { meeting: NoteTakerState; latest: number }) {
-  const [visible, setVisible] = useState(true);
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(false), Math.max(0, latest + 6500 - Date.now()));
-    return () => clearTimeout(timer);
-  }, [latest]);
-  return visible ? <CaptionLine segments={meeting.segments} selfId={meeting.selfId} /> : null;
 }
 
 type TimelineItem = { at: number; key: string; line?: Segment; event?: string };
