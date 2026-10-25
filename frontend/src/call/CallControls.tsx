@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useShare } from '../share/store';
 import css from './CallControls.module.css';
 import { join, leave, toggleMute, useCall } from './store';
+import { linkTranscriber } from './transcribeLink';
 
 /** Join / Mute / Leave for the session's voice call, next to the face pile. */
 export function CallControls() {
+  useEffect(() => linkTranscriber(), []); // shortcut: lives with the top bar; if a page without it keeps the call, move to App
   const { pathname } = useLocation();
   const active = useShare((s) => s.session?.status === 'active');
   const status = useCall((s) => s.status);

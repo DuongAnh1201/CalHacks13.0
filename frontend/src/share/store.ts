@@ -162,3 +162,17 @@ export async function callToken(): Promise<{ url: string; token: string } | { er
   if (!client || !s) return { error: NOT_CONFIGURED };
   try { return await client.action(api.call.token, auth(s)); } catch (e) { return { error: messageFor(e) }; }
 }
+
+/** One final speech segment as this tab's participant (convex/transcript.ts). Best-effort: logged, never shown. */
+export async function sendTranscript(text: string, durationMs: number): Promise<void> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return;
+  try { await client.mutation(api.transcript.append, { ...auth(s), text, durationMs }); } catch (e) { console.error('[transcript]', e); }
+}
+
+/** The host's transcript switch for this session. Returns an unsubscribe; reports false on error. */
+export function watchTranscriptEnabled(onEnabled: (on: boolean) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.transcript.state, auth(s), (r: { enabled: boolean }) => onEnabled(r.enabled), () => onEnabled(false));
+}
