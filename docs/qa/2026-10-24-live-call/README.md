@@ -1,6 +1,6 @@
 # Live call QA, 2026-10-24
 
-Branch `viewer/live-call`, gates run on `b3e2b69` (T1 `0dfef57`, T2 `55d9f3a`, T3 `dad4132`, T4 `ece00dc`, plus the merge of origin/main).
+Branch `viewer/live-call`, gates run on `b3e2b69`, re-run green on `453bc32` and `b0d1187` (CSS-only follow-ups `b83e211` and `b0d1187` reviewed PASS) (T1 `0dfef57`, T2 `55d9f3a`, T3 `dad4132`, T4 `ece00dc`, plus the merge of origin/main).
 
 ## Step 1: gates (qa, on b3e2b69)
 
