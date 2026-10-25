@@ -80,6 +80,7 @@ export const toolRegistry: ToolRegistry = {
   toggle_visibility: { pages: ["mri", "3d"] },
   explain_finding: { pages: ["mri", "3d"] },
   get_tumor_metrics: { pages: ["mri", "3d"] },
+  summarize_tumor: { pages: ["mri", "3d"] },
   get_report: { pages: ["mri", "3d"] },
   search: { pages: ["mri", "3d"] },
   export_document: { pages: ["mri", "3d"] },

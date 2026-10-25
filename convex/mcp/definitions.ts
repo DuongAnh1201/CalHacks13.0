@@ -11,6 +11,7 @@ export const knowledgeSchemas = {
   explain_finding: z.object(context).strict(),
   get_tumor_metrics: z.object({ ...context, fields: z.array(z.enum(metricFields)).max(metricFields.length).optional() }).strict(),
   get_report: z.object(context).strict(),
+  summarize_tumor: z.object(context).strict(),
   search: z.object({ ...context, query: z.string().trim().min(1).max(200), sources: z.array(z.enum(["atlas", "report"])).min(1).max(2).optional() }).strict(),
 };
 export type ReportContext = z.infer<typeof knowledgeSchemas.get_report>;

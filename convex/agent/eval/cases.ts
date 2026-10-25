@@ -46,7 +46,7 @@ export const WEB_SEARCH = "web_search";
 const VIEWER = ["zoom_view", "rotate_view", "spin_view", "set_mode", "set_opacity", "set_explode", "isolate",
   "focus_region", "toggle_visibility", "reset_view", "undo"] as const;
 const SESSION = ["search", "summarize", "export_document"] as const;
-const REPORT = ["get_tumor_metrics", "explain_finding", "get_report"] as const;
+const REPORT = ["get_tumor_metrics", "explain_finding", "get_report", "summarize_tumor"] as const;
 
 /**
  * Tools per page (plan §3.3). `/mri` is the 2D MPR page: no 3D camera, so only
@@ -203,6 +203,11 @@ const kind1 = kind(1, [
   { page: "/mri", jobId: SAMPLE, text: "Which side is the tumor on?", expect: { tools: [metrics()], replyMustInclude: [/right/i], noWebSearch: true } },
   { page: "/mri", jobId: SAMPLE, text: "Explain what the model found", expect: { tools: [t("explain_finding", { job_id: SAMPLE })], replyMustInclude: ["136.28"], noWebSearch: true } },
   { page: "/mri", jobId: SAMPLE, text: "What model made this segmentation?", expect: { tools: [t("get_report", { job_id: SAMPLE })], replyMustInclude: [/SegResNet/i], noWebSearch: true } },
+  // The summary card: the Router prefers summarize_tumor (code-built from report.json).
+  { page: "/3d", jobId: SAMPLE, text: "Summarize the tumor", expect: { tools: [t("summarize_tumor", { job_id: SAMPLE })], replyMustInclude: ["136.28", "61.56", "34.26"], noWebSearch: true } },
+  { page: "/mri", jobId: SAMPLE, text: "Give me a tumor summary", expect: { tools: [t("summarize_tumor", { job_id: SAMPLE })], replyMustInclude: ["136.28", "61.56", "34.26"], noWebSearch: true } },
+  { page: "/3d", jobId: SAMPLE, text: "Can you sum up the lesion for me?", expect: { tools: [t("summarize_tumor", { job_id: SAMPLE })], replyMustInclude: ["136.28"], noWebSearch: true } },
+  { page: "/3d", jobId: NO_TUMOR_JOB, text: "Summarize the tumor", expect: { tools: [t("summarize_tumor", { job_id: NO_TUMOR_JOB })], replyMustInclude: [NO_TUMOR], noWebSearch: true } },
   { page: "/3d", jobId: SAMPLE, text: "What is the core volume?", expect: { tools: [metrics()], replyMustInclude: ["61.56"], noWebSearch: true } },
   { page: "/3d", jobId: SAMPLE, text: "How many lesions are there?", expect: { tools: [metrics()], replyMustInclude: ["1"], noWebSearch: true } },
   // No tumor detected: say so, never "healthy" (the Guard check covers that), no invented numbers.

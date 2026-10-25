@@ -45,7 +45,7 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
   try {
     await client.connect(transport);
     const tools=await client.listTools();
-    assert.equal(tools.tools.length,5);
+    assert.equal(tools.tools.length,6);
     const sample=JSON.parse(await readFile('backend/seed/sample/report.json','utf8'));
     const answer=await client.callTool({name:'get_tumor_metrics',arguments:{job_id:'sample'}});
     assert.deepEqual(answer.structuredContent.metrics.volumesCm3,sample.volumesCm3);
