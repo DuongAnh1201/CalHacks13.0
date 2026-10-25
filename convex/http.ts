@@ -3,6 +3,7 @@ import { httpAction } from './_generated/server';
 import { handleMcp } from './mcp/handler';
 import { config } from './mcp/config';
 import { registerExportTools } from './mcp/exportTools';
+import { registerAnnotationTools } from './mcp/annotationTools';
 import { registerMessageTools } from './mcp/messageTools';
 import { internal } from './_generated/api';
 
@@ -15,7 +16,7 @@ const mcp = httpAction((ctx, request) => handleMcp(request, {
     if (!personal) return false;
     return personal.needsTouch ? ctx.runMutation(internal.mcpTokens.touch, { id: personal.id }) : true;
   },
-  modules: [registerExportTools, registerMessageTools],
+  modules: [registerExportTools, registerAnnotationTools, registerMessageTools],
   rateCheck: tokenHash => ctx.runMutation(consume, { tokenHash }),
 }));
 const http = httpRouter();
