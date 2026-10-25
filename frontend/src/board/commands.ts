@@ -5,9 +5,21 @@ import type { Command } from './history';
 type Patch = { anchor?: NoteAnchor; text?: string; color?: StickyColor };
 type Ref = { id: string; updatedAt: number };
 
+// One ref per item so a later undo sees the updatedAt (and id, after a re-create) written by an earlier step.
+const refs = new Map<string, Ref>();
+function refFor(id: string, updatedAt: number): Ref {
+  const hit = refs.get(id);
+  if (hit) return hit;
+  const ref: Ref = { id, updatedAt };
+  refs.set(id, ref);
+  return ref;
+}
+
 const create = async (item: BoardItem, ref: Ref) => {
   const r = await sessionCall<{ itemId: string; updatedAt: number }>('board.create', { item });
+  if (ref.id) refs.set(ref.id, ref);
   ref.id = r.itemId; ref.updatedAt = r.updatedAt;
+  refs.set(r.itemId, ref);
 };
 const remove = (ref: Ref) => sessionCall('board.remove', { itemId: ref.id, expectedUpdatedAt: ref.updatedAt }).then(() => {});
 
@@ -18,12 +30,12 @@ export function createItem(item: BoardItem): Command {
 }
 
 export function removeItem(row: BoardRow): Command {
-  const ref: Ref = { id: row.itemId, updatedAt: row.updatedAt };
+  const ref = refFor(row.itemId, row.updatedAt);
   return { label: `delete ${row.item.kind}`, do: () => remove(ref), undo: () => create(row.item, ref) };
 }
 
 export function updateItem(row: BoardRow, patch: Patch): Command {
-  const ref: Ref = { id: row.itemId, updatedAt: row.updatedAt };
+  const ref = refFor(row.itemId, row.updatedAt);
   const before = Object.fromEntries(Object.keys(patch).map((k) => [k, (row.item as Record<string, unknown>)[k]])) as Patch;
   const apply = (p: Patch) => async () => {
     const r = await sessionCall<{ updatedAt: number }>('board.update', { itemId: ref.id, expectedUpdatedAt: ref.updatedAt, patch: p });

@@ -1,5 +1,35 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { codeOf } from '../share/copy';
+import { createItem, updateItem } from './commands';
 import { createHistory, type Command } from './history';
+
+const board = vi.hoisted(() => {
+  let n = 0;
+  let row: { id: string; updatedAt: number } | null = null;
+  const stale = () => Object.assign(new Error('stale'), { data: { code: 'STALE', message: 'Changed' } });
+  return {
+    reset() { n = 0; row = null; },
+    get row() { return row; },
+    async call(fn: string, args: Record<string, unknown>) {
+      if (fn === 'board.create') {
+        n += 1;
+        row = { id: `id${n}`, updatedAt: n * 10 };
+        return { itemId: row.id, updatedAt: row.updatedAt };
+      }
+      if (fn === 'board.update' || fn === 'board.remove') {
+        if (!row || args.itemId !== row.id || args.expectedUpdatedAt !== row.updatedAt) throw stale();
+        if (fn === 'board.remove') { row = null; return { removed: true }; }
+        row = { id: row.id, updatedAt: row.updatedAt + 1 };
+        return { updatedAt: row.updatedAt };
+      }
+      throw new Error(fn);
+    },
+  };
+});
+
+vi.mock('../share/store', () => ({
+  sessionCall: (fn: string, args: Record<string, unknown>) => board.call(fn, args),
+}));
 
 const STALE = Object.assign(new Error('stale'), { data: { code: 'STALE' } });
 const skippable = (e: unknown) => (e as { data?: { code?: string } }).data?.code === 'STALE';
@@ -50,6 +80,21 @@ describe('history', () => {
     const h = createHistory({ skippable, onSkip: () => {}, cap: 2 });
     for (const l of ['a', 'b', 'c']) await h.run(cmd(l));
     expect(h.sizes().past).toBe(2);
+  });
+
+  it('undo of an edit then undo of the create removes the item', async () => {
+    board.reset();
+    const h = createHistory({ skippable: (e) => codeOf(e) === 'STALE', onSkip: () => {} });
+    const item = { kind: 'sticky' as const, anchor: { kind: 'point' as const, ras_mm: [1, 2, 3] }, text: 'A', color: 'yellow' as const };
+    await h.run(createItem(item));
+    const created = board.row;
+    if (!created) throw new Error('missing row');
+    await h.run(updateItem({
+      itemId: created.id, item, authorName: 'A', mine: true, canRemove: true, createdAt: 0, updatedAt: created.updatedAt,
+    }, { text: 'B' }));
+    await h.undo();
+    await h.undo();
+    expect(board.row).toBeNull();
   });
 
   it('a failed do is not recorded', async () => {

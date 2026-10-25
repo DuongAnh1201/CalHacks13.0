@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { history } from './history';
+import { messageFor } from '../share/copy';
+import { history, toast } from './history';
 import { CommentIcon, HighlightIcon, PenIcon, RedoIcon, SelectIcon, StickyIcon, TextIcon, UndoIcon } from './icons';
 import { setTool, useBoardTool, type Tool } from './tool';
 import css from './Toolbar.module.css';
@@ -22,8 +23,8 @@ export function Toolbar({ disabled }: { disabled: boolean }) {
           disabled={disabled} onClick={() => setTool(t.id)}>{t.icon}</button>
       ))}
       <hr className={css.sep} />
-      <button type="button" className={css.btn} aria-label="Undo (⌘Z)" title="Undo (⌘Z)" disabled={disabled} onClick={() => void history.undo()}><UndoIcon /></button>
-      <button type="button" className={css.btn} aria-label="Redo (⇧⌘Z)" title="Redo (⇧⌘Z)" disabled={disabled} onClick={() => void history.redo()}><RedoIcon /></button>
+      <button type="button" className={css.btn} aria-label="Undo (⌘Z)" title="Undo (⌘Z)" disabled={disabled} onClick={() => void history.undo().catch((e) => toast(messageFor(e)))}><UndoIcon /></button>
+      <button type="button" className={css.btn} aria-label="Redo (⇧⌘Z)" title="Redo (⇧⌘Z)" disabled={disabled} onClick={() => void history.redo().catch((e) => toast(messageFor(e)))}><RedoIcon /></button>
     </div>
   );
 }
