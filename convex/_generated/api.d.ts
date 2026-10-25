@@ -44,6 +44,7 @@ import type * as mcp_knowledge from "../mcp/knowledge.js";
 import type * as mcp_rateLimit from "../mcp/rateLimit.js";
 import type * as mcp_server from "../mcp/server.js";
 import type * as mcp_summaryTools from "../mcp/summaryTools.js";
+import type * as mcp_transcriptTools from "../mcp/transcriptTools.js";
 import type * as mcp_types from "../mcp/types.js";
 import type * as mcpTokens from "../mcpTokens.js";
 import type * as messages from "../messages.js";
@@ -53,6 +54,7 @@ import type * as scans from "../scans.js";
 import type * as seed from "../seed.js";
 import type * as sessionParticipants from "../sessionParticipants.js";
 import type * as sessions from "../sessions.js";
+import type * as transcript from "../transcript.js";
 
 import type {
   ApiFromModules,
@@ -97,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   "mcp/rateLimit": typeof mcp_rateLimit;
   "mcp/server": typeof mcp_server;
   "mcp/summaryTools": typeof mcp_summaryTools;
+  "mcp/transcriptTools": typeof mcp_transcriptTools;
   "mcp/types": typeof mcp_types;
   mcpTokens: typeof mcpTokens;
   messages: typeof messages;
@@ -106,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   sessionParticipants: typeof sessionParticipants;
   sessions: typeof sessions;
+  transcript: typeof transcript;
 }>;
 
 /**

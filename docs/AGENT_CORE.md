@@ -49,3 +49,12 @@ Scribe keeps a short running note of the session and feeds it to the Router/Navi
 **MCP.** `summarize({job_id, scope, session_id, participant_token})`: `session` returns the running note (refreshed first if there is new activity), `since_last` returns it only if a new version was just written, otherwise `{unchanged:true}`. Both need the session capability; the service token alone is not membership. Not registered for the in-app agent.
 
 Tests use the fake Claude client (`convex/tests/notes.test.ts`, `mcpSummarize.test.ts`); no real API request has been made.
+
+## Live transcript (#135)
+
+Speech-to-text runs in each member's browser (Web Speech API, `frontend/src/agent/transcribe.ts`); no audio reaches our servers, only final text.
+
+- **Tables (agent-owned, shared tables untouched):** `transcriptSegments` (`by_session_time`, `by_participant`) and `transcriptSettings` (one row per session: the host's on/off switch).
+- **`transcript.setEnabled`:** host only. **`transcript.append`:** active session, verified member, switch on, text 1–500 chars, 30 segments per participant per minute. The speaker is the token's participant and times are server-stamped; the client only reports `durationMs`, so `startedAt` is unique and increasing per session and works as the `after` cursor.
+- **`transcript.list` / `transcript.state`:** members only, also after the session ended. Segments are kept until the session is deleted.
+- **MCP `get_transcript`:** read-only; needs `session_id` and `participant_token` for the case. The service token alone is refused. Output carries an untrusted-data notice.

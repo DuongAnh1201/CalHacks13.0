@@ -421,6 +421,27 @@ export default defineSchema({
     pending: v.boolean(), // an update is already scheduled
   }).index("by_scope", ["scopeKey"]),
 
+  // Live meeting transcript (#135). Agent-owned; shared tables are untouched.
+  // Speech-to-text runs in the browser; only the final text reaches here.
+  transcriptSegments: defineTable({
+    sessionId: v.id("sessions"),
+    jobId: v.string(),
+    participantId: v.id("sessionParticipants"),
+    speakerName: v.string(), // server-resolved display name, untrusted text
+    text: v.string(), // <= 500 chars
+    startedAt: v.number(), // unique and increasing per session (it is the `after` cursor)
+    endedAt: v.number(),
+  })
+    .index("by_session_time", ["sessionId", "startedAt"])
+    .index("by_participant", ["participantId"]),
+
+  // Host-controlled switch: nothing is appended unless a row says enabled.
+  transcriptSettings: defineTable({
+    sessionId: v.id("sessions"),
+    enabled: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_session", ["sessionId"]),
+
   // Conservative daily reservations, shared across clients; no key means no spend.
   agentDailyUsage: defineTable({
     day: v.string(),
