@@ -49,7 +49,9 @@ describe("Agent Panel chat is separate from session chat", () => {
     expect(chat).toHaveLength(2);
     expect(await t.query(api.agent.listChat, { clientId: "attacker", limit: 50 })).toEqual([]);
     const persisted = await t.run((ctx) => ctx.db.query("messages").withIndex("by_client_time", (q) => q.eq("clientId", clientId)).collect());
-    for (const row of persisted) {
+    const runMessages = persisted.filter((row) => row.runId === runId);
+    expect(runMessages).toHaveLength(2);
+    for (const row of runMessages) {
       expect(row).not.toHaveProperty("sessionId");
       expect(row.jobId).toBe("sample");
     }
