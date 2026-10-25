@@ -31,8 +31,9 @@ export function LiveTranscript({ meeting: m }: { meeting: NoteTakerState }) {
       {lines.map((s, i) => {
         const id = s.participantId ?? s.speakerName;
         const prev = lines[i - 1];
+        const same = !!prev && (prev.participantId ?? prev.speakerName) === id;
         return <div key={s.segmentId} className={css.liveLine}>
-          {(!prev || (prev.participantId ?? prev.speakerName) !== id) && <p className={css.liveWho} style={{ color: speakerColour(id) }}>{s.speakerName}</p>}
+          <p className={same ? `${css.liveWho} ${css.liveRepeat}` : css.liveWho} style={{ color: speakerColour(id) }}>{s.speakerName}</p>
           <p className={s.final === false ? css.interim : undefined} data-final={s.final !== false}>{s.text || '…'}</p>
         </div>;
       })}

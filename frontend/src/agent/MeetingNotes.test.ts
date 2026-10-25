@@ -64,7 +64,9 @@ describe('live transcript panel', () => {
   it('shows Listening, a live clock and real speaker names, never You', () => {
     const h = live();
     expect(h).toContain('Listening'); expect(h).toContain('aria-label="Live transcript"'); expect(h).toContain('· Live');
-    expect(h.match(/>Host<\/p>/g)).toHaveLength(1); expect(h).toContain('>Guest</p>');
+    const hosts = [...h.matchAll(/<p class="([^"]*)"[^>]*>Host<\/p>/g)];
+    expect(hosts.map((m) => m[1].includes('liveRepeat'))).toEqual([false, true]);
+    expect(h).toContain('>Guest</p>');
     expect(h).not.toContain('>You<');
   });
   it('keeps only the last 4 lines, oldest first', () => {
@@ -75,6 +77,13 @@ describe('live transcript panel', () => {
   it('marks interim text separately from final text', () => {
     const h = live();
     expect(h).toContain('data-final="false"'); expect(h).toContain('data-final="true"');
+  });
+  it('puts the speaker name on every line, hidden when it repeats', () => {
+    const h = live({ segments: [0, 1, 2, 3].map((i) => ({ segmentId: `s${i}`, participantId: 'me', speakerName: 'Host', text: `Line ${i}.`, final: true, startedAt: time + i * 1000, endedAt: time + i * 1000 + 500 })) });
+    const names = [...h.matchAll(/<p class="([^"]*)"[^>]*>Host<\/p>/g)];
+    expect(names).toHaveLength(4);
+    expect(names[0][1]).not.toContain('liveRepeat');
+    expect(names.slice(1).every((m) => m[1].includes('liveRepeat'))).toBe(true);
   });
   it('shows muted and empty states', () => {
     expect(live({ muted: true })).toContain('you&#x27;re muted');
