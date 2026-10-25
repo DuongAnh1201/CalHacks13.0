@@ -31,3 +31,21 @@ Explicit general-education questions about supported terms may receive Claude's 
 Unit/integration tests inject fake Claude clients. They exercise viewer steps, Navigator handoff, MCP exact sample volumes/certainty, max turns, no-key, untrusted chat envelopes, guarded replies, pages, rate/spend limits, duplicate delivery, cancellation and safe failures. The real scheduled no-key flow was also checked on an isolated anonymous local Convex deployment at 3360/3361. Temporary internal probes verified the real in-memory SDK MCP client returned exact sample metrics and the full fake-client loop emitted a viewer step in that runtime; the probe source and generated references were removed before commit.
 
 `convex/agent/evalRunner.ts` exposes createEvalRunner for #125's `score(CASES, runner)`. It wraps the actual runLoop and accepts a client/MCP dependency factory. A scripted fake-client smoke over all 175 cases passed the scorer; it exercises wiring with expected fake responses and is **not a model-accuracy result**. The live ≥90% tool-call check remains pending the API key. No actual Anthropic requests have been made.
+
+## Scribe live notes (#60, agent side)
+
+Scribe keeps a short running note of the session and feeds it to the Router/Navigator. Notes live in `sessionSummaries` (author agent, authorName `Scribe`, `jobId`, `text`, `coversUpTo`, `version`, optional `final`). Helpers `insertSummary`/`latestSummary` in `convex/lib/summaries.ts` are shared with #59.
+
+**Scope.** `agent.ask` takes an optional `participantToken`. It is verified inside the mutation: the token must belong to a member of `sessionId`, and the session's scan must be the run's `jobId`. Only then the run stores `sessionVerified: true` and the resolved `sessionParticipantId` (never the token) and joins the **session note**: one shared note built from all participants' verified runs, the session's human chat (`messages` by_session_time, read-only) and annotations. Any other run, including one that merely names a session, is client scope: a private note per `clientId + jobId`, no human chat. The browser panel must pass the `participantToken` it already holds.
+
+**Updating.** After each finished run with a `jobId`, `notes.schedule` books `notes.update`, debounced to one update per scope per 60 s (a finish inside the window books one trailing update; later finishes while it is pending add nothing). `update` sends the previous note plus the events since `coversUpTo` (runs: text, reply, tool steps; chat; annotations; all truncated, all wrapped as untrusted data) to `claude-opus-5-5`, effort low, 400 output tokens, with no tools. The reply goes through `checkReply`; a rejected or empty reply leaves the old note. Each success writes version + 1. `coversUpTo` never passes a run still queued or running.
+
+**Final summary.** `sessions.end` schedules `notes.finalizeSession` (one scheduler line, server-side, no token). It writes one `final: true` version covering the whole meeting up to the end time, ignoring any open debounce window, and does nothing if a final note exists. `notes.forSession({sessionId, participantToken})` lets any member (also after the meeting ended) read the latest/final note; non-members are refused.
+
+**No key means no summary.** Without `ANTHROPIC_API_KEY` nothing is scheduled, read, reserved or written, including the final summary. Every update counts against the daily run reservation (`AGENT_DAILY_RUN_LIMIT`); at the limit the note is simply not updated.
+
+**Router/Navigator.** The envelope's `untrusted_request.session_notes` carries the latest note (AI-written, untrusted). It is `null` for web-allowed general-education runs, like history and snapshot.
+
+**MCP.** `summarize({job_id, scope, session_id, participant_token})`: `session` returns the running note (refreshed first if there is new activity), `since_last` returns it only if a new version was just written, otherwise `{unchanged:true}`. Both need the session capability; the service token alone is not membership. Not registered for the in-app agent.
+
+Tests use the fake Claude client (`convex/tests/notes.test.ts`, `mcpSummarize.test.ts`); no real API request has been made.

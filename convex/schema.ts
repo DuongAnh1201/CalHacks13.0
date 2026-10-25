@@ -353,6 +353,7 @@ export default defineSchema({
     text: v.string(),
     coversUpTo: v.number(),
     version: v.number(),
+    final: v.optional(v.boolean()), // #60: the end-of-meeting summary, set once by notes.finalizeSession
   })
     .index("by_session", ["sessionId"])
     .index("by_client", ["clientId"]),
@@ -407,7 +408,19 @@ export default defineSchema({
     availableTools: v.array(v.string()),
     snapshot: v.optional(v.any()),
     history: v.optional(vHistory),
-  }).index("by_client", ["clientId"]),
+    // True only when ask() received a participantToken matching a member of sessionId.
+    sessionVerified: v.optional(v.boolean()),
+    sessionParticipantId: v.optional(v.id("sessionParticipants")),
+  })
+    .index("by_client", ["clientId"])
+    .index("by_session", ["sessionId"]),
+
+  // Scribe note-taker debounce (#60): one row per note scope.
+  scribeNotesState: defineTable({
+    scopeKey: v.string(), // "client:<clientId>:<jobId>" or "session:<sessionId>:<jobId>"
+    lastRunAt: v.number(), // when the latest update was (or will be) allowed to run
+    pending: v.boolean(), // an update is already scheduled
+  }).index("by_scope", ["scopeKey"]),
 
   // Conservative daily reservations, shared across clients; no key means no spend.
   agentDailyUsage: defineTable({

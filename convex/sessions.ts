@@ -41,6 +41,7 @@
  */
 
 import { v } from "convex/values";
+import { makeFunctionReference } from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import {
@@ -536,6 +537,8 @@ export const end = mutation({
   handler: async (ctx, args): Promise<{ status: "ended" }> => {
     const { session } = await requirePresenter(ctx, args);
     await ctx.db.patch(session._id, { status: "ended", updatedAt: Date.now() });
+    // #60: server-side trigger for the end-of-meeting Scribe summary (no-op without an API key).
+    await ctx.scheduler.runAfter(0, makeFunctionReference<"action", { sessionId: Id<"sessions"> }>("notes:finalizeSession"), { sessionId: session._id });
     return { status: "ended" };
   },
 });
