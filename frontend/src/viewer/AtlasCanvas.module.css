@@ -1,8 +1,0 @@
-.canvas { position: absolute; inset: 0; }
-.tooltip {
-  transform: translateY(-18px); white-space: nowrap; padding: 4px 10px; font: 600 12px var(--nv-font);
-  color: var(--nv-text); background: var(--nv-surface-warm); border: 1px solid var(--nv-border);
-  border-radius: var(--nv-radius-pill); box-shadow: var(--nv-shadow);
-}
-.lost { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--nv-text-2); }
-.lost button { padding: 8px 16px; border: 0; border-radius: var(--nv-radius-control); background: var(--nv-primary); color: #fff; }

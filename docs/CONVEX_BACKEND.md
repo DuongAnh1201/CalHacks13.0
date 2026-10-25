@@ -404,6 +404,11 @@ try {
 | `sessions.updateView` | `{ sessionId, participantToken, command }` | `{ applied, viewVersion, view }` |
 | `sessions.setFollowMode` | `{ sessionId, participantToken, following }` | `{ following }` |
 | `sessions.end` | `{ sessionId, participantToken }` | `{ status }` |
+| `presence.heartbeat` | `{ roomId, userId: participantToken, sessionId: tabId, interval }` | `{ roomToken, sessionToken }` |
+| `presence.list` | `{ roomToken }` | `{ userId, online, lastDisconnected }[]` |
+| `presence.disconnect` | `{ sessionToken }` (unauthenticated, sendBeacon) | `null` |
+| `cursors.move` | `{ sessionId, participantToken, cursor: null \| { node, localMm } }` | `null` |
+| `cursors.list` | `{ sessionId, participantToken }` | `{ participantId, displayName, cursor }[]` (caller excluded) |
 
 ### `command` — the `ViewerCommand` union
 

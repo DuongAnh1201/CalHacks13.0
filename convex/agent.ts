@@ -25,6 +25,7 @@ import { runLoop, safeReply } from "./agent/loop";
 import { openAgentMcp } from "./agent/mcpClient";
 import { redactToolArgs } from "./agent/redact";
 import { insertMessage, MAX_MESSAGE_LENGTH, publicMessage } from "./lib/messages";
+import { requireSessionMember } from "./lib/auth";
 
 const settings = env as typeof env & {
   ANTHROPIC_API_KEY?: string;
@@ -55,6 +56,26 @@ const handoffRef = makeFunctionReference<
   { runId: Id<"agentRuns">; agent: string },
   null
 >("agent:setAgent");
+type NoteScope =
+  | { kind: "client"; clientId: string; jobId: string }
+  | { kind: "session"; sessionId: Id<"sessions">; jobId: string };
+/** Verified session runs share one note; everything else is private to the client. */
+function noteScope(row: Doc<"agentRuns">): NoteScope | null {
+  if (!row.jobId) return null;
+  return row.sessionVerified && row.sessionId
+    ? { kind: "session", sessionId: row.sessionId, jobId: row.jobId }
+    : { kind: "client", clientId: row.clientId, jobId: row.jobId };
+}
+const scheduleNotesRef = makeFunctionReference<
+  "mutation",
+  { scope: NoteScope },
+  null
+>("notes:schedule");
+const latestNotesRef = makeFunctionReference<
+  "query",
+  { scope: NoteScope },
+  string | null
+>("notes:latestText");
 const finishRef = makeFunctionReference<
   "mutation",
   {
@@ -73,28 +94,31 @@ function requireClient(clientId: string) {
     });
 }
 
-async function reserveSpend(ctx: MutationCtx, text: string, now: number) {
+/** Counts one potentially paid call against the deployment-wide daily cap. */
+export async function reserveDailyRun(ctx: MutationCtx, now: number): Promise<string> {
   const day = new Date(now).toISOString().slice(0, 10);
-  if (settings.ANTHROPIC_API_KEY && classifyHint(text) === null) {
-    const limit = Number(settings.AGENT_DAILY_RUN_LIMIT ?? 100);
-    if (!Number.isInteger(limit) || limit < 0 || limit > 10000)
-      throw new ConvexError({
-        code: "CONFIG_ERROR",
-        message: "Assistant spend limit is unavailable.",
-      });
-    const usage = await ctx.db
-      .query("agentDailyUsage")
-      .withIndex("by_day", (q) => q.eq("day", day))
-      .unique();
-    if ((usage?.count ?? 0) >= limit)
-      throw new ConvexError({
-        code: "DAILY_LIMIT",
-        message: "The assistant daily run limit has been reached.",
-      });
-    if (usage) await ctx.db.patch(usage._id, { count: usage.count + 1 });
-    else await ctx.db.insert("agentDailyUsage", { day, count: 1 });
-    return day;
-  }
+  const limit = Number(settings.AGENT_DAILY_RUN_LIMIT ?? 100);
+  if (!Number.isInteger(limit) || limit < 0 || limit > 10000)
+    throw new ConvexError({
+      code: "CONFIG_ERROR",
+      message: "Assistant spend limit is unavailable.",
+    });
+  const usage = await ctx.db
+    .query("agentDailyUsage")
+    .withIndex("by_day", (q) => q.eq("day", day))
+    .unique();
+  if ((usage?.count ?? 0) >= limit)
+    throw new ConvexError({
+      code: "DAILY_LIMIT",
+      message: "The assistant daily run limit has been reached.",
+    });
+  if (usage) await ctx.db.patch(usage._id, { count: usage.count + 1 });
+  else await ctx.db.insert("agentDailyUsage", { day, count: 1 });
+  return day;
+}
+async function reserveSpend(ctx: MutationCtx, text: string, now: number) {
+  if (settings.ANTHROPIC_API_KEY && classifyHint(text) === null)
+    return await reserveDailyRun(ctx, now);
   return undefined;
 }
 
@@ -134,8 +158,11 @@ export const ask = mutation({
     availableTools: v.optional(v.array(v.string())),
     snapshot: v.optional(v.any()),
     history: v.optional(vHistory),
+    // Optional proof of membership in sessionId. Without it the run is never
+    // treated as part of the session (no shared notes, no session chat reads).
+    participantToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { participantToken, ...args }) => {
     requireClient(args.clientId);
     if (
       !args.text.trim() ||
@@ -176,12 +203,28 @@ export const ask = mutation({
         message: "Wait before starting another assistant run.",
         retryAfterSec: admission.retryAfterSec,
       });
+    // Verified server-side here; only the resolved participant id is stored, never the token.
+    let verified: { participantId: Id<"sessionParticipants"> } | undefined;
+    if (args.sessionId && args.jobId && participantToken) {
+      try {
+        const { session, participant } = await requireSessionMember(ctx, {
+          sessionId: args.sessionId,
+          participantToken,
+        });
+        const scan = await ctx.db.get(session.scanId);
+        // The run's job must be the session's job; a mismatch stays client-scope.
+        if (scan?.jobId === args.jobId) verified = { participantId: participant._id };
+      } catch {
+        verified = undefined;
+      }
+    }
     const spendDay = await reserveSpend(ctx, args.text, now);
     const page = args.page.replace(/^\//, "") as Page;
     const runId = await ctx.db.insert("agentRuns", {
       ...args,
       page,
       ...(spendDay ? { spendDay } : {}),
+      ...(verified ? { sessionVerified: true, sessionParticipantId: verified.participantId } : {}),
       availableTools: allowedTools(
         page,
         args.availableTools ?? Object.keys(toolRegistry),
@@ -326,9 +369,12 @@ export const run = internalAction({
     const row = await ctx.runMutation(claimRef, { runId });
     if (!row) return null;
     try {
+      const scope = noteScope(row);
+      const sessionNotes = scope ? await ctx.runQuery(latestNotesRef, { scope }) : null;
       const result = await runLoop(
         {
           runId,
+          sessionNotes,
           text: row.text,
           page: row.page,
           jobId: row.jobId,
@@ -351,7 +397,12 @@ export const run = internalAction({
           },
         },
       );
-      if (result) await ctx.runMutation(finishRef, { runId, ...result });
+      if (result) {
+        await ctx.runMutation(finishRef, { runId, ...result });
+        // Scribe note-taker (#60): debounced, never blocks or fails the run.
+        if (scope && settings.ANTHROPIC_API_KEY)
+          await ctx.runMutation(scheduleNotesRef, { scope }).catch(() => null);
+      }
     } catch {
       await ctx.runMutation(finishRef, {
         runId,

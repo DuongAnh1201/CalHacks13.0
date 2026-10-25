@@ -34,6 +34,8 @@ export interface LoopInput {
   availableTools?: string[];
   snapshot?: unknown;
   history?: { role: "user" | "assistant"; text: string }[];
+  /** Scribe's latest running note (#60); untrusted AI-written text. */
+  sessionNotes?: string | null;
 }
 export interface McpSession {
   tools: {
@@ -172,6 +174,7 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
             text: input.text,
             history: webAllowed ? [] : (input.history ?? []),
             snapshot: webAllowed ? null : (input.snapshot ?? null),
+            session_notes: webAllowed ? null : (input.sessionNotes ?? null),
           },
           context: {
             page: input.page,

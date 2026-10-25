@@ -2,7 +2,7 @@ import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SESSION_ENDED, SYNC_FAILED } from './copy';
-import { endShare, joinShare, sendView, setFollowing, startShare, useClientForTest, useShare } from './store';
+import { endShare, joinShare, sendCursor, sendView, setFollowing, startShare, useClientForTest, useShare, watchCursors } from './store';
 import type { SessionState } from './types';
 
 type Ref = Parameters<typeof getFunctionName>[0];
@@ -10,7 +10,7 @@ const SESSION = { sessionId: 's1', status: 'active', participants: [], isPresent
 
 function fakeClient(over: Partial<Record<string, (args: unknown) => unknown>> = {}) {
   const calls: [string, unknown][] = [];
-  const subs: { onData: (v: unknown) => void; onError?: (e: Error) => void; closed: boolean }[] = [];
+  const subs: { name: string; args: unknown; onData: (v: unknown) => void; onError?: (e: Error) => void; closed: boolean }[] = [];
   const run = async (ref: Ref, args: unknown) => {
     const name = getFunctionName(ref);
     calls.push([name, args]);
@@ -26,7 +26,7 @@ function fakeClient(over: Partial<Record<string, (args: unknown) => unknown>> = 
     mutation: run,
     action: run,
     onUpdate: (_ref: Ref, _args: unknown, onData: (v: unknown) => void, onError?: (e: Error) => void) => {
-      const sub = { onData, onError, closed: false };
+      const sub = { name: getFunctionName(_ref), args: _args, onData, onError, closed: false };
       subs.push(sub);
       return Object.assign(() => { sub.closed = true; }, { unsubscribe: () => { sub.closed = true; }, getCurrentValue: () => undefined });
     },
@@ -100,5 +100,20 @@ describe('share store', () => {
     await joinShare('ABC123', 'Ana');
     await setFollowing(false);
     expect(f.calls.at(-1)).toEqual(['sessions:setFollowMode', { sessionId: 's1', participantToken: 'guest-t', following: false }]);
+  });
+});
+
+describe('cursors', () => {
+  it('send and watch use the stored token; both are no-ops without a session', () => {
+    const f = fakeClient(); useClientForTest(f.client as never);
+    sendCursor(null);
+    expect(watchCursors(() => {})).toBeTypeOf('function');
+    expect(f.calls).toEqual([]);
+    expect(f.subs).toHaveLength(0);
+    useShare.setState({ stored: { sessionId: 's1', participantToken: 't', role: 'viewer', inviteCode: 'X', jobId: 'sample' } });
+    sendCursor({ node: 'n', localMm: [1, 2, 3] });
+    watchCursors(() => {});
+    expect(f.calls).toEqual([['cursors:move', { sessionId: 's1', participantToken: 't', cursor: { node: 'n', localMm: [1, 2, 3] } }]]);
+    expect(f.subs.at(-1)).toMatchObject({ name: 'cursors:list', args: { sessionId: 's1', participantToken: 't' } });
   });
 });

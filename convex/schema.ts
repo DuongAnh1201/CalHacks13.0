@@ -310,6 +310,22 @@ export default defineSchema({
     // Participant list for a room.
     .index("by_session", ["sessionId"]),
 
+  /**
+   * Live 3D pointers, one row per participant (spec §1.2). Kept OUT of
+   * `sessions` / `sessionParticipants` so `sessions.get` never re-runs at
+   * pointer rate. This is the one high-frequency table (≤ 10 Hz per person
+   * while the pointer moves, 0 when idle) — bends guardrail 7, Sage-reviewed.
+   */
+  cursors: defineTable({
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    /** Hit point in the hit mesh's local frame; null = the pointer is off the model. */
+    cursor: v.union(v.null(), v.object({ node: v.string(), localMm: vVec3 })),
+    updatedAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_participant", ["participantId"]),
+
   // Shared human/agent records. Writers stamp attribution on the server.
   // Text lengths, anchor bounds and D10 transitions belong to shared mutations.
   annotations: defineTable({
@@ -407,7 +423,19 @@ export default defineSchema({
     availableTools: v.array(v.string()),
     snapshot: v.optional(v.any()),
     history: v.optional(vHistory),
-  }).index("by_client", ["clientId"]),
+    // True only when ask() received a participantToken matching a member of sessionId.
+    sessionVerified: v.optional(v.boolean()),
+    sessionParticipantId: v.optional(v.id("sessionParticipants")),
+  })
+    .index("by_client", ["clientId"])
+    .index("by_session", ["sessionId"]),
+
+  // Scribe note-taker debounce (#60): one row per note scope.
+  scribeNotesState: defineTable({
+    scopeKey: v.string(), // "client:<clientId>:<jobId>" or "session:<sessionId>:<jobId>"
+    lastRunAt: v.number(), // when the latest update was (or will be) allowed to run
+    pending: v.boolean(), // an update is already scheduled
+  }).index("by_scope", ["scopeKey"]),
 
   // Conservative daily reservations, shared across clients; no key means no spend.
   agentDailyUsage: defineTable({
