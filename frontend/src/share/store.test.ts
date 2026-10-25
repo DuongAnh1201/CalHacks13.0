@@ -47,6 +47,9 @@ describe('messagesAfter', () => {
     expect(messagesAfter(capped, { messageId: '1', createdAt: 1 })).toHaveLength(50);
     expect(messagesAfter(capped, { messageId: '50', createdAt: 50 }).map((m) => m.messageId)).toEqual(['51']);
     expect(messagesAfter(capped, null)).toEqual([]);
+    const empty = { messageId: '', createdAt: 0 };
+    expect(messagesAfter([], empty)).toEqual([]);
+    expect(messagesAfter([line('m1', 10)], empty)).toHaveLength(1);
   });
 });
 

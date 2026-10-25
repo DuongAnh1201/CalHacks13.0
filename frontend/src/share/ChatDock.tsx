@@ -24,7 +24,7 @@ export function ChatDock() {
     return watchChat((ms) => {
       const last = ms.at(-1);
       if (!seen.current) {
-        if (last) seen.current = { messageId: last.messageId, createdAt: last.createdAt };
+        seen.current = last ? { messageId: last.messageId, createdAt: last.createdAt } : { messageId: '', createdAt: 0 };
         setUnread(0);
         return;
       }

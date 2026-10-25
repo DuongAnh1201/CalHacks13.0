@@ -53,13 +53,15 @@ export function SessionChat({ onMinimize, onSeen, draft, onDraft }: {
 
   useEffect(() => {
     if (!sessionId) return;
+    let primed = false;
     let seenCursor: { messageId: string; createdAt: number } | null = null;
     const stop = watchChat((ms) => {
       const el = log.current;
       const near = !el || el.scrollHeight - el.scrollTop - el.clientHeight < NEAR;
       const added = messagesAfter(ms, seenCursor);
       const last = ms.at(-1);
-      if (!seenCursor) {
+      if (!primed) {
+        primed = true;
         stick.current = true;
         setJump(0);
       } else if (added.length) {
@@ -68,10 +70,8 @@ export function SessionChat({ onMinimize, onSeen, draft, onDraft }: {
         if (near) { stick.current = true; setJump(0); setFreshId(tip.messageId); }
         else { stick.current = false; setJump((n) => n + added.length); }
       }
-      if (last) {
-        seenCursor = { messageId: last.messageId, createdAt: last.createdAt };
-        seen.current?.(seenCursor);
-      }
+      seenCursor = last ? { messageId: last.messageId, createdAt: last.createdAt } : { messageId: '', createdAt: 0 };
+      seen.current?.(seenCursor);
       setMessages(ms);
     });
     return () => { stop(); setMessages([]); };

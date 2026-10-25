@@ -39,7 +39,7 @@
 .scores { display: flex; flex-wrap: wrap; gap: 10px; }
 .score { min-width: 110px; padding: 10px 14px; border-radius: 12px; background: #fff; border: 1px solid var(--nv-border); }
 .score dt { font: 600 10px/14px var(--nv-font); letter-spacing: .4px; text-transform: uppercase; color: var(--nv-text-3); }
-.score dd { margin: 2px 0 0; font: 700 22px/28px var(--nv-font); display: inline-block; animation: scorePop 440ms var(--nv-ease) both; }
+.score dd { margin: 2px 0 0; font: 700 22px/28px var(--nv-font); animation: scorePop 440ms var(--nv-ease) both; }
 
 .compass { position: absolute; font: 700 12px var(--nv-font); color: #9fd3ff; text-shadow: 0 1px 2px #000; pointer-events: none; }
 .top { top: 8px; left: 50%; transform: translateX(-50%); }
@@ -106,7 +106,7 @@
 @keyframes pick { 0% { transform: scale(.94); } 55% { transform: scale(1.06); } 100% { transform: none; } }
 @keyframes ring { from { opacity: .95; transform: scale(.86); } to { opacity: 0; transform: scale(1.18); } }
 @keyframes nudge { 20% { transform: translateX(-6px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-2px); } 100% { transform: none; } }
-@keyframes scorePop { 0% { opacity: 0; transform: translateY(8px) scale(.72); } 60% { opacity: 1; transform: translateY(-3px) scale(1.12); } 100% { transform: none; } }
+@keyframes scorePop { 0% { opacity: 0; transform: translateY(8px) scale(.72); } 60% { opacity: 1; transform: translateY(-3px) scale(1.12); } 100% { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .verdict, .bad strong, .good::before, .good::after, .option[aria-pressed='true'], .choice[aria-pressed='true'], .score dd { animation: none; }
   .good::before, .good::after, .option.right::after { display: none; }

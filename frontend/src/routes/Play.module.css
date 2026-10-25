@@ -6,6 +6,7 @@
 
 .games { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .games > li { animation: arrive 500ms var(--nv-ease) backwards; }
+.games > li:hover { position: relative; z-index: 1; }
 .games > li:nth-child(2) { animation-delay: 60ms; }
 .games > li:nth-child(3) { animation-delay: 110ms; }
 .games > li:nth-child(4) { animation-delay: 160ms; }
@@ -25,7 +26,7 @@
 
 .body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
 .round { min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); background: rgba(255, 255, 255, .7); min-height: 360px; }
-.side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; animation: arrive 560ms var(--nv-ease) 80ms backwards; }
+.side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; animation: fadeIn 420ms var(--nv-ease) 80ms backwards; }
 .roundIn { animation: fadeIn 280ms var(--nv-ease) backwards; }
 .card { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); background: #fff; }
 .cardTitle { margin: 0; font: 700 14px var(--nv-font); color: var(--nv-text); }
@@ -37,7 +38,7 @@
 .big { margin: 0; font: 700 32px/40px var(--nv-font); color: var(--nv-text); }
 .big small { font-size: 13px; font-weight: 600; color: var(--nv-text-3); }
 .scorePop, .points { display: inline-block; transform-origin: left center; animation: scorePop 460ms var(--nv-ease); }
-.celebrate { position: relative; overflow: hidden; }
+.celebrate { position: relative; }
 .celebrate > * { position: relative; z-index: 1; }
 .celebrate::after {
   content: ''; position: absolute; z-index: 0; top: -8px; right: -12px; width: 150px; height: 110px; pointer-events: none;
@@ -92,7 +93,7 @@
   .startBar .primary { grid-column: 1; grid-row: 4; }
   .games { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding: 3px; }
   .games::-webkit-scrollbar { display: none; }
-  .games li { flex: 0 0 72%; scroll-snap-align: start; }
+  .games li { flex: 0 0 72%; scroll-snap-align: start; animation-name: fadeIn; }
   .round { padding: 14px 12px; }
 }
 @media (pointer: coarse) {
@@ -105,7 +106,7 @@
 @keyframes scorePop {
   0% { opacity: 0; transform: translateY(10px) scale(.68); }
   58% { opacity: 1; transform: translateY(-4px) scale(1.16); }
-  100% { transform: none; }
+  100% { opacity: 1; transform: none; }
 }
 @keyframes burst {
   0% { opacity: 0; transform: translateY(28px) rotate(-12deg) scale(.5); }

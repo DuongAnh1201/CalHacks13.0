@@ -5,6 +5,7 @@
   animation: rise 700ms var(--nv-ease) 180ms backwards;
 }
 .tilt { transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform var(--nv-dur) var(--nv-ease); }
+.tilt:hover { z-index: 1; }
 .parallax { transform: translate3d(var(--px, 0px), var(--py, 0px), 0); transition: transform var(--nv-dur) var(--nv-ease); }
 .shift { transform: translate3d(calc(var(--px, 0px) * -.55), calc(var(--py, 0px) * -.55), 0); transition: transform var(--nv-dur) var(--nv-ease); }
 .aside { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
