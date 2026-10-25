@@ -1,0 +1,10 @@
+.dock, .pill { position: absolute; right: 16px; bottom: 16px; z-index: 25; }
+.dock { width: min(360px, calc(100vw - 32px)); box-shadow: 0 8px 24px -6px rgba(30, 37, 43, .18); border-radius: 12px; }
+.dock > section { max-height: min(420px, calc(100vh - 120px)); }
+.pill {
+  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 14px;
+  border: 1px solid var(--nv-border); border-radius: var(--nv-radius-pill);
+  background: var(--nv-primary); color: #fff; font: 700 13px var(--nv-font);
+  box-shadow: 0 8px 24px -6px rgba(30, 37, 43, .25);
+}
+.count { padding: 2px 8px; border-radius: var(--nv-radius-pill); background: rgba(255, 255, 255, .18); font-size: 11px; }

@@ -1,0 +1,12 @@
+.pin { position: relative; transform: translate(6px, -28px); font-family: var(--nv-font); }
+.badge {
+  display: grid; place-items: center; width: 22px; height: 22px; padding: 0;
+  border: 2px solid #fff; border-radius: 50% 50% 50% 0; background: #f2994a; color: #fff;
+  font: 700 11px var(--nv-font); box-shadow: 0 2px 6px rgba(0, 0, 0, .25); cursor: pointer;
+}
+.draft { background: var(--nv-primary); cursor: default; }
+.card {
+  position: absolute; left: 28px; top: -2px; width: max-content; max-width: 220px; margin: 0; padding: 7px 10px;
+  border: 1px solid var(--nv-border); border-radius: 8px; background: #fff; color: var(--nv-text);
+  font-size: 12px; line-height: 1.4; box-shadow: 0 6px 16px -4px rgba(0, 0, 0, .2); white-space: pre-wrap;
+}
