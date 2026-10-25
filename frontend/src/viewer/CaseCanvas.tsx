@@ -9,11 +9,13 @@ import { viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
 import { samePose, type CameraPose } from '../share/cameraSync';
 import { cursorOf } from '../share/cursorSync';
-import { setDraft, useNoteUi } from '../share/notes';
-import { MarkerPins, NotePins, type Marker } from '../share/NotePins';
+import { BoardMarkers } from '../board/BoardMarkers';
+import { isPlacing, setBoardDraft, setPose, useBoardTool } from '../board/tool';
+import { useNoteUi } from '../share/notes';
+import { MarkerPins, type Marker } from '../share/NotePins';
 import { RemoteCursors, useCursorPush } from '../share/RemoteCursors';
 import { useShare } from '../share/store';
-import type { Note } from '../share/types';
+import type { BoardRow, Note } from '../share/types';
 import { applyView } from './applyView';
 import type { Layer } from './layers';
 import { buildCaseScene } from './loadCase';
@@ -23,7 +25,7 @@ import css from './CaseCanvas.module.css';
 
 /** Shared-session camera (share/cameraSync.ts). Absent outside a session: the camera is local only. */
 interface CameraShare { onMove?: (p: CameraPose) => void; remote: CameraPose | null; onUserControl?: () => void }
-interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare; notes?: Note[]; markers?: Marker[] }
+interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare; notes?: Note[]; markers?: Marker[]; board?: BoardRow[] }
 
 const MIN_FRAME_RADIUS_MM = 12;
 const NOTE_VIEW_MM = 170; // camera distance when flying to a note
@@ -52,7 +54,7 @@ export function CaseCanvas(props: Props) {
   );
 }
 
-function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [] }: Props) {
+function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [], board = [] }: Props) {
   const { scene } = useGLTF(modelUrl(jobId));
   const controls = useRef<CameraControls>(null);
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
@@ -60,8 +62,9 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [] }
   const target = useViewer((s) => s.cameraTarget);
   const live = useShare((s) => s.stored?.jobId === jobId); // cursors on the case this session reviews; useCursorPush / RemoteCursors also require an active session
   const push = useCursorPush(live);
-  const placing = useNoteUi((s) => s.placing);
+  const tool = useBoardTool((s) => s.tool);
   const goTo = useNoteUi((s) => s.goTo);
+  const goToPose = useBoardTool((s) => s.goToPose);
 
   useEffect(() => onLayers(Object.fromEntries(Object.keys(cs.tumor).map((k) => [k, true]))), [cs, onLayers]);
 
@@ -138,6 +141,26 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [] }
     void c.setLookAt(...eye.toArray(), ...at.toArray(), true);
   }, [goTo, cs]);
 
+  // Pose for stroke fading, on every tab (the host's onMove above is for guests following).
+  useEffect(() => {
+    const c = controls.current;
+    if (!c) return;
+    const p = new THREE.Vector3(), t = new THREE.Vector3();
+    const emit = () => { c.getPosition(p); c.getTarget(t); setPose({ position: p.toArray(), target: t.toArray() }); };
+    emit();
+    c.addEventListener('update', emit);
+    return () => c.removeEventListener('update', emit);
+  }, []);
+
+  const seenPose = useRef(goToPose?.n);
+  useEffect(() => {
+    const c = controls.current;
+    if (!c || !goToPose || goToPose.n === seenPose.current) return;
+    seenPose.current = goToPose.n;
+    const [px, py, pz] = goToPose.pose.position, [tx, ty, tz] = goToPose.pose.target;
+    void c.setLookAt(px, py, pz, tx, ty, tz, true);
+  }, [goToPose]);
+
   const onUserControl = camera?.onUserControl;
   useEffect(() => {
     const c = controls.current;
@@ -159,17 +182,16 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [] }
           push(c);
         } : undefined}
         onPointerOut={push ? () => push(null) : undefined}
-        // placing a note pin: the clicked surface point, in the mesh frame (= scan mm)
-        onClick={placing ? (e: ThreeEvent<MouseEvent>) => {
+        onClick={isPlacing(tool) ? (e: ThreeEvent<MouseEvent>) => {
           if (e.delta > CLICK_SLOP_PX) return;
           const c = cursorOf(e.object, e.point);
           if (!c) return;
           e.stopPropagation();
-          setDraft(c.localMm);
+          setBoardDraft({ tool, mm: c.localMm });
         } : undefined}
       />
       <RemoteCursors enabled={live} />
-      <NotePins cs={cs} report={report} notes={notes} />
+      <BoardMarkers cs={cs} report={report} notes={notes} rows={board} />
       <MarkerPins cs={cs} markers={markers} />
     </>
   );
