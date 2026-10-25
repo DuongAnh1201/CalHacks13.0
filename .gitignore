@@ -248,3 +248,4 @@ yarn-error.log*
 # Un-ignore it explicitly.
 !convex/lib/
 !convex/lib/**
+.superpowers/
