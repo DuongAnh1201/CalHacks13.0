@@ -58,3 +58,10 @@ Speech-to-text runs in each member's browser (Web Speech API, `frontend/src/agen
 - **`transcript.setEnabled`:** host only. **`transcript.append`:** active session, verified member, switch on, text 1–500 chars, 30 segments per participant per minute. The speaker is the token's participant and times are server-stamped; the client only reports `durationMs`, so `startedAt` is unique and increasing per session and works as the `after` cursor.
 - **`transcript.list` / `transcript.state`:** members only, also after the session ended. Segments are kept until the session is deleted.
 - **MCP `get_transcript`:** read-only; needs `session_id` and `participant_token` for the case. The service token alone is refused. Output carries an untrusted-data notice.
+
+## Transcript in the live notes (#136)
+
+- **Input:** Scribe's session note also reads transcript segments newer than `coversUpTo` (`events.transcript`, speaker kept, untrusted data). The watermark is `endedAt` (the append time), so a long utterance that started before the last covered time is not missed. A transcript alone is enough to trigger an update; with nothing new there is no model call.
+- **Quotes (T3a):** the note may quote a participant's own words with attribution. `checkNote` runs the Guard on AI-authored text only: a double-quoted span is exempt only when it is verbatim (case and spacing aside) inside a transcript segment of this update, or was already a quoted span of the previous note (which passed the same check). Text the model merely puts in quotes is still checked.
+- **`update_notes`:** a Router step, offered only to verified session runs when an API key exists (never on web-allowed runs). It goes through `notes:schedule`, so it shares the 60 s debounce.
+- **Cadence:** when the host turns transcription on (and a key exists), `notes:tick` runs about every 60 s through the same debounce until transcription is turned off or the session ends. `transcriptSettings.tickAt` identifies the live chain, so a stale tick ends itself and toggling twice never starts a second chain. No key: nothing is scheduled.

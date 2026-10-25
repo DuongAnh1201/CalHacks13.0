@@ -356,6 +356,13 @@ export const run = internalAction({
           handoff: async (agent) => {
             await ctx.runMutation(handoffRef, { runId, agent });
           },
+          ...(scope?.kind === "session" && settings.ANTHROPIC_API_KEY
+            ? {
+                updateNotes: async () => {
+                  await ctx.runMutation(scheduleNotesRef, { scope });
+                },
+              }
+            : {}),
         },
       );
       if (result) {

@@ -58,6 +58,8 @@ export interface LoopDeps {
   active(): Promise<boolean>;
   step(step: Step): Promise<void>;
   handoff(agent: "Navigator"): Promise<void>;
+  /** Present only for verified session runs with a key: asks Scribe for a (debounced) notes refresh. */
+  updateNotes?(): Promise<void>;
 }
 export function safeReply(reply: string) {
   return checkReply(reply).ok ? reply : MEDICAL_REFUSAL;
@@ -161,6 +163,21 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
               type: "web_search_20260209" as const,
               name: "web_search" as const,
               max_uses: 3,
+            },
+          ]
+        : []),
+      ...(deps.updateNotes && !webAllowed
+        ? [
+            {
+              name: "update_notes",
+              description:
+                "Ask Scribe to refresh the shared meeting notes. Runs at most about once a minute; use it when the user wants fresh notes or a recap.",
+              input_schema: {
+                type: "object" as const,
+                properties: {},
+                additionalProperties: false,
+              },
+              strict: true,
             },
           ]
         : []),
@@ -295,6 +312,38 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
             type: "tool_result",
             tool_use_id: call.id,
             content: "Navigator is handling this request.",
+          });
+          continue;
+        }
+        if (call.name === "update_notes") {
+          let ok = false;
+          let message = "Notes update is not available.";
+          if (deps.updateNotes && !webAllowed) {
+            if (!z.object({}).strict().safeParse(call.input).success)
+              message = "Notes update expects an empty object.";
+            else
+              try {
+                await deps.updateNotes();
+                ok = true;
+                message = "Notes update requested.";
+              } catch {
+                message = "Notes update unavailable.";
+              }
+          }
+          await deps.step({
+            id: `${input.runId}:${turn}:${call.id}`,
+            tool: "update_notes",
+            args: {},
+            ok,
+            message,
+            ms: Math.max(0, Date.now() - start),
+            kind: "mcp",
+          });
+          results.push({
+            type: "tool_result",
+            tool_use_id: call.id,
+            is_error: !ok,
+            content: message,
           });
           continue;
         }
