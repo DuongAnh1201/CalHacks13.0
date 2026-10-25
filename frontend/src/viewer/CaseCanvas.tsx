@@ -1,5 +1,5 @@
 import { CameraControls, useGLTF } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useShallow } from 'zustand/react/shallow';
@@ -7,6 +7,8 @@ import { modelUrl } from '../api/client';
 import type { Report } from '../api/types';
 import { viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
+import { cursorOf } from '../share/cursorSync';
+import { RemoteCursors, useCursorPush } from '../share/RemoteCursors';
 import { applyView } from './applyView';
 import type { Layer } from './layers';
 import { buildCaseScene } from './loadCase';
@@ -16,7 +18,7 @@ import css from './CaseCanvas.module.css';
 interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void }
 
 const MIN_FRAME_RADIUS_MM = 12;
-// Same direction as AtlasCanvas HOME; the brain centroid is the scene origin.
+// Front-left three-quarter view; the brain centroid is the scene origin.
 const HOME: [number, number, number, number, number, number] = [-260, 80, -200, 0, 0, 0];
 
 export function CaseCanvas(props: Props) {
@@ -46,6 +48,8 @@ function CaseScene({ jobId, report, onLayers }: Props) {
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
   const view = useViewer(useShallow((s) => ({ tumorRevealed: s.tumorRevealed, layers: s.layers, mode: s.mode, brainOpacity: s.brainOpacity, hidden: s.hidden, explodeAmount: s.explodeAmount })));
   const target = useViewer((s) => s.cameraTarget);
+  const live = jobId === 'sample'; // sharing is sample-only (W2)
+  const push = useCursorPush(live);
 
   useEffect(() => onLayers(Object.fromEntries(Object.keys(cs.tumor).map((k) => [k, true]))), [cs, onLayers]);
 
@@ -89,7 +93,18 @@ function CaseScene({ jobId, report, onLayers }: Props) {
   return (
     <>
       <CameraControls ref={controls} makeDefault smoothTime={0.35} minDistance={20} maxDistance={900} />
-      <primitive object={cs.world} />
+      <primitive
+        object={cs.world}
+        // handlers only during a session: without them R3F does not raycast the case at all
+        onPointerMove={push ? (e: ThreeEvent<PointerEvent>) => {
+          const c = cursorOf(e.object, e.point);
+          if (!c) return; // hidden or unnamed: R3F tries the next hit
+          e.stopPropagation();
+          push(c);
+        } : undefined}
+        onPointerOut={push ? () => push(null) : undefined}
+      />
+      <RemoteCursors enabled={live} />
     </>
   );
 }
