@@ -7,7 +7,6 @@ GET  /jobs/{id}            status: queued | running | done | failed
 GET  /jobs/{id}/report     report.json
 GET  /jobs/{id}/model.glb  3D meshes
 GET  /jobs/{id}/seg.nii.gz label map
-GET  /jobs/{id}/expert.nii.gz expert label (seeded cases that have one)
 GET  /library              the seeded study cases, for browsing
 GET  /health               server check
 """
@@ -279,13 +278,6 @@ def job_model(job_id: str):
 def job_seg(job_id: str):
     return FileResponse(_result(job_id, "seg.nii.gz"), media_type="application/gzip",
                         filename=f"{job_id}_seg.nii.gz")
-
-
-@app.get("/jobs/{job_id}/expert.nii.gz")
-def job_expert(job_id: str):
-    """The dataset's expert tumor label, for seeded cases that ship one (the Beat the AI game)."""
-    return FileResponse(_result(job_id, "expert.nii.gz"), media_type="application/gzip",
-                        filename=f"{job_id}_expert.nii.gz")
 
 
 @app.get("/jobs/{job_id}/flair.nii.gz")

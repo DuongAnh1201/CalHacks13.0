@@ -10,11 +10,6 @@ export function TopNavBar() {
         <img src={brandMark} alt="" width={19} height={20} />
         Pons
       </NavLink>
-      <nav className={css.links} aria-label="Main">
-        <NavLink to="/explore" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Explore</NavLink>
-        <NavLink to="/play" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Play</NavLink>
-        <NavLink to="/upload" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Upload</NavLink>
-      </nav>
       <ShareControls css={css} />
     </header>
   );

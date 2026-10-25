@@ -1,7 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Brain3D from './routes/Brain3D';
 import Explore from './routes/Explore';
-import Play from './routes/Play';
 import Home from './routes/Home';
 import Join from './routes/Join';
 import { legacyRoutes } from './routes/legacy';
@@ -12,7 +11,6 @@ import Upload from './routes/Upload';
 const router = createBrowserRouter([
   { path: '/', element: <Home /> },
   { path: '/explore', element: <Explore /> },
-  { path: '/play', element: <Play /> },
   { path: '/upload', element: <Upload /> },
   { path: '/jobs/:id/processing', element: <Processing /> },
   { path: '/jobs/:id/mri', element: <MriWorkspace /> },

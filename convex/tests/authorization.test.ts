@@ -21,7 +21,6 @@ import { describe, expect, it } from "vitest";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import * as annotations from "../annotations";
-import * as games from "../games";
 import type { AppErrorCode, AppErrorData } from "../lib/errors";
 import { MAX_CREDENTIAL_LENGTH } from "../lib/tokens";
 import * as messages from "../messages";
@@ -69,13 +68,7 @@ async function setUp() {
     anchor: { kind: "point", ras_mm: [0, 0, 0] },
   });
 
-  const { roundId } = await t.mutation(api.games.start, {
-    ...asHost,
-    prompt: { kind: "whichSide", jobId: "sample" },
-    secret: { kind: "whichSide", side: "left" },
-  });
-
-  return { t, asHost, asViewer, otherToken: other.participantToken, annotationId, roundId };
+  return { t, asHost, asViewer, otherToken: other.participantToken, annotationId };
 }
 
 type Ctx = Awaited<ReturnType<typeof setUp>>;
@@ -84,12 +77,7 @@ type Ctx = Awaited<ReturnType<typeof setUp>>;
  * The matrix. `call` runs the function as whoever `auth` says; `hostOnly`
  * marks the functions a viewer must be refused by role.
  */
-const MATRIX: Record<string, {
-  hostOnly: boolean;
-  call: (t: T, auth: Auth, ctx: Ctx) => Promise<unknown>;
-  /** The function a host is refused by design (games.answer: the quizmaster does not play). */
-  succeedsAsViewer?: true;
-}> = {
+const MATRIX: Record<string, { hostOnly: boolean; call: (t: T, auth: Auth, ctx: Ctx) => Promise<unknown> }> = {
   "sessions.get": { hostOnly: false, call: (t, a) => t.query(api.sessions.get, a) },
   "sessions.getInviteCode": { hostOnly: true, call: (t, a) => t.query(api.sessions.getInviteCode, a) },
   "sessions.updateView": {
@@ -119,24 +107,13 @@ const MATRIX: Record<string, {
     hostOnly: false,
     call: (t, a, ctx) => t.mutation(api.annotations.remove, { ...a, annotationId: ctx.annotationId }),
   },
-  "games.start": {
-    hostOnly: true,
-    call: (t, a) => t.mutation(api.games.start, { ...a, prompt: { kind: "beatAi", jobId: "sample", slice: 70 } }),
-  },
-  "games.answer": {
-    hostOnly: false,
-    succeedsAsViewer: true,
-    call: (t, a, ctx) => t.mutation(api.games.answer, { ...a, roundId: ctx.roundId, answer: { kind: "whichSide", side: "left" } }),
-  },
-  "games.reveal": { hostOnly: true, call: (t, a, ctx) => t.mutation(api.games.reveal, { ...a, roundId: ctx.roundId }) },
-  "games.current": { hostOnly: false, call: (t, a) => t.query(api.games.current, a) },
 };
 
 // ---------------------------------------------------------------------------
 // The matrix
 // ---------------------------------------------------------------------------
 
-describe.each(Object.entries(MATRIX))("%s", (_name, { hostOnly, call, succeedsAsViewer }) => {
+describe.each(Object.entries(MATRIX))("%s", (_name, { hostOnly, call }) => {
   it("rejects unknown, empty and oversized tokens", async () => {
     const ctx = await setUp();
     for (const participantToken of ["not-a-real-token", "", "A".repeat(MAX_CREDENTIAL_LENGTH + 1)]) {
@@ -165,9 +142,9 @@ describe.each(Object.entries(MATRIX))("%s", (_name, { hostOnly, call, succeedsAs
     });
   }
 
-  it(succeedsAsViewer ? "succeeds for a viewer" : "succeeds for the host", async () => {
+  it("succeeds for the host", async () => {
     const ctx = await setUp();
-    await call(ctx.t, succeedsAsViewer ? ctx.asViewer : ctx.asHost, ctx);
+    await call(ctx.t, ctx.asHost, ctx);
   });
 });
 
@@ -201,7 +178,6 @@ const MODULES: Record<string, Record<string, unknown>> = {
   sessionParticipants,
   messages,
   annotations,
-  games,
 };
 
 describe("tripwire", () => {

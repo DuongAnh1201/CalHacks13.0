@@ -51,7 +51,6 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
           <NavLink to={`/jobs/${jobId}/3d`} className={({ isActive }) => (isActive ? `${css.view} ${css.active}` : css.view)}>3D</NavLink>
           <NavLink to={`/jobs/${jobId}/mri`} className={({ isActive }) => (isActive ? `${css.view} ${css.active}` : css.view)}>Slices</NavLink>
         </nav>
-        <NavLink to="/play" className={css.play}>Play</NavLink>
       </header>
 
       <div className={css.shareBar}><ShareControls css={css} /></div>

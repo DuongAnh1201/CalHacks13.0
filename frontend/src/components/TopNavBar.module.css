@@ -45,8 +45,3 @@
 .shareWrap { position: relative; display: flex; align-items: center; gap: 8px; }
 .share:disabled { opacity: 0.55; }
 .notice, .error { margin: 0; font-size: 12px; color: var(--nv-primary); }
-
-.links { display: flex; gap: 4px; margin-right: auto; }
-.link { padding: 6px 12px; border-radius: var(--nv-radius-control); color: var(--nv-text-2); font-weight: 600; font-size: 13px; text-decoration: none; }
-.link:hover { background: var(--nv-primary-soft); }
-.on { color: var(--nv-primary); background: var(--nv-primary-soft); }
