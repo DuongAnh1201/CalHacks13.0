@@ -258,7 +258,7 @@ export const updateLine = mutation({
     if (args.segmentId && (!row || row.participantId !== participant._id || row.sessionId !== session._id)) throw appError("NOT_A_MEMBER", "That is not your transcript line.");
     if (row && row.final !== false) return { closed: true };
     const now = Date.now();
-    const lastWrite = Math.max(0, ...recent.map((x) => x.updatedAt ?? 0));
+    const lastWrite = Math.max(row?.updatedAt ?? 0, ...recent.map((x) => x.updatedAt ?? 0));
     if (now - lastWrite < WRITE_INTERVAL_MS) return { retryAfterMs: WRITE_INTERVAL_MS - (now - lastWrite) };
     if (row) {
       if (args.final && !text) { await ctx.db.delete(row._id); return {}; }

@@ -1,8 +1,15 @@
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNoteTakerController, EXPORT_LINE, NO_SESSION, OFFLINE_NOTE_TAKER, type Creds, type NoteTakerClient } from './useNoteTaker';
+import { useTranscription } from './transcription';
+import { useShare } from '../share/store';
+import { useCall } from '../call/store';
 import type { Transcriber, TranscriptSegment } from './transcribe';
+
+const controllers: ReturnType<typeof createNoteTakerController>[] = [];
+beforeEach(() => useTranscription.setState({ memberKey: null, muted: false, owner: null }));
+afterEach(() => controllers.splice(0).forEach((c) => c.dispose()));
 
 type Ref = Parameters<typeof getFunctionName>[0];
 const seg = (id: string, speakerName: string, text: string, at: number) => ({ segmentId: id, speakerName, text, startedAt: at - 500, endedAt: at });
@@ -34,6 +41,8 @@ function fakeTranscriber(supported = true) {
 const HOST: Creds = { sessionId: 's1', participantToken: 'host-tok', jobId: 'sample', role: 'host' };
 const VIEWER: Creds = { sessionId: 's1', participantToken: 'view-tok', jobId: 'sample', role: 'viewer' };
 function setup(creds: Creds = HOST, opts: { supported?: boolean; mutation?: (n: string, a: unknown) => unknown } = {}) {
+  useShare.setState({ stored: { ...creds, inviteCode: 'A' }, session: null });
+  useCall.setState({ status: 'live', muted: false });
   const f = fakeClient({ mutation: opts.mutation });
   const tr = fakeTranscriber(opts.supported ?? true);
   const download = vi.fn();
@@ -43,9 +52,10 @@ function setup(creds: Creds = HOST, opts: { supported?: boolean; mutation?: (n: 
     await target.recordScreenshot({ storageId: 'st1', width: 10, height: 10 });
   });
   const ctl = createNoteTakerController({
-    client: f.client, creds, makeTranscriber: tr.make, download, formatTime: (ms) => `t${ms}`, now: () => 1000,
+    client: f.client, creds, makeTranscriber: tr.make, download, formatTime: (ms) => `t${ms}`, now: () => 1000, toggleCallMute: async () => { useCall.setState((s) => ({ muted: !s.muted })); },
     getCanvas: () => ({}) as HTMLCanvasElement, capture: capture as never, upload: upload as never,
   });
+  controllers.push(ctl);
   ctl.start();
   return { f, tr, ctl, download, capture, upload };
 }
@@ -101,10 +111,10 @@ describe('mic, transcription banner and local capture', () => {
     expect(ctl.getState().status).toBe('listening');
     await ctl.onMic();
     expect(f.mutations('transcript:setEnabled')).toHaveLength(0);
-    expect(f.mutations('transcript:setMuted')[0][2]).toMatchObject({ muted: true });
+    expect(f.mutations('transcript:setMuted').at(-1)![2]).toMatchObject({ muted: true });
     expect(tr.t.running).toBe(false);
     expect(ctl.getState().status).toBe('ready');
-    expect(texts(ctl).slice(0, 2)).toEqual([expect.stringMatching(/^Transcribing/), expect.stringMatching(/You are muted/)]);
+    expect(texts(ctl).slice(0, 2)).toEqual([expect.stringMatching(/^Transcribing/), expect.stringMatching(/call is muted/)]);
     await ctl.onMic();
     expect(tr.t.running).toBe(true);
     expect(ctl.getState().status).toBe('listening');
@@ -259,11 +269,11 @@ describe('presenter screenshots', () => {
 });
 
 describe('meeting state', () => {
-  it('the host also mutes only themselves through the mic, and only the separate toggle changes the meeting', async () => {
+  it('the host has a separate call mute control and retains the global switch', async () => {
     const { f, ctl } = setup(HOST);
     f.live('transcript:state').push({ enabled: true, participantId: 'host-id', muted: [], promptDismissed: true });
-    await ctl.onMic();
-    expect(f.mutations('transcript:setMuted')[0][2]).toMatchObject({ muted: true });
+    await ctl.muteSelf();
+    expect(f.mutations('transcript:setMuted').at(-1)![2]).toMatchObject({ muted: true });
     expect(f.mutations('transcript:setEnabled')).toHaveLength(0);
     expect(ctl.getState()).toMatchObject({ muted: true, enabled: true, selfId: 'host-id' });
   });

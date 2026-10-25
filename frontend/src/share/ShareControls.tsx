@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { NOT_CONFIGURED, OPEN_A_SCAN } from './copy';
+import { CallControls } from '../call/CallControls';
 import { FacePile } from './FacePile';
 import { FollowBanner } from './FollowBanner';
 import { SharePopover } from './SharePopover';
@@ -34,6 +35,7 @@ export function ShareControls({ css }: { css: { notice?: string; shareWrap?: str
     <>
       {notice && <p className={css.notice} role="status">{notice}</p>}
       {session?.status === 'active' && /^\/jobs\/[^/]+\/(mri|3d)$/.test(pathname) && <FacePile session={session} />}
+      <CallControls />
       {guest && session && <FollowBanner session={session} />}
       {id && !guest && (
         <div className={css.shareWrap}>

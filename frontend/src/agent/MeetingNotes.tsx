@@ -27,13 +27,13 @@ export function MeetingOverlay({ binding: b }: { binding: NoteTakerBinding }) {
   const [captions, setCaptions] = useState(() => typeof localStorage === 'undefined' || localStorage.getItem('neuro-captions') !== 'off');
   const m = b.meeting;
   const latest = Math.max(0, ...(m?.segments ?? []).map((s) => s.updatedAt ?? s.endedAt));
-  if (b.hidden || !m || m.ended) return null;
+  if (b.hidden || !m || m.ended || !m.callActive) return null;
   return <div className={css.overlay}>
     <div className={css.controls}>
       {m.enabled && <span className={css.pill}>AI notes on</span>}
       {m.host && <button type="button" role="switch" aria-checked={m.enabled} onClick={b.toggleEnabled}>AI notes {m.enabled ? 'on' : 'off'}</button>}
       <button type="button" aria-pressed={captions} onClick={() => setCaptions((on) => { localStorage.setItem('neuro-captions', on ? 'off' : 'on'); return !on; })}>Captions {captions ? 'on' : 'off'}</button>
-      {m.enabled && <button type="button" aria-pressed={m.muted} onClick={b.onMic}>{m.muted ? 'Unmute my transcription' : 'Mute my transcription'}</button>}
+      {m.enabled && <button type="button" aria-pressed={m.muted} onClick={b.muteSelf}>{m.muted ? 'Unmute my microphone' : 'Mute my microphone'}</button>}
     </div>
     {m.messages.filter((msg) => msg.kind === 'system' && /Microphone blocked|can.t transcribe|could not|Could not/.test(msg.text)).map((msg, i) => <p key={i} role="alert" className={css.consent}>{msg.text}</p>)}
     {m.enabled && <p className={css.consent} role="status">{CONSENT_BANNER}</p>}

@@ -5,7 +5,7 @@ import { CaptionLine, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } 
 import { CONSENT_BANNER, type NoteTakerBinding, type NoteTakerState } from './useNoteTaker';
 const time = new Date('2026-10-24T12:00:00Z').getTime();
 const m: NoteTakerState = {
-  status: 'listening', messages: [], enabled: true, muted: false, ended: false, host: true, promptDismissed: true, selfId: 'me',
+  status: 'listening', messages: [], enabled: true, muted: false, callActive: true, ended: false, host: true, promptDismissed: true, selfId: 'me',
   segments: [
     { segmentId: 'a', participantId: 'me', speakerName: 'Host', text: 'Final words.', final: true, startedAt: time, endedAt: time + 100 },
     { segmentId: 'b', participantId: 'me', speakerName: 'Host', text: 'Interim words', final: false, startedAt: time + 200, endedAt: time + 300 },
@@ -39,11 +39,12 @@ describe('live meeting views', () => {
     const prompt = renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ enabled: false, promptDismissed: false }) }));
     expect(prompt).toContain('Turn on AI notes for this meeting?'); expect(prompt).toContain('aria-checked="false"');
     const on = renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding() }));
-    expect(on).toContain('AI notes on'); expect(on).toContain('Mute my transcription'); expect(on).toContain('Captions on');
+    expect(on).toContain('AI notes on'); expect(on).toContain('Mute my microphone'); expect(on).toContain('Captions on');
     expect(on).toContain(CONSENT_BANNER.replaceAll("'", '&#x27;')); expect(on).not.toContain('audio stays');
     expect(on).not.toContain('Turn on AI notes for this meeting?');
     const guest = renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ host: false, enabled: false, promptDismissed: false }) }));
-    expect(guest).not.toContain('role="switch"'); expect(guest).not.toContain('Turn on AI notes for this meeting?');
+    expect(guest).not.toContain('role="switch"');
+    expect(renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ callActive: false, promptDismissed: false }) }))).toBe(''); expect(guest).not.toContain('Turn on AI notes for this meeting?');
   });
   it('renders notes, screenshots, Export summary and Download .md as the Notes tab content', () => {
     const h = renderToStaticMarkup(createElement(NotesView, { binding: binding() }));
