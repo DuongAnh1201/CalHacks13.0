@@ -1,49 +1,135 @@
 /**
- * presence — who is online in a review session right now (spec §1.1).
+ * Online presence (Phase 3): who has a tab open in a review session right now.
  *
- * Wraps @convex-dev/presence. Room and user are ALWAYS derived from the
- * participant token: roomId = session id, userId = participant id. The client
- * only names its own tab (clientId), which we prefix with the participant id
- * so one participant can never address another's tab.
+ * WHAT LIVES HERE
+ * ---------------
+ *   presence.heartbeat    public mutation  "I am still here" (every ~10 s)
+ *   presence.list         public query     who is online, reactive
+ *   presence.disconnect   public mutation  "I closed the tab"
+ *
+ * These are thin, authorized wrappers around the official Convex Presence
+ * component (@convex-dev/presence). The component keeps presence in its own
+ * tables and only notifies subscribers when someone comes online or drops off,
+ * not on every heartbeat. A hand-rolled `lastSeenAt` write on the participant
+ * row would instead re-run `sessions.get` (which reads the roster) for every
+ * client on every heartbeat.
+ *
+ * MEMBERSHIP IS NOT PRESENCE (docs/CONVEX_BACKEND.md §3.7)
+ * --------------------------------------------------------
+ * `sessionParticipants` says who joined; this says who is online. The roster
+ * from `sessions.get` / `sessionParticipants.list` is unchanged, and the
+ * frontend joins the two on `participantId`.
+ *
+ * FRONTEND USAGE — the argument mapping is deliberate
+ * ---------------------------------------------------
+ *   usePresence(api.presence, sessionId, participantToken)
+ *
+ * The component's React hook has a fixed signature: (roomId, userId). We pass
+ * the session id as the room and the participant TOKEN as the "userId", because
+ * the hook offers no other channel for a credential. `heartbeat` resolves that
+ * token on the server and registers the participant under their public
+ * `participantId`, so the token is never stored in, or returned from, the
+ * component. `list` therefore reports `userId: participantId`.
+ *
+ * File name and `disconnect` are fixed by the hook: on tab close it posts
+ * `presence:disconnect` with `navigator.sendBeacon`.
  */
+
 import { Presence } from "@convex-dev/presence";
 import { v } from "convex/values";
 import { components } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
-import { requireSessionMember } from "./lib/auth";
+import { requireActiveSession, requireParticipant } from "./lib/auth";
 import { appError } from "./lib/errors";
 
 const presence = new Presence(components.presence);
 
-const MIN_INTERVAL_MS = 2_000;
-const MAX_INTERVAL_MS = 60_000;
+/**
+ * Bounds on the client-chosen heartbeat interval. The component times a client
+ * out after 2.5x its interval, so an unbounded value would let a client stay
+ * "online" for hours after leaving. The hook's default is 10 000 ms.
+ */
+export const MIN_HEARTBEAT_INTERVAL_MS = 2_000;
+export const MAX_HEARTBEAT_INTERVAL_MS = 60_000;
 
+/** The hook's per-tab id is a short JSON string; this only stops abuse. */
+const MAX_CLIENT_SESSION_ID_LENGTH = 512;
+
+/**
+ * Marks the caller online in the session's room and keeps them there.
+ *
+ * Argument names are the hook's: `roomId` is our `sessionId`, `userId` is the
+ * participant token, and `sessionId` is the HOOK's per-tab id (not ours).
+ */
 export const heartbeat = mutation({
   args: {
-    sessionId: v.id("sessions"),
-    participantToken: v.string(),
-    clientId: v.string(),
+    roomId: v.string(),
+    userId: v.string(),
+    sessionId: v.string(),
     interval: v.number(),
   },
   handler: async (ctx, args): Promise<{ roomToken: string; sessionToken: string }> => {
-    const { session, participant } = await requireSessionMember(ctx, args);
-    if (args.clientId.length === 0 || args.clientId.length > 64) {
-      throw appError("INVALID_ARGUMENT", "clientId must be 1–64 characters.");
+    const participant = await requireParticipant(ctx, args.userId);
+
+    // Compared as strings, so a malformed room id is simply "not your room".
+    if (participant.sessionId !== args.roomId) {
+      throw appError("NOT_A_MEMBER", "You are not a member of that review session.");
     }
-    if (!Number.isFinite(args.interval)) throw appError("INVALID_ARGUMENT", "interval must be a number.");
-    const interval = Math.min(Math.max(args.interval, MIN_INTERVAL_MS), MAX_INTERVAL_MS);
-    return await presence.heartbeat(ctx, session._id, participant._id, `${participant._id}:${args.clientId}`, interval);
+    // An ended room accepts no heartbeats, so its members drop offline.
+    await requireActiveSession(ctx, participant.sessionId);
+
+    if (
+      !Number.isFinite(args.interval) ||
+      args.interval < MIN_HEARTBEAT_INTERVAL_MS ||
+      args.interval > MAX_HEARTBEAT_INTERVAL_MS
+    ) {
+      throw appError(
+        "INVALID_ARGUMENT",
+        `Heartbeat interval must be ${MIN_HEARTBEAT_INTERVAL_MS}-${MAX_HEARTBEAT_INTERVAL_MS} ms.`,
+      );
+    }
+    if (args.sessionId.length === 0 || args.sessionId.length > MAX_CLIENT_SESSION_ID_LENGTH) {
+      throw appError("INVALID_ARGUMENT", "Invalid presence session id.");
+    }
+
+    // The hook builds its per-tab id as JSON [instanceId, roomId, userId], so it
+    // embeds the token. Swap the token for the participant id before the
+    // component stores it: still unique per tab, no longer a credential.
+    const clientSessionId = args.sessionId.split(args.userId).join(participant._id);
+
+    return await presence.heartbeat(
+      ctx,
+      participant.sessionId,
+      participant._id,
+      clientSessionId,
+      args.interval,
+    );
   },
 });
 
-/** No per-user reads, so every subscriber in a room shares one cached result (component README). */
+/**
+ * Everyone who has been in the room, with `online` true for open tabs.
+ *
+ * Authorized by `roomToken`, an unguessable capability the component returns
+ * only from `heartbeat`, i.e. only to callers who passed the membership check
+ * above. Deliberately no per-user reads here, so every subscriber in a room
+ * shares one cached result (component README).
+ */
 export const list = query({
   args: { roomToken: v.string() },
-  handler: async (ctx, { roomToken }) => await presence.list(ctx, roomToken),
+  handler: async (ctx, { roomToken }) => {
+    return await presence.list(ctx, roomToken);
+  },
 });
 
-/** Unauthenticated by necessity: it is called from navigator.sendBeacon on page hide. A leaked tab token can only mark that tab offline. */
+/**
+ * Graceful "tab closed". Unauthenticated by design: the hook calls it via
+ * `navigator.sendBeacon`, which cannot attach anything but the body. The
+ * `sessionToken` is itself an unguessable capability for one tab's presence.
+ */
 export const disconnect = mutation({
   args: { sessionToken: v.string() },
-  handler: async (ctx, { sessionToken }) => await presence.disconnect(ctx, sessionToken),
+  handler: async (ctx, { sessionToken }) => {
+    return await presence.disconnect(ctx, sessionToken);
+  },
 });

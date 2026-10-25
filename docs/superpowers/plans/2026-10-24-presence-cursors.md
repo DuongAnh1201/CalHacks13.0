@@ -1544,12 +1544,12 @@ export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void
 
 ### Task R1: Start merge, resolve Convex + root (be)
 
-- [ ] `git status` is clean, then run `git merge --no-ff --no-commit origin/main`. Expected conflicts: the 13 paths in the table (`convex/*`, `vitest.config.ts`, `frontend/*`).
-- [ ] Resolve your rows, then `git add` them by path. Leave frontend conflicts untouched.
-- [ ] Run `npm install && npm --prefix frontend install`.
-- [ ] Wait until the convex-dev log shows a successful push after your resolution, then check `grep -c "cursors\|presence" convex/_generated/api.d.ts` > 0 and `git add convex/_generated`.
-- [ ] Run `npm run typecheck && npm test` (root = `convex/` only; main's presence tests replace ours). Expected: exit 0.
-- [ ] `hc send fe "R1 done: convex side resolved, <n> root tests pass; your rows next"`. Send nothing to lead unless blocked.
+- [x] `git status` is clean, then run `git merge --no-ff --no-commit origin/main`. Expected conflicts: the 13 paths in the table (`convex/*`, `vitest.config.ts`, `frontend/*`).
+- [x] Resolve your rows, then `git add` them by path. Leave frontend conflicts untouched.
+- [x] Run `npm install && npm --prefix frontend install`.
+- [x] Wait until the convex-dev log shows a successful push after your resolution, then check `grep -c "cursors\|presence" convex/_generated/api.d.ts` > 0 and `git add convex/_generated`.
+- [x] Run `npm run typecheck && npm test` (root = `convex/` only; main's presence tests replace ours). Expected: exit 0.
+- [x] `hc send fe "R1 done: convex side resolved, <n> root tests pass; your rows next"`. Send nothing to lead unless blocked.
 
 ### Task R2: Resolve frontend share + Brain3D (fe)
 

@@ -1,8 +1,7 @@
 export const SESSION_ENDED = 'The host ended the session';
-export const NO_SAMPLE = 'Sample scan is not in Convex. Run seed:seedSampleScan';
 export const SYNC_FAILED = "Couldn't sync. Will try again on the next change.";
 export const NOT_CONFIGURED = 'Sharing is not configured';
-export const SAMPLE_ONLY = 'Sharing works on the sample case for now';
+export const OPEN_A_SCAN = 'Open a scan to share it';
 
 const COPY: Record<string, string> = {
   INVALID_INVITE: "That invite link doesn't work. Ask the host for a new one.",

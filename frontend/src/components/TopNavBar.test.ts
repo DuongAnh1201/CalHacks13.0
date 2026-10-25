@@ -19,9 +19,9 @@ describe('TopNavBar Share', () => {
   it('is disabled with no Convex client', () => {
     expect(shareTag(at('/jobs/sample/mri'))).toMatch(/disabled=""[^>]*title="Sharing is not configured"|title="Sharing is not configured"[^>]*disabled=""/);
   });
-  it('is disabled off the sample case', () => {
+  it('is enabled on an uploaded case too', () => {
     useClientForTest(fake as never);
-    expect(shareTag(at('/jobs/job-ab12/mri'))).toContain('Sharing works on the sample case for now');
+    expect(shareTag(at('/jobs/job-ab12/mri'))).not.toContain('disabled');
   });
   it('is enabled on the sample case', () => {
     useClientForTest(fake as never);

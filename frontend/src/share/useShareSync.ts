@@ -8,7 +8,7 @@ import { sendView, useShare } from './store';
 /** Phase B: the host streams its page + 3D scene; a following guest goes to that page and mirrors the scene once `ready`. */
 export function useShareSync(jobId: string, page: Page, ready: boolean): void {
   const navigate = useNavigate();
-  const role = useShare((s) => (jobId === 'sample' && s.session?.status === 'active' ? s.stored?.role ?? null : null));
+  const role = useShare((s) => (s.stored?.jobId === jobId && s.session?.status === 'active' ? s.stored?.role ?? null : null));
   const scene = useShare((s) => (role === 'viewer' && s.session?.me.following ? s.session.view.scene : null));
   const applied = useRef<Scene | null>(null);
 
@@ -23,7 +23,7 @@ export function useShareSync(jobId: string, page: Page, ready: boolean): void {
   // shortcut: a guest's own 3D tweaks while following stay until the host's next change, apply the full scene on every update if that confuses people.
   useEffect(() => {
     if (!scene) { applied.current = null; return; } // re-following applies the whole scene again
-    if (scene.page !== page) { navigate(`/jobs/sample/${scene.page}`); return; }
+    if (scene.page !== page) { navigate(`/jobs/${jobId}/${scene.page}`); return; }
     if (!ready) return;
     for (const a of sceneActions(applied.current, scene)) dispatch(a, 'pointer');
     applied.current = scene;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import brandMark from '../assets/figma/664bf.svg';
-import { NOT_CONFIGURED, SAMPLE_ONLY } from '../share/copy';
+import { NOT_CONFIGURED, OPEN_A_SCAN } from '../share/copy';
 import { FollowBanner } from '../share/FollowBanner';
 import { FacePile } from '../share/FacePile';
 import { SharePopover } from '../share/SharePopover';
@@ -20,12 +20,12 @@ export function TopNavBar() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { resume(); }, []);
 
-  const why = !shareConfigured() ? NOT_CONFIGURED : id !== 'sample' ? SAMPLE_ONLY : null;
+  const why = !shareConfigured() ? NOT_CONFIGURED : !id ? OPEN_A_SCAN : null;
   const guest = stored?.role === 'viewer';
   const onShare = async () => {
     if (stored?.role === 'host') { setOpen((o) => !o); return; }
     setBusy(true);
-    const e = await startShare();
+    const e = await startShare(id!); // `why` disables the button when there is no id
     setBusy(false);
     setError(e);
     setOpen(!e);

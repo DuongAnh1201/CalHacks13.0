@@ -6,6 +6,7 @@ import staticHosting from "@convex-dev/static-hosting/convex.config";
 // our own HTTP actions, when we add convex/http.ts, live under /api.
 const app = defineApp({ httpPrefix: "/api" });
 app.use(staticHosting, { httpPrefix: "/" });
+// Phase 3 online status, wrapped with session auth in convex/presence.ts.
 app.use(presence);
 
 export default app;

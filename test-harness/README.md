@@ -1,4 +1,4 @@
-# Convex Phase 1 test harness
+# Convex test harness (Phases 1–2)
 
 A throwaway page to **watch live reactivity with your own eyes**, before the
 real React frontend exists. Not part of the product — delete this whole
@@ -46,6 +46,15 @@ URL into a new tab).
    nothing is held only in server memory.
 7. Scroll to the bottom **"Raw sessions.get payload"** box in either tab and
    confirm it never contains an `inviteCode` or `token` field.
+
+**Phase 2 — chat and annotations, same two tabs:**
+
+8. In Tab B, send a chat message. It appears in Tab A with no refresh.
+9. In Tab B, pin a note at, say, (12, −30, 8). It appears in Tab A. Then try
+   z = 200: the server rejects it with `INVALID_ARGUMENT` and nothing appears.
+10. In Tab A, click **Remove** on Tab B's note (the host may remove anyone's).
+    It disappears from Tab B. Tab B gets no Remove button on Tab A's notes.
+11. Refresh both tabs. Chat and notes come back unchanged.
 
 If step 4 works, you've directly observed the thing `docs/CONVEX_BACKEND.md`
 calls "implemented but not yet accepted" become **accepted**.

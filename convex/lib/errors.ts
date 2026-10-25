@@ -54,6 +54,8 @@ export type AppErrorCode =
   | "NOT_A_MEMBER"
   /** Valid member, but the role is not allowed to do this (e.g. viewer moving the shared view). */
   | "NOT_PRESENTER"
+  /** Valid member, but not allowed to change this record (e.g. removing someone else's annotation). */
+  | "NOT_ALLOWED"
   /** The invite code is unknown, or the session it points at is over. */
   | "INVALID_INVITE"
   /** A referenced session / scan / participant row does not exist. */
@@ -63,7 +65,9 @@ export type AppErrorCode =
   /** Arguments were well-typed but semantically wrong (bad slice index, empty name, ...). */
   | "INVALID_ARGUMENT"
   /** The scan's stored geometry is unusable (bad affine, non-RAS, zero dimension). */
-  | "BAD_SCAN_GEOMETRY";
+  | "BAD_SCAN_GEOMETRY"
+  /** A service this call depends on is missing, unconfigured or answered badly (e.g. the imaging service). */
+  | "UNAVAILABLE";
 
 export type AppErrorData = { code: AppErrorCode; message: string };
 

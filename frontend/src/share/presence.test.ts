@@ -1,79 +1,68 @@
 import { getFunctionName } from 'convex/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HEARTBEAT_MS, startPresence } from './presence';
 
 type Ref = Parameters<typeof getFunctionName>[0];
-const AUTH = { sessionId: 's1', participantToken: 't1' };
+const STORED = { sessionId: 's1', participantToken: 'tok', role: 'viewer' as const, inviteCode: 'A', jobId: 'sample' };
 
-function fake() {
-  const calls: [string, unknown][] = [];
-  const subs: { name: string; args: unknown; onData: (v: unknown) => void; closed: boolean }[] = [];
+function fakeClient() {
+  const calls: [string, Record<string, unknown>][] = [];
+  const lists: { args: unknown; onData: (v: unknown) => void; closed: boolean }[] = [];
   const client = {
-    mutation: async (ref: Ref, args: unknown) => {
+    mutation: async (ref: Ref, args: Record<string, unknown>) => {
       const name = getFunctionName(ref);
       calls.push([name, args]);
-      return name === 'presence:heartbeat' ? { roomToken: 'room', sessionToken: 'sess' } : null;
+      return name === 'presence:heartbeat' ? { roomToken: 'room-1', sessionToken: 'tab-1' } : null;
     },
-    onUpdate: (ref: Ref, args: unknown, onData: (v: unknown) => void) => {
-      const sub = { name: getFunctionName(ref), args, onData, closed: false };
-      subs.push(sub);
-      return () => { sub.closed = true; };
+    onUpdate: (_ref: Ref, args: unknown, onData: (v: unknown) => void) => {
+      const sub = { args, onData, closed: false };
+      lists.push(sub);
+      return Object.assign(() => { sub.closed = true; }, { unsubscribe: () => { sub.closed = true; }, getCurrentValue: () => undefined });
     },
   };
-  return { client, calls, subs };
+  return { client, calls, lists };
 }
 
-const doc = Object.assign(new EventTarget(), { visibilityState: 'visible' as DocumentVisibilityState });
-const win = new EventTarget();
-const sendBeacon = vi.fn(() => true);
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
-beforeEach(() => {
-  vi.useFakeTimers();
-  vi.stubGlobal('document', doc);
-  vi.stubGlobal('window', win);
-  vi.stubGlobal('navigator', { sendBeacon });
-});
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); sendBeacon.mockClear(); doc.visibilityState = 'visible'; });
+afterEach(() => vi.useRealTimers());
 
-describe('startPresence', () => {
-  it('heartbeats, lists the room, reports online participants only', async () => {
-    const f = fake();
-    const online = vi.fn();
-    const stop = startPresence(f.client as never, AUTH, 'https://x.convex.cloud', online);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(f.calls[0]).toEqual(['presence:heartbeat', { ...AUTH, clientId: expect.any(String), interval: HEARTBEAT_MS }]);
-    expect(f.subs[0]).toMatchObject({ name: 'presence:list', args: { roomToken: 'room' } });
-    f.subs[0].onData([{ userId: 'p1', online: true }, { userId: 'p2', online: false }]);
-    expect(online).toHaveBeenLastCalledWith(new Set(['p1']));
-    await vi.advanceTimersByTimeAsync(HEARTBEAT_MS);
-    expect(f.calls.filter((c) => c[0] === 'presence:heartbeat')).toHaveLength(2);
-    expect(f.subs).toHaveLength(1); // same room token: no resubscribe
+describe('presence', () => {
+  it('heartbeats with roomId = sessionId and userId = token, then lists online participant ids', async () => {
+    const f = fakeClient();
+    const seen: Set<string>[] = [];
+    const stop = startPresence(f.client as never, STORED, (s) => seen.push(s));
+    await flush();
+
+    expect(f.calls[0][0]).toBe('presence:heartbeat');
+    expect(f.calls[0][1]).toMatchObject({ roomId: 's1', userId: 'tok', interval: HEARTBEAT_MS });
+    expect(f.lists[0].args).toEqual({ roomToken: 'room-1' });
+
+    f.lists[0].onData([{ userId: 'p1', online: true }, { userId: 'p2', online: false }]);
+    expect([...seen.at(-1)!]).toEqual(['p1']);
     stop();
   });
 
-  it('hidden tab disconnects; visible again heartbeats; pagehide beacons', async () => {
-    const f = fake();
-    const stop = startPresence(f.client as never, AUTH, 'https://x.convex.cloud', () => {});
-    await vi.advanceTimersByTimeAsync(0);
-    doc.visibilityState = 'hidden'; doc.dispatchEvent(new Event('visibilitychange'));
-    expect(f.calls.at(-1)).toEqual(['presence:disconnect', { sessionToken: 'sess' }]);
-    doc.visibilityState = 'visible'; doc.dispatchEvent(new Event('visibilitychange'));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(f.calls.at(-1)?.[0]).toBe('presence:heartbeat');
-    win.dispatchEvent(new Event('pagehide'));
-    expect(sendBeacon).toHaveBeenCalledWith('https://x.convex.cloud/api/mutation', expect.any(Blob));
+  it('beats every interval and subscribes to the list only once per room', async () => {
+    vi.useFakeTimers();
+    const f = fakeClient();
+    const stop = startPresence(f.client as never, STORED, () => {});
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_MS * 2);
+    expect(f.calls.filter((c) => c[0] === 'presence:heartbeat')).toHaveLength(3);
+    expect(f.lists).toHaveLength(1);
     stop();
   });
 
-  it('stop unsubscribes, disconnects and stops the timer', async () => {
-    const f = fake();
-    const stop = startPresence(f.client as never, AUTH, 'https://x.convex.cloud', () => {});
+  it('stop disconnects this tab, unsubscribes and stops beating', async () => {
+    vi.useFakeTimers();
+    const f = fakeClient();
+    const stop = startPresence(f.client as never, STORED, () => {});
     await vi.advanceTimersByTimeAsync(0);
     stop();
-    expect(f.subs[0].closed).toBe(true);
-    expect(f.calls.at(-1)).toEqual(['presence:disconnect', { sessionToken: 'sess' }]);
+    expect(f.calls.at(-1)).toEqual(['presence:disconnect', { sessionToken: 'tab-1' }]);
+    expect(f.lists[0].closed).toBe(true);
     const n = f.calls.length;
     await vi.advanceTimersByTimeAsync(HEARTBEAT_MS * 3);
-    expect(f.calls).toHaveLength(n);
+    expect(f.calls.length).toBe(n);
   });
 });

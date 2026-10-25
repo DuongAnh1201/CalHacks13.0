@@ -12,6 +12,8 @@ export interface Scene {
   hidden: Record<Hemi, boolean>;
   layers: Record<Layer, boolean>;
   cameraTarget: 'brain' | 'tumor';
+  /** The host's orbit (setCamera); synced by cameraSync.ts, not by the diffs below. */
+  camera?: { position: number[]; target: number[] };
 }
 
 export const DEFAULT_SCENE: Scene = {

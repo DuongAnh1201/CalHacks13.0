@@ -30,7 +30,11 @@ export type ViewerCommand =
   | { type: 'setHemisphereVisible'; side: Hemi; visible: boolean }
   | { type: 'setLayerVisible'; layer: Layer; visible: boolean }
   | { type: 'setCameraTarget'; target: 'brain' | 'tumor' }
+  | { type: 'setCamera'; position: number[]; target: number[] }
   | { type: 'resetView' };
+
+/** Mirror of convex/messages.ts PublicMessage. */
+export interface ChatMessage { messageId: string; role: 'user' | 'assistant'; author: 'human' | 'agent'; authorName: string; text: string; createdAt: number }
 
 /** A pointer on the model: hit point in the hit mesh's local frame (convex/cursors.ts). */
 export interface Cursor { node: string; localMm: [number, number, number] }

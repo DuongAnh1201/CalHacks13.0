@@ -7,6 +7,7 @@ import { modelUrl } from '../api/client';
 import type { Report } from '../api/types';
 import { viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
+import { samePose, type CameraPose } from '../share/cameraSync';
 import { cursorOf } from '../share/cursorSync';
 import { RemoteCursors, useCursorPush } from '../share/RemoteCursors';
 import { applyView } from './applyView';
@@ -15,7 +16,9 @@ import { buildCaseScene } from './loadCase';
 import type { Vec3 } from './transform';
 import css from './CaseCanvas.module.css';
 
-interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void }
+/** Shared-session camera (share/cameraSync.ts). Absent outside a session: the camera is local only. */
+interface CameraShare { onMove?: (p: CameraPose) => void; remote: CameraPose | null; onUserControl?: () => void }
+interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare }
 
 const MIN_FRAME_RADIUS_MM = 12;
 // Front-left three-quarter view; the brain centroid is the scene origin.
@@ -42,7 +45,7 @@ export function CaseCanvas(props: Props) {
   );
 }
 
-function CaseScene({ jobId, report, onLayers }: Props) {
+function CaseScene({ jobId, report, onLayers, camera }: Props) {
   const { scene } = useGLTF(modelUrl(jobId));
   const controls = useRef<CameraControls>(null);
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
@@ -89,6 +92,38 @@ function CaseScene({ jobId, report, onLayers }: Props) {
     viewEvents.addEventListener('focus', focus);
     return () => viewEvents.removeEventListener('focus', focus);
   }, [focus]);
+
+  // Host: report every camera move, end-of-transition values so guests glide straight to where we land.
+  const onMove = camera?.onMove;
+  useEffect(() => {
+    const c = controls.current;
+    if (!c || !onMove) return;
+    const p = new THREE.Vector3(), t = new THREE.Vector3();
+    const emit = () => { c.getPosition(p, true); c.getTarget(t, true); onMove({ position: p.toArray(), target: t.toArray() }); };
+    emit(); // the pose this page opened with, so guests start where the host is
+    c.addEventListener('update', emit);
+    return () => c.removeEventListener('update', emit);
+  }, [onMove]);
+
+  // Following guest: glide to the host's pose. A drag of their own stops following (onUserControl).
+  const remote = camera?.remote ?? null;
+  const applied = useRef<CameraPose | null>(null);
+  useEffect(() => {
+    const c = controls.current;
+    if (!c || !remote) { applied.current = null; return; }
+    if (samePose(applied.current, remote)) return;
+    applied.current = remote;
+    const [px, py, pz] = remote.position, [tx, ty, tz] = remote.target;
+    void c.setLookAt(px, py, pz, tx, ty, tz, true);
+  }, [remote]);
+
+  const onUserControl = camera?.onUserControl;
+  useEffect(() => {
+    const c = controls.current;
+    if (!c || !onUserControl) return;
+    c.addEventListener('controlstart', onUserControl);
+    return () => c.removeEventListener('controlstart', onUserControl);
+  }, [onUserControl]);
 
   return (
     <>
