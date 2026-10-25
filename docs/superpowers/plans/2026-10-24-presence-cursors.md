@@ -1304,7 +1304,7 @@ Then send:
   - `useCursorPush(enabled: boolean): ((c: Cursor | null) => void) | null`
   - `<RemoteCursors enabled={boolean} />`
 
-- [ ] **Step 1: Impact**
+- [x] **Step 1: Impact**
 
 Run GitNexus `impact({target: "CaseScene", direction: "upstream"})` and report the risk. The only expected caller is `CaseCanvas`.
 
@@ -1312,7 +1312,7 @@ T0 deleted `AtlasCanvas`. In `frontend/src/viewer/CaseCanvas.tsx` line 19, repla
 `// Same direction as AtlasCanvas HOME; the brain centroid is the scene origin.` with
 `// Front-left three-quarter view; the brain centroid is the scene origin.`
 
-- [ ] **Step 2: `RemoteCursors.tsx` + css**
+- [x] **Step 2: `RemoteCursors.tsx` + css**
 
 Create `frontend/src/share/RemoteCursors.module.css`:
 
@@ -1382,7 +1382,7 @@ function RemoteDot({ id, name, cursor }: { id: string; name: string; cursor: Cur
 }
 ```
 
-- [ ] **Step 3: Pointer capture + mount in `CaseCanvas`**
+- [x] **Step 3: Pointer capture + mount in `CaseCanvas`**
 
 In `frontend/src/viewer/CaseCanvas.tsx`:
 
@@ -1412,14 +1412,14 @@ In `frontend/src/viewer/CaseCanvas.tsx`:
       <RemoteCursors enabled={live} />
 ```
 
-- [ ] **Step 4: Tests + build + lint**
+- [x] **Step 4: Tests + build + lint**
 
 Run: `npm --prefix frontend test && npm --prefix frontend run build && npm --prefix frontend run lint`
 
 - Expected: PASS.
 - There is no unit test for the R3F component: frontend vitest has no DOM or WebGL. T7 covers it in the browser.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run GitNexus `detect_changes()`. Expected scope: `CaseScene` plus the new share module. Then:
 
