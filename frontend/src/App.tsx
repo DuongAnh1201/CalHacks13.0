@@ -2,7 +2,6 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Brain3D from './routes/Brain3D';
 import Home from './routes/Home';
 import Join from './routes/Join';
-import Learn from './routes/Learn';
 import { legacyRoutes } from './routes/legacy';
 import MriWorkspace from './routes/MriWorkspace';
 import Processing from './routes/Processing';
@@ -15,8 +14,6 @@ const router = createBrowserRouter([
   { path: '/jobs/:id/mri', element: <MriWorkspace /> },
   { path: '/jobs/:id/3d', element: <Brain3D /> },
   ...legacyRoutes,
-  { path: '/learn', element: <Learn /> },
-  { path: '/learn/:wsId', element: <Learn /> },
   { path: '/join/:code', element: <Join /> },
 ]);
 

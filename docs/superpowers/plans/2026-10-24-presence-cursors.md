@@ -117,13 +117,13 @@ User decision (2026-10-24): Learning Mode is redundant next to the MRI flow, so 
   - `/learn` and `/learn/*` redirect to `/`.
   - `ExplodeSlider` and `StatusPill` live in `frontend/src/components/`.
 
-- [ ] **Step 1: Impact**
+- [x] **Step 1: Impact**
 
 Run GitNexus `impact` upstream on `AtlasCanvas`, `ExplodeSlider`, `StatusPill`, `Learn`, `listWorkspaces` and `hrefOf`. Run it on `Home` too, and grep (`grep -rn "hrefOf\|from '../learn\|from '../content\|viewer/anatomy\|AtlasCanvas" frontend/src`), because the index misses some importers.
 
 Expected: everything is reached only from `routes/Learn.tsx`, except that `Brain3D.tsx` imports `ExplodeSlider` / `StatusPill` and `Home.tsx` imports `hrefOf`. Report it.
 
-- [ ] **Step 2: Failing tests first**
+- [x] **Step 2: Failing tests first**
 
 In `frontend/src/routes/legacy.test.ts`, append:
 
@@ -153,7 +153,7 @@ In `frontend/src/home/workspaces.test.ts`:
 Run: `npm --prefix frontend test -- src/routes/legacy.test.ts src/home/workspaces.test.ts`
 Expected: FAIL on the `/learn` redirect and on the learn row.
 
-- [ ] **Step 3: Delete and move**
+- [x] **Step 3: Delete and move**
 
 ```bash
 git mv frontend/src/learn/ExplodeSlider.tsx frontend/src/learn/ExplodeSlider.module.css frontend/src/learn/StatusPill.tsx frontend/src/learn/StatusPill.module.css frontend/src/components/
@@ -166,7 +166,7 @@ In `frontend/src/routes/Brain3D.tsx`:
 - `import { ExplodeSlider } from '../learn/ExplodeSlider';` → `import { ExplodeSlider } from '../components/ExplodeSlider';`
 - `import { StatusPill } from '../learn/StatusPill';` → `import { StatusPill } from '../components/StatusPill';`
 
-- [ ] **Step 4: Routes**
+- [x] **Step 4: Routes**
 
 In `frontend/src/App.tsx`, delete `import Learn from './routes/Learn';` and the two `/learn` route lines.
 
@@ -181,7 +181,7 @@ export const legacyRoutes: RouteObject[] = [
 ];
 ```
 
-- [ ] **Step 5: Workspaces**
+- [x] **Step 5: Workspaces**
 
 In `frontend/src/home/workspaces.ts`:
 
@@ -199,7 +199,7 @@ export const hrefOf = (w: Workspace) => `/jobs/${w.id}/mri`;
 
 Old Learn rows in a browser's localStorage are then dropped by `listWorkspaces`, and the next save writes the list back without them.
 
-- [ ] **Step 6: Home**
+- [x] **Step 6: Home**
 
 Replace `frontend/src/routes/Home.tsx`. This drops the Learning Mode menu item, the empty-state button, and the filter nav, which is pointless with one kind:
 
@@ -280,7 +280,7 @@ In `frontend/src/routes/Home.module.css`, delete:
 - the `.ghost { … }` rule (lines 103–109). The new Home no longer uses it, and CSS modules are per file, so other routes' `.ghost` is unaffected;
 - the `.learn { … }` line (135).
 
-- [ ] **Step 7: Comment + README**
+- [x] **Step 7: Comment + README**
 
 In `frontend/src/actions/dispatch.ts` line 11, change the comment's `AtlasCanvas listens for 'reset'` to `CaseCanvas listens for 'reset'`.
 
@@ -291,7 +291,7 @@ In `README.md`:
 
 Leave `docs/SPEC.md` and the other historical docs as they are.
 
-- [ ] **Step 8: Gates**
+- [x] **Step 8: Gates**
 
 Run: `npm --prefix frontend test && npm --prefix frontend run build && npm --prefix frontend run lint && npm run typecheck && grep -rn "learn/\|AtlasCanvas\|viewer/anatomy\|from '../content" frontend/src`
 
@@ -299,7 +299,7 @@ Expected:
 - Tests, build, lint and root typecheck PASS. The root typecheck proves `convex/mcp/data.ts` still finds both JSON files.
 - The grep prints only the `CaseCanvas.tsx` line 19 comment, which T5 owns.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 Run GitNexus `detect_changes()`. Expected scope: Home, App routes, legacy routes, workspaces, Brain3D imports, plus the deleted Learn symbols.
 
