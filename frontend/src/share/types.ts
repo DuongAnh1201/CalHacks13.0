@@ -31,3 +31,7 @@ export type ViewerCommand =
   | { type: 'setLayerVisible'; layer: Layer; visible: boolean }
   | { type: 'setCameraTarget'; target: 'brain' | 'tumor' }
   | { type: 'resetView' };
+
+/** A pointer on the model: hit point in the hit mesh's local frame (convex/cursors.ts). */
+export interface Cursor { node: string; localMm: [number, number, number] }
+export interface RemoteCursor { participantId: string; displayName: string; cursor: Cursor | null }
