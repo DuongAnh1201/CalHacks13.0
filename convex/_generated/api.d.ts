@@ -33,6 +33,8 @@ import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_exportMarkdown from "../lib/exportMarkdown.js";
 import type * as lib_exportReport from "../lib/exportReport.js";
+import type * as lib_exportScreenshots from "../lib/exportScreenshots.js";
+import type * as lib_finalSummary from "../lib/finalSummary.js";
 import type * as lib_messages from "../lib/messages.js";
 import type * as lib_summaries from "../lib/summaries.js";
 import type * as lib_tokens from "../lib/tokens.js";
@@ -94,6 +96,8 @@ declare const fullApi: ApiFromModules<{
   "lib/errors": typeof lib_errors;
   "lib/exportMarkdown": typeof lib_exportMarkdown;
   "lib/exportReport": typeof lib_exportReport;
+  "lib/exportScreenshots": typeof lib_exportScreenshots;
+  "lib/finalSummary": typeof lib_finalSummary;
   "lib/messages": typeof lib_messages;
   "lib/summaries": typeof lib_summaries;
   "lib/tokens": typeof lib_tokens;

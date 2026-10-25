@@ -28,12 +28,15 @@ import {
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { createClaudeClient, type ClaudeClient } from "./agent/anthropic";
-import { generateNote } from "./agent/scribe";
+import { acceptItems, generateFinal, generateNote, ITEM_MAX_CHARS, type FinalParts } from "./agent/scribe";
 import { reserveDailyRun } from "./agent";
 import { requireParticipant } from "./lib/auth";
 import { MAX_SEGMENT_MS, TICK_MS } from "./transcript";
 import { appError } from "./lib/errors";
 import { insertSummary, latestSummary, type SummaryScope } from "./lib/summaries";
+import { allowedNumbers, composeFinalSummary, type FinalFacts } from "./lib/finalSummary";
+import { readExportReport } from "./lib/exportReport";
+import { loadExportScreenshots } from "./lib/exportScreenshots";
 
 export const NOTES_DEBOUNCE_MS = 60_000;
 const MAX_RUNS = 20;
@@ -189,20 +192,16 @@ export const prepare = internalMutation({
     if (final && endedAt === undefined) return { status: "empty" as const, ...base };
     if (final && previous && previous.coversUpTo >= endedAt!) return { status: "empty" as const, ...base }; // written once
     const { events, coversUpTo, count, humanText } = await collect(ctx, scope, previous?.coversUpTo ?? 0, endedAt);
-    if (count === 0) {
-      // Nothing new at the end: restate the existing note as the final version (no model call).
-      if (final && previous) {
-        const { version } = await insertSummary(ctx, scope, { text: previous.text, coversUpTo: endedAt! });
-        return { status: "empty" as const, previous: previous.text, version };
-      }
-      return { status: "empty" as const, ...base };
-    }
+    if (final) {
+      // The final summary is composed even when nothing is new; only new events need the model.
+      if (count === 0) return { status: "ready" as const, ...base, events, coversUpTo: endedAt!, humanText, modelNeeded: false };
+    } else if (count === 0) return { status: "empty" as const, ...base };
     try {
       await reserveDailyRun(ctx, Date.now());
     } catch {
       return { status: "limit" as const, ...base };
     }
-    return { status: "ready" as const, ...base, events, coversUpTo, humanText };
+    return { status: "ready" as const, ...base, events, coversUpTo, humanText, modelNeeded: true };
   },
 });
 
@@ -257,17 +256,24 @@ export const forSession = query({
     const scan = session ? await ctx.db.get(session.scanId) : null;
     if (!session || !scan) throw appError("NOT_FOUND", "That review session does not exist.");
     const row = await latestSummary(ctx, { kind: "session", sessionId: session._id, jobId: scan.jobId });
-    return row
-      ? {
-          text: row.text,
-          version: row.version,
-          // Derived, not stored: the final note is the one covering the session's end time.
-          isFinal: session.status === "ended" && row.coversUpTo >= session.updatedAt,
-          coversUpTo: row.coversUpTo,
-          authorName: row.authorName,
-          author: row.author,
-        }
+    const autoExport = (await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", session._id)).order("desc").collect())
+      .find((e) => e.trigger === "auto" && e.status !== "failed");
+    const exportInfo = autoExport
+      ? { version: autoExport.version, status: autoExport.status, url: autoExport.fileId ? await ctx.storage.getUrl(autoExport.fileId) : null }
       : null;
+    if (!row && !exportInfo) return null;
+    return {
+      text: row?.text ?? null,
+      version: row?.version ?? 0,
+      // Derived, not stored: the final note is the one covering the session's end time.
+      isFinal: !!row && session.status === "ended" && row.coversUpTo >= session.updatedAt,
+      coversUpTo: row?.coversUpTo ?? 0,
+      authorName: row?.authorName ?? null,
+      author: row?.author ?? null,
+      // Members only (this query is gated above): ordered screenshots and the auto export link.
+      screenshots: await loadExportScreenshots(ctx, session._id, scan.jobId),
+      export: exportInfo,
+    };
   },
 });
 
@@ -293,6 +299,7 @@ type Prep = {
   events?: unknown;
   coversUpTo?: number;
   humanText?: string[];
+  modelNeeded?: boolean;
 };
 const prepareRef = makeFunctionReference<"mutation", { scope: SummaryScope; clearPending: boolean; final: boolean }, Prep>("notes:prepare");
 const writeRef = makeFunctionReference<"mutation", { scope: SummaryScope; text: string; coversUpTo: number }, { version: number; written: boolean }>("notes:write");
@@ -314,10 +321,11 @@ export async function runNotes(
     const cur = await ctx.runQuery(readRef, { scope });
     return { status: "no_key", version: cur?.version ?? 0, text: cur?.text ?? null };
   }
+  if (opts.final && scope.kind === "session") return runFinal(ctx, scope, client);
   const prep = await ctx.runMutation(prepareRef, {
     scope,
     clearPending: opts.clearPending ?? false,
-    final: opts.final ?? false,
+    final: false,
   });
   if (prep.status !== "ready")
     return { status: prep.status === "limit" ? "limit" : "unchanged", version: prep.version, text: prep.previous };
@@ -333,6 +341,73 @@ export async function runNotes(
     text,
     coversUpTo: prep.coversUpTo!,
   });
+  return { status: written.written ? "updated" : "unchanged", version: written.version, text };
+}
+
+const finalFactsRef = makeFunctionReference<"query", { sessionId: Id<"sessions"> }, Omit<FinalFacts, "report"> | null>("notes:finalFacts");
+
+/** Who attended and what was asked: plain database facts for the final summary (no model). */
+export const finalFacts = internalQuery({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId);
+    const scan = session ? await ctx.db.get(session.scanId) : null;
+    if (!session || !scan) return null;
+    const people = await ctx.db.query("sessionParticipants").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).take(50);
+    const nameOf = new Map(people.map((p) => [p._id, p.displayName]));
+    const asked: { at: number; who: string; text: string }[] = [];
+    const runs = await ctx.db.query("agentRuns").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).take(100);
+    for (const r of runs) {
+      if (!r.sessionVerified || r.jobId !== scan.jobId || r.status === "cancelled") continue;
+      asked.push({ at: r.createdAt, who: (r.sessionParticipantId && nameOf.get(r.sessionParticipantId)) || "A participant", text: r.text });
+    }
+    const messages = await ctx.db.query("messages").withIndex("by_session_time", (q) => q.eq("sessionId", sessionId)).take(200);
+    for (const m of messages) {
+      if (m.jobId === scan.jobId && m.role === "user" && m.author === "human" && m.text.includes("?"))
+        asked.push({ at: m.createdAt, who: m.authorName, text: m.text });
+    }
+    asked.sort((a, b) => a.at - b.at);
+    return {
+      attendees: [...people].sort((a, b) => a.joinedAt - b.joinedAt).map((p) => ({ name: p.displayName, role: p.role })),
+      questions: asked.slice(0, 10).map(({ who, text }) => ({ who, text })),
+    };
+  },
+});
+
+/**
+ * Final meeting summary (#138). Code writes attendees, key findings (report.json
+ * only) and questions; Opus (MODEL) supplies only the timeline and action items,
+ * each Guard-checked and number-checked. Written once (prepare refuses a second).
+ */
+async function runFinal(
+  ctx: Ctx,
+  scope: Extract<SummaryScope, { kind: "session" }>,
+  client: ClaudeClient,
+): Promise<NotesResult> {
+  const prep = await ctx.runMutation(prepareRef, { scope, clearPending: false, final: true });
+  if (prep.status !== "ready")
+    return { status: prep.status === "limit" ? "limit" : "unchanged", version: prep.version, text: prep.previous };
+  const facts = await ctx.runQuery(finalFactsRef, { sessionId: scope.sessionId });
+  if (!facts) return { status: "unchanged", version: prep.version, text: prep.previous };
+  const report = await readExportReport(scope.jobId).catch(() => null);
+  const numbers = allowedNumbers(report);
+  let ai: FinalParts | null;
+  if (prep.modelNeeded) {
+    try {
+      ai = await generateFinal(client, { previous: prep.previous, events: prep.events, humanText: prep.humanText, allowedNumbers: numbers });
+    } catch {
+      ai = null;
+    }
+  } else {
+    // Nothing new since the last running note: it is the timeline, if it passes the same checks.
+    const kept = prep.previous
+      ? acceptItems([prep.previous.slice(0, ITEM_MAX_CHARS)], { previous: prep.previous, humanText: [], events: null, allowedNumbers: numbers }, 1)
+      : [];
+    ai = { timeline: kept, actionItems: [] };
+  }
+  if (!ai) return { status: "unusable", version: prep.version, text: prep.previous };
+  const text = composeFinalSummary({ ...facts, report }, ai);
+  const written = await ctx.runMutation(writeRef, { scope, text, coversUpTo: prep.coversUpTo! });
   return { status: written.written ? "updated" : "unchanged", version: written.version, text };
 }
 
@@ -365,15 +440,30 @@ export const clearPending = internalMutation({
   },
 });
 
-/** Scheduled once by sessions.end (server-side trigger, no token). No key: nothing happens. */
+const autoReserveRef = makeFunctionReference<"mutation", { sessionId: Id<"sessions"> }, Id<"exports"> | null>("exportDoc:autoReserve");
+const buildExportRef = makeFunctionReference<"action", { exportId: Id<"exports"> }, unknown>("exportDoc:build");
+
+/**
+ * Scheduled once by sessions.end (server-side trigger, no token). With a key it
+ * writes the final summary; with or without one it then builds the automatic
+ * Markdown export (T4a), once per session. Without a key the export carries the
+ * transcript and screenshots plus a "summary unavailable" line.
+ */
 export const finalizeSession = internalAction({
   args: { sessionId: v.id("sessions") },
   handler: async (ctx, { sessionId }) => {
-    const client = notesClient();
-    if (!client) return null;
     const jobId = await ctx.runQuery(sessionJobRef, { sessionId });
     if (!jobId) return null;
-    await runNotes(ctx, { kind: "session", sessionId, jobId }, client, { final: true });
+    const client = notesClient();
+    if (client) {
+      try {
+        await runNotes(ctx, { kind: "session", sessionId, jobId }, client, { final: true });
+      } catch {
+        // The export below must still happen.
+      }
+    }
+    const exportId = await ctx.runMutation(autoReserveRef, { sessionId });
+    if (exportId) await ctx.runAction(buildExportRef, { exportId }).catch(() => null);
     return null;
   },
 });
