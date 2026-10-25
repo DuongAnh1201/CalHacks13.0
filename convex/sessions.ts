@@ -294,6 +294,8 @@ export const join = mutation({
     participantToken: string;
     participantId: Id<"sessionParticipants">;
     role: "viewer";
+    /** Which case to open: the guest's page is /jobs/<jobId>/... */
+    jobId: string;
   }> => {
     const displayName = normaliseDisplayName(args.displayName);
 
@@ -326,7 +328,8 @@ export const join = mutation({
       lastSeenAt: now,
     });
 
-    return { sessionId: session._id, participantToken, participantId, role: "viewer" };
+    const scan = await loadScan(ctx, session.scanId);
+    return { sessionId: session._id, participantToken, participantId, role: "viewer", jobId: scan.jobId };
   },
 });
 

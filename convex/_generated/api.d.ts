@@ -8,12 +8,17 @@
  * @module
  */
 
+import type * as agent_eval_cases from "../agent/eval/cases.js";
+import type * as agent_eval_score from "../agent/eval/score.js";
+import type * as agent_guard from "../agent/guard.js";
 import type * as annotations from "../annotations.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as http from "../http.js";
+import type * as jobs from "../jobs.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_author from "../lib/author.js";
+import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_exportMarkdown from "../lib/exportMarkdown.js";
 import type * as lib_exportReport from "../lib/exportReport.js";
@@ -44,12 +49,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agent/eval/cases": typeof agent_eval_cases;
+  "agent/eval/score": typeof agent_eval_score;
+  "agent/guard": typeof agent_guard;
   annotations: typeof annotations;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
   http: typeof http;
+  jobs: typeof jobs;
   "lib/auth": typeof lib_auth;
   "lib/author": typeof lib_author;
+  "lib/env": typeof lib_env;
   "lib/errors": typeof lib_errors;
   "lib/exportMarkdown": typeof lib_exportMarkdown;
   "lib/exportReport": typeof lib_exportReport;

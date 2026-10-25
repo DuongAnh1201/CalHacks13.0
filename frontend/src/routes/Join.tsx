@@ -14,7 +14,7 @@ export default function Join() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A reload of the invite page re-uses this tab's token: a second join would add a duplicate participant.
-  if (stored?.role === 'viewer' && stored.inviteCode === code) return <Navigate to="/jobs/sample/mri" replace />;
+  if (stored?.role === 'viewer' && stored.inviteCode === code) return <Navigate to={`/jobs/${stored.jobId}/mri`} replace />;
 
   const ready = shareConfigured();
   const submit = async (e: FormEvent) => {
@@ -22,7 +22,8 @@ export default function Join() {
     setBusy(true);
     const err = await joinShare(code, name);
     setBusy(false);
-    if (err) setError(err); else navigate('/jobs/sample/mri');
+    const jobId = useShare.getState().stored?.jobId;
+    if (err) setError(err); else if (jobId) navigate(`/jobs/${jobId}/mri`);
   };
 
   return (
@@ -30,7 +31,7 @@ export default function Join() {
       <TopNavBar />
       <main className={css.column}>
         <h1>Join a shared session</h1>
-        <p>You follow the host's view of the sample case. You can stop following at any time.</p>
+        <p>You follow the host's view of their scan. You can stop following at any time.</p>
         <form className={css.form} onSubmit={(e) => void submit(e)}>
           <label className={css.label}>Your name
             <input className={css.input} value={name} maxLength={64} required onChange={(e) => setName(e.target.value)} />
