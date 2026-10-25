@@ -39,3 +39,12 @@ export interface ChatMessage { messageId: string; role: 'user' | 'assistant'; au
 /** A pointer on the model: hit point in the hit mesh's local frame (convex/cursors.ts). */
 export interface Cursor { node: string; localMm: [number, number, number] }
 export interface RemoteCursor { participantId: string; displayName: string; cursor: Cursor | null }
+
+/** Mirror of convex/schema.ts vAnnotationAnchor. A point is RAS mm. */
+export type NoteAnchor = { kind: 'point'; ras_mm: number[] } | { kind: 'structure'; id: string } | { kind: 'tumor' };
+
+/** Mirror of convex/annotations.ts PublicAnnotation. */
+export interface Note {
+  annotationId: string; text: string; anchor: NoteAnchor; status: 'accepted' | 'suggested'; author: 'human' | 'agent';
+  authorName: string; createdAt: number; canRemove: boolean;
+}

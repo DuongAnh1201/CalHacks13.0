@@ -1,0 +1,25 @@
+.notes { display: flex; flex-direction: column; gap: 14px; font-family: var(--nv-font); color: var(--nv-text); }
+.notes p { margin: 0; }
+.compose { display: flex; flex-direction: column; gap: 8px; }
+.place, .primary, .ghost { padding: 8px 12px; border-radius: var(--nv-radius-control); font: 700 12px var(--nv-font); }
+.place { border: 1px dashed rgba(31, 86, 115, .45); background: var(--nv-primary-soft); color: var(--nv-primary); }
+.placing { border-style: solid; background: var(--nv-primary); color: #fff; }
+.primary { border: 0; background: var(--nv-primary); color: #fff; }
+.ghost { border: 1px solid var(--nv-border); background: #fff; color: var(--nv-text-2); }
+.row { display: flex; justify-content: flex-end; gap: 6px; }
+.hint { font-size: 12px; color: var(--nv-text-3); }
+.field { resize: vertical; padding: 8px 10px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); font: 13px/1.4 var(--nv-font); }
+.error { font-size: 11px; color: var(--nv-accent-warm); }
+.empty { font-size: 12px; color: var(--nv-text-3); }
+
+.list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.item { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 9px 10px; border: 1px solid var(--nv-border); border-radius: 10px; background: #fff; }
+.selected { border-color: #f2994a; box-shadow: 0 0 0 2px rgba(242, 153, 74, .25); }
+.num { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #f2994a; color: #fff; font: 700 11px var(--nv-font); }
+.body { min-width: 0; }
+.text { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.notes .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 10px; color: var(--nv-text-3); }
+.tag { padding: 1px 6px; border-radius: var(--nv-radius-pill); background: var(--nv-primary-soft); color: var(--nv-primary); font-weight: 700; }
+.actions { grid-column: 2; display: flex; gap: 10px; }
+.link { padding: 0; border: 0; background: none; color: var(--nv-primary); font: 700 11px var(--nv-font); }
+.link:hover { text-decoration: underline; }

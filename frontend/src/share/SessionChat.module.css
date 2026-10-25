@@ -20,3 +20,6 @@
 .field { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); font: 12px var(--nv-font); }
 .send { padding: 7px 14px; border: 0; border-radius: var(--nv-radius-control); background: var(--nv-primary); color: #fff; font: 700 12px var(--nv-font); cursor: pointer; }
 .send[disabled] { opacity: 0.5; cursor: not-allowed; }
+.min { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--nv-text-3); }
+.min:hover { background: var(--nv-primary-soft); color: var(--nv-text); }
+.min svg { width: 16px; height: 16px; }

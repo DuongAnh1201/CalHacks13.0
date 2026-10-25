@@ -26,3 +26,7 @@ button.tool { cursor: pointer; }
 .hint { margin: -8px 0 0; color: var(--nv-text-3); font-size: 12px; }
 .panel button:focus-visible, .panel input:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 3px; }
 @media (max-width: 540px) { .views { grid-template-columns: 1fr; grid-template-rows: 320px 240px 240px; } .view:first-child { grid-column: auto; } .title { font-size: 16px; } }
+.fill { height: 100%; gap: 10px; }
+.fill .views { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr); }
+.fill .tools { order: -1; padding: 6px 8px; background: var(--nv-surface); }
+.fill .presets { padding: 3px; }

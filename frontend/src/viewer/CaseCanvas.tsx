@@ -9,19 +9,25 @@ import { viewEvents } from '../actions/dispatch';
 import { useViewer } from '../actions/store';
 import { samePose, type CameraPose } from '../share/cameraSync';
 import { cursorOf } from '../share/cursorSync';
+import { setDraft, useNoteUi } from '../share/notes';
+import { NotePins } from '../share/NotePins';
 import { RemoteCursors, useCursorPush } from '../share/RemoteCursors';
 import { useShare } from '../share/store';
+import type { Note } from '../share/types';
 import { applyView } from './applyView';
 import type { Layer } from './layers';
 import { buildCaseScene } from './loadCase';
+import { worldOf } from './pins';
 import type { Vec3 } from './transform';
 import css from './CaseCanvas.module.css';
 
 /** Shared-session camera (share/cameraSync.ts). Absent outside a session: the camera is local only. */
 interface CameraShare { onMove?: (p: CameraPose) => void; remote: CameraPose | null; onUserControl?: () => void }
-interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare }
+interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare; notes?: Note[] }
 
 const MIN_FRAME_RADIUS_MM = 12;
+const NOTE_VIEW_MM = 170; // camera distance when flying to a note
+const CLICK_SLOP_PX = 4; // a pointer that moved further was an orbit, not a click
 // Front-left three-quarter view; the brain centroid is the scene origin.
 const HOME: [number, number, number, number, number, number] = [-260, 80, -200, 0, 0, 0];
 
@@ -46,7 +52,7 @@ export function CaseCanvas(props: Props) {
   );
 }
 
-function CaseScene({ jobId, report, onLayers, camera }: Props) {
+function CaseScene({ jobId, report, onLayers, camera, notes = [] }: Props) {
   const { scene } = useGLTF(modelUrl(jobId));
   const controls = useRef<CameraControls>(null);
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
@@ -54,6 +60,8 @@ function CaseScene({ jobId, report, onLayers, camera }: Props) {
   const target = useViewer((s) => s.cameraTarget);
   const live = useShare((s) => s.stored?.jobId === jobId); // cursors on the case this session reviews; useCursorPush / RemoteCursors also require an active session
   const push = useCursorPush(live);
+  const placing = useNoteUi((s) => s.placing);
+  const goTo = useNoteUi((s) => s.goTo);
 
   useEffect(() => onLayers(Object.fromEntries(Object.keys(cs.tumor).map((k) => [k, true]))), [cs, onLayers]);
 
@@ -118,6 +126,18 @@ function CaseScene({ jobId, report, onLayers, camera }: Props) {
     void c.setLookAt(px, py, pz, tx, ty, tz, true);
   }, [remote]);
 
+  // A note's "Go to": keep the viewing direction, centre the note. The host's move reaches followers through onMove.
+  const seen = useRef(goTo?.n);
+  useEffect(() => {
+    const c = controls.current;
+    if (!c || !goTo || goTo.n === seen.current) return;
+    seen.current = goTo.n;
+    cs.world.updateMatrixWorld(true);
+    const at = worldOf(cs, goTo.mm);
+    const eye = c.getPosition(new THREE.Vector3(), true).sub(c.getTarget(new THREE.Vector3(), true)).setLength(NOTE_VIEW_MM).add(at);
+    void c.setLookAt(...eye.toArray(), ...at.toArray(), true);
+  }, [goTo, cs]);
+
   const onUserControl = camera?.onUserControl;
   useEffect(() => {
     const c = controls.current;
@@ -139,8 +159,17 @@ function CaseScene({ jobId, report, onLayers, camera }: Props) {
           push(c);
         } : undefined}
         onPointerOut={push ? () => push(null) : undefined}
+        // placing a note pin: the clicked surface point, in the mesh frame (= scan mm)
+        onClick={placing ? (e: ThreeEvent<MouseEvent>) => {
+          if (e.delta > CLICK_SLOP_PX) return;
+          const c = cursorOf(e.object, e.point);
+          if (!c) return;
+          e.stopPropagation();
+          setDraft(c.localMm);
+        } : undefined}
       />
       <RemoteCursors enabled={live} />
+      <NotePins cs={cs} report={report} notes={notes} />
     </>
   );
 }

@@ -4,7 +4,7 @@ import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
-import type { ChatMessage, Cursor, RemoteCursor, SessionState, ViewerCommand } from './types';
+import type { ChatMessage, Cursor, Note, NoteAnchor, RemoteCursor, SessionState, ViewerCommand } from './types';
 
 type Client = Pick<ConvexClient, 'query' | 'mutation' | 'action' | 'onUpdate'>;
 
@@ -133,4 +133,25 @@ export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void
   const s = useShare.getState().stored;
   if (!client || !s) return () => {};
   return client.onUpdate(api.cursors.list, auth(s), onRows, () => onRows([]));
+}
+
+/** The session's notes, oldest first. Returns an unsubscribe; a no-op outside a session. */
+export function watchNotes(onNotes: (n: Note[]) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.annotations.list, auth(s), onNotes, (e: Error) => console.error('[notes]', e));
+}
+
+/** Pins a note as this tab's participant. Returns an error message, or null. */
+export async function addNote(text: string, anchor: NoteAnchor): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.annotations.create, { ...auth(s), text, anchor }); return null; } catch (e) { return messageFor(e); }
+}
+
+/** Author or host only; the server enforces it, `Note.canRemove` hides the button. */
+export async function removeNote(annotationId: string): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.annotations.remove, { ...auth(s), annotationId }); return null; } catch (e) { return messageFor(e); }
 }

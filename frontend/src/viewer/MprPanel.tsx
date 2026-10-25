@@ -108,7 +108,18 @@ function SliceView({ jobId, view, onNv, onCross }: { jobId: string; view: View; 
   );
 }
 
-export function MprPanel({ jobId, onCrosshair, onMaskVisible, remote }: { jobId: string; onCrosshair?: (idx: SliceIndices) => void; onMaskVisible?: (visible: boolean) => void; remote?: { indices: SliceIndices; tumorVisible: boolean } | null }) {
+interface PanelProps {
+  jobId: string;
+  onCrosshair?: (idx: SliceIndices) => void;
+  onMaskVisible?: (visible: boolean) => void;
+  remote?: { indices: SliceIndices; tumorVisible: boolean } | null;
+  /** A one-off jump (a note's "Go to"); acted on when `n` changes. */
+  goTo?: { indices: SliceIndices; n: number } | null;
+  /** Fill the parent: no title, the views take all the height. */
+  fill?: boolean;
+}
+
+export function MprPanel({ jobId, onCrosshair, onMaskVisible, remote, goTo, fill }: PanelProps) {
   const [nvs, setNvs] = useState<Partial<Record<Axis, Niivue>>>({});
   const onNv = useCallback((axis: Axis, nv: Niivue | null) => setNvs((m) => {
     const next = { ...m };
@@ -132,6 +143,18 @@ export function MprPanel({ jobId, onCrosshair, onMaskVisible, remote }: { jobId:
       nv.drawScene();
     }
   }, [nvs, remoteIdx]);
+
+  // Same move as following, once per request. It reaches onCrosshair, so a host's jump is shared.
+  const jumped = useRef(goTo?.n);
+  useEffect(() => {
+    if (!goTo || goTo.n === jumped.current || Object.keys(nvs).length === 0) return;
+    jumped.current = goTo.n;
+    for (const nv of Object.values(nvs)) {
+      nv.scene.crosshairPos = fracsOf(goTo.indices, nv.volumes[0].dimsRAS!);
+      nv.createOnLocationChange();
+      nv.drawScene();
+    }
+  }, [nvs, goTo]);
 
   const [preset, setPreset] = useState<Preset>('Brain');
   const [gamma, setGamma] = useState(1);
@@ -164,18 +187,24 @@ export function MprPanel({ jobId, onCrosshair, onMaskVisible, remote }: { jobId:
   }, [nvs, preset, gamma, mask, caliper, hideMask]);
 
   const locked = Object.keys(nvs).length === 3;
+  const presets = (
+    <div className={css.presets} role="group" aria-label="Window preset">
+      {PRESETS.map((p) => <button key={p} type="button" aria-pressed={preset === p} className={css.preset} onClick={() => setPreset(p)}>{p}</button>)}
+    </div>
+  );
   return (
-    <section className={css.panel} aria-label="Slice views">
-      <header className={css.head}>
-        <h2 className={css.title}>Synchronized Multi-Planar Reconstruction</h2>
-        <div className={css.presets} role="group" aria-label="Window preset">
-          {PRESETS.map((p) => <button key={p} type="button" aria-pressed={preset === p} className={css.preset} onClick={() => setPreset(p)}>{p}</button>)}
-        </div>
-      </header>
+    <section className={fill ? `${css.panel} ${css.fill}` : css.panel} aria-label="Slice views">
+      {!fill && (
+        <header className={css.head}>
+          <h2 className={css.title}>Synchronized Multi-Planar Reconstruction</h2>
+          {presets}
+        </header>
+      )}
       <div className={css.views}>
         {VIEWS.map((v) => <SliceView key={`${jobId}:${v.axis}`} jobId={jobId} view={v} onNv={onNv} onCross={onCross} />)}
       </div>
       <div className={css.tools}>
+        {fill && presets}
         <button type="button" aria-pressed={caliper} title="Right-drag on a slice to measure." className={css.tool} onClick={() => setCaliper((c) => !c)}><img src={caliperIcon} alt="" />Electronic Caliper</button>
         <label className={css.tool}><img src={contrastIcon} alt="" />Contrast / Gamma <input type="range" min={0.3} max={3} step={0.1} value={gamma} onChange={(e) => setGamma(Number(e.target.value))} /></label>
         <label className={css.tool}><img src={maskIcon} alt="" />Mask Overlay {mask}% <input type="range" min={0} max={100} value={mask} onChange={(e) => setMask(Number(e.target.value))} /></label>
