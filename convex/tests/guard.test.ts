@@ -156,21 +156,21 @@ describe("canStartRun", () => {
 
 describe("allowedTools", () => {
   const registry: ToolRegistry = {
-    rotate_view: { pages: ["learn", "explore"] },
+    rotate_view: { pages: ["learn", "3d"] },
     set_opacity: { pages: ["learn"] },
     explain_structure: { pages: ["learn"] },
-    get_tumor_metrics: { pages: ["explore"] },
-    search: { pages: ["learn", "explore"] },
+    get_tumor_metrics: { pages: ["3d"] },
+    search: { pages: ["learn", "3d"] },
   };
 
   it("keeps only tools the registry allows on the page", () => {
     const available = ["rotate_view", "set_opacity", "explain_structure", "get_tumor_metrics", "search"];
     expect(allowedTools("learn", available, registry)).toEqual(["rotate_view", "set_opacity", "explain_structure", "search"]);
-    expect(allowedTools("explore", available, registry)).toEqual(["rotate_view", "get_tumor_metrics", "search"]);
+    expect(allowedTools("3d", available, registry)).toEqual(["rotate_view", "get_tumor_metrics", "search"]);
   });
 
   it("never offers a tool the page did not send", () => {
-    expect(allowedTools("explore", ["rotate_view"], registry)).toEqual(["rotate_view"]);
+    expect(allowedTools("3d", ["rotate_view"], registry)).toEqual(["rotate_view"]);
   });
 
   it("drops unknown names, prototype keys and duplicates", () => {

@@ -26,12 +26,11 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireSessionMember } from "./lib/auth";
-import { authorFor } from "./lib/author";
-import { appError } from "./lib/errors";
 import { loadScan } from "./scans";
 
 /** #56 contract: the shared insert path enforces this cap (docs/CONVEX_BACKEND.md §9). */
-export const MAX_MESSAGE_LENGTH = 2000;
+export { MAX_MESSAGE_LENGTH } from "./lib/messages";
+import { insertMessage, listMessagePage, validateMessageText } from "./lib/messages";
 
 /**
  * What a client sees for one chat line.
@@ -67,30 +66,16 @@ export const send = mutation({
   handler: async (ctx, args): Promise<{ messageId: Id<"messages"> }> => {
     const { session, participant } = await requireSessionMember(ctx, args);
 
-    // Trim so "   " is rejected as empty, and so the cap measures what is shown.
-    const text = args.text.trim();
-    if (text.length === 0) {
-      throw appError("INVALID_ARGUMENT", "A message cannot be empty.");
-    }
-    if (text.length > MAX_MESSAGE_LENGTH) {
-      throw appError(
-        "INVALID_ARGUMENT",
-        `A message can be at most ${MAX_MESSAGE_LENGTH} characters.`,
-      );
-    }
+    const text = validateMessageText(args.text);
 
     // `jobId` is required by the shared table so the agent side can find chat
     // for a case. The session already knows its scan, so it is derived here and
     // never trusted from the client.
     const scan = await loadScan(ctx, session.scanId);
 
-    const messageId = await ctx.db.insert("messages", {
-      ...authorFor({ kind: "human", displayName: participant.displayName, source: "ui" }),
-      jobId: scan.jobId,
-      sessionId: session._id,
-      role: "user",
-      text,
-    });
+    const messageId = await insertMessage(ctx, {
+      jobId: scan.jobId, sessionId: session._id, role: "user", text,
+    }, { kind: "human", displayName: participant.displayName, source: "ui" });
 
     return { messageId };
   },
@@ -117,22 +102,6 @@ export const list = query({
     // Chat is room-private, exactly like the roster.
     await requireSessionMember(ctx, args);
 
-    const page = await ctx.db
-      .query("messages")
-      .withIndex("by_session_time", (q) => q.eq("sessionId", args.sessionId))
-      .order("desc")
-      .paginate(args.paginationOpts);
-
-    return {
-      ...page,
-      page: page.page.map((m) => ({
-        messageId: m._id,
-        role: m.role,
-        author: m.author,
-        authorName: m.authorName,
-        text: m.text,
-        createdAt: m.createdAt,
-      })),
-    };
+    return listMessagePage(ctx, args.sessionId, args.paginationOpts);
   },
 });

@@ -112,7 +112,7 @@ export function canStartRun(activeRunsForClient: number, runsInLastMinute: numbe
 // ---------------------------------------------------------------------------
 // Per-page allow-list (§3.3)
 
-export type Page = "learn" | "explore";
+export type Page = "learn" | "mri" | "3d";
 
 /** Tool name → the pages it works on. Tools missing from the registry are never offered. */
 export type ToolRegistry = Readonly<Record<string, { readonly pages: readonly Page[] }>>;

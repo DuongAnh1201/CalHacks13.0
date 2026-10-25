@@ -30,6 +30,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { vScene } from "./lib/viewCommands";
 import { vAuthor } from "./lib/author";
+import { vAgentStep, vHistory } from "./agent/validators";
 
 // ---------------------------------------------------------------------------
 // Reusable validators
@@ -403,5 +404,43 @@ export default defineSchema({
     windowStart: v.number(),
     count: v.number(),
   }).index("by_token_hash", ["tokenHash"]),
+
+  agentRuns: defineTable({
+    clientId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    jobId: v.optional(v.string()),
+    text: v.string(),
+    source: v.union(v.literal("chat"), v.literal("voice"), v.literal("text")),
+    page: v.union(v.literal("learn"), v.literal("mri"), v.literal("3d")),
+    status: v.union(v.literal("queued"), v.literal("running"), v.literal("done"), v.literal("failed"), v.literal("cancelled")),
+    steps: v.array(vAgentStep),
+    reply: v.string(),
+    agent: v.string(),
+    error: v.union(v.string(), v.null()),
+    createdAt: v.number(),
+    // Internal request context and conservative daily reservation marker.
+    spendDay: v.optional(v.string()),
+    availableTools: v.array(v.string()),
+    snapshot: v.optional(v.any()),
+    history: v.optional(vHistory),
+    // True only when ask() received a participantToken matching a member of sessionId.
+    sessionVerified: v.optional(v.boolean()),
+    sessionParticipantId: v.optional(v.id("sessionParticipants")),
+  })
+    .index("by_client", ["clientId"])
+    .index("by_session", ["sessionId"]),
+
+  // Scribe note-taker debounce (#60): one row per note scope.
+  scribeNotesState: defineTable({
+    scopeKey: v.string(), // "client:<clientId>:<jobId>" or "session:<sessionId>:<jobId>"
+    lastRunAt: v.number(), // when the latest update was (or will be) allowed to run
+    pending: v.boolean(), // an update is already scheduled
+  }).index("by_scope", ["scopeKey"]),
+
+  // Conservative daily reservations, shared across clients; no key means no spend.
+  agentDailyUsage: defineTable({
+    day: v.string(),
+    count: v.number(),
+  }).index("by_day", ["day"]),
 
 });
