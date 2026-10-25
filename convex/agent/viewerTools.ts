@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ToolRegistry } from "./guard";
 const target = z.string().trim().min(1).max(200);
 export const viewerSchemas = {
+  capture_screenshot: z.object({ reason: z.string().trim().min(1).max(120) }).strict(),
   zoom_view: z
     .object({
       action: z.enum(["in", "out", "set", "fit"]),
@@ -50,6 +51,7 @@ export const viewerSchemas = {
   undo: z.object({}).strict(),
 };
 export const viewerDescriptions: Record<keyof typeof viewerSchemas, string> = {
+  capture_screenshot: "Request a presenter screenshot of the current MRI/3D view; use a brief reason (120 characters max).",
   zoom_view: "Send a zoom command (100 percent is home distance).",
   rotate_view: "Send a camera preset or relative rotation.",
   spin_view: "Send continuous camera spin on/off.",
@@ -69,6 +71,7 @@ export const toolRegistry: ToolRegistry = {
       { pages: ["learn", "3d"] as const },
     ]),
   ),
+  capture_screenshot: { pages: ["mri", "3d"] },
   // MRI is the 2D MPR page; only its supported viewer commands are offered.
   zoom_view: { pages: ["learn", "mri", "3d"] },
   reset_view: { pages: ["learn", "mri", "3d"] },

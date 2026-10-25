@@ -75,4 +75,49 @@ Speech-to-text runs in each member's browser (Web Speech API, `frontend/src/agen
 
 `notes.forSession` (members only) returns the final summary fields plus `screenshots` and `export: {version, status, url}`.
 
-**Screenshots (#137):** `lib/exportScreenshots.ts::loadExportScreenshots` is the single seam; it returns an empty list until the `screenshots` table is merged here.
+**Screenshots (#137):** `lib/exportScreenshots.ts::loadExportScreenshots` reads the `screenshots` table for the session and case, keeps rows taken within the meeting (session start to its end time), orders them by `takenAt` and attaches the storage URL used for embedding. Callers are already member-gated (`notes.forSession`, and the private export snapshot).
+
+## Screenshot server and capture helper (#137; browser wiring is Ben's #139)
+
+The server owns `convex/lib/screenshotPolicy.ts`: tumor focus, report/metrics
+request, X-Ray/Exploded/Cutaway, annotation add, user screenshot request, and
+the explicit `capture_screenshot({reason})` viewer tool (MRI/3D; 1–120 chars).
+No key is needed for fixed event policy. `screenshots.requestCapture` accepts
+browser event facts and returns an approved reason or null. `screenshots.events`
+provides stable-id run/annotation events; only `sessionVerified` runs qualify.
+
+Uploads/records require an active verified presenter and matching job/session.
+Server-time transactions enforce >=30 s between captures and <=20 per meeting.
+Actual JPEG/PNG headers/dimensions are checked: width <=1280 and <=600 KiB
+(614400 bytes). Invalid new uploads, including quota-race losers, are deleted;
+existing screenshot/export references are protected. Captions are <=280 chars.
+A linked run must be verified for the same session/case. No member token is stored.
+`list_screenshots({job_id,session_id,participant_token})` gives verified members
+read-only metadata/Convex storage URLs; MCP authentication alone is not membership.
+
+**Ben's three-line hook** (imports from `frontend/src/agent/screenshot.ts`):
+
+```ts
+const decision = await client.mutation(api.screenshots.requestCapture, { ...scope, event });
+const image = decision && await captureCanvas(canvas);
+if (decision && image) await uploadScreenshot(image, { generateUploadUrl: () => client.mutation(api.screenshots.generateUploadUrl, scope), recordScreenshot: data => client.action(api.screenshots.recordScreenshot, { ...scope, ...data, reason: decision.reason, caption: decision.reason }) });
+```
+
+`scope` is `{jobId,sessionId,participantToken}` from verified share state. Run the
+listener only for the active presenter and correct case; the server rechecks.
+Send facts `{kind:'action',action}` after dispatch, `{kind:'report',jobId}` for
+report requests, and `{kind:'user_text',text}` for screenshot requests. For run
+steps/annotations subscribe to `screenshots.events({...scope,since})`, dedupe ids
+and use the approved reason/runId with the same capture/upload helper.
+
+The helper only captures and uploads: max width 1280, no upscaling, preserved
+aspect, JPEG quality fallback to fit the byte cap, upload then record dimensions.
+Ben owns render readiness and WebGL buffer preservation/redraw; capture after
+the view has painted. Sent viewer steps do not prove applied state. #137 changes
+no viewer component, route, AgentPanel, dispatcher, or API-client wiring.
+
+Local #137 smoke after merging main: actual PNG upload/record/download, invalid
+image rejection, presenter-only capture, 30-second rejection and member-authorized
+MCP listing passed; annotation/message/summary/transcript tools remained present.
+The disposable room/token were cleaned up and our recorded CLI/backend PIDs were
+stopped explicitly; ports 3380/3381 were confirmed clear. No push or PR.
