@@ -1,10 +1,10 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { requireSessionMember } from "./lib/auth";
-import { authorFor } from "./lib/author";
+import { requireParticipant, requireSessionMember } from "./lib/auth";
+import { authorFor, type ResolvedCaller } from "./lib/author";
 import { appError } from "./lib/errors";
 import { buildMarkdown, EXPORT_SECTIONS, OPTIONAL_EXPORT_SECTIONS, PRIVATE_SECTIONS, type ExportSnapshot } from "./lib/exportMarkdown";
 import { loadExportScreenshots } from "./lib/exportScreenshots";
@@ -71,19 +71,19 @@ export const authorize = internalQuery({
 /** Internal reservation, after request authorization; the human mutation can use the same schema. */
 export const reserve = internalMutation({
   args: { jobId: v.string(), sessionId: v.optional(v.id("sessions")), sections: sectionsValidator, agentName: v.string() },
-  handler: async (ctx, args) => reserveRow(ctx, { ...args, trigger: "manual" }),
+  handler: async (ctx, args) => reserveRow(ctx, { ...args, trigger: "manual", caller: { kind: "agent", name: args.agentName, source: "mcp" } }),
 });
 
 async function reserveRow(
   ctx: MutationCtx,
-  args: { jobId: string; sessionId?: Id<"sessions">; sections: string[]; agentName: string; trigger: "manual" | "auto"; source?: "mcp" | "agent" },
+  args: { jobId: string; sessionId?: Id<"sessions">; sections: string[]; trigger: "manual" | "auto"; caller: ResolvedCaller },
 ) {
   const previous = await ctx.db.query("exports").withIndex("by_job", (q) => q.eq("jobId", args.jobId)).order("desc").first();
   return ctx.db.insert("exports", {
     jobId: args.jobId, sessionId: args.sessionId, sections: args.sections,
     format: "md", trigger: args.trigger, ...(args.trigger === "auto" ? { reason: "checkpoint" as const } : {}),
     status: "pending", version: (previous?.version ?? 0) + 1,
-    ...authorFor({ kind: "agent", name: args.agentName, source: args.source ?? "mcp" }),
+    ...authorFor(args.caller),
   });
 }
 
@@ -104,7 +104,39 @@ export const autoReserve = internalMutation({
     if (!scan) return null;
     const existing = await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
     if (existing.some((row) => row.trigger === "auto" && row.status !== "failed")) return null;
-    return reserveRow(ctx, { jobId: scan.jobId, sessionId, sections: AUTO_EXPORT_SECTIONS, agentName: "Scribe", trigger: "auto", source: "agent" });
+    return reserveRow(ctx, { jobId: scan.jobId, sessionId, sections: AUTO_EXPORT_SECTIONS, trigger: "auto", caller: { kind: "agent", name: "Scribe", source: "agent" } });
+  },
+});
+
+const MANUAL_EXPORT_CAP = 20;
+const PENDING_REUSE_MS = 120_000;
+
+/**
+ * A session member asks for a Markdown export of the meeting so far (notes,
+ * transcript, screenshots, annotations, chat) from the panel: a manual export
+ * through the same builder, labelled with the member's name. Also the "Try
+ * again" after a failed export, and works after the session ended. Members only.
+ * A fresh pending export is reused instead of starting another.
+ */
+export const requestMember = mutation({
+  args: { sessionId: v.id("sessions"), participantToken: v.string() },
+  handler: async (ctx, args): Promise<{ exportId: Id<"exports"> }> => {
+    const participant = await requireParticipant(ctx, args.participantToken);
+    if (participant.sessionId !== args.sessionId) throw appError("NOT_A_MEMBER", "You are not a member of that review session.");
+    const session = await ctx.db.get(args.sessionId);
+    const scan = session ? await ctx.db.get(session.scanId) : null;
+    if (!session || !scan) throw appError("NOT_FOUND", "That review session does not exist.");
+    const rows = await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", args.sessionId)).order("desc").take(50);
+    const pending = rows.find((r) => r.status === "pending" && Date.now() - r._creationTime < PENDING_REUSE_MS);
+    if (pending) return { exportId: pending._id };
+    if (rows.filter((r) => r.trigger === "manual").length >= MANUAL_EXPORT_CAP)
+      throw appError("INVALID_ARGUMENT", "This session has reached its export limit.");
+    const exportId = await reserveRow(ctx, {
+      jobId: scan.jobId, sessionId: args.sessionId, sections: AUTO_EXPORT_SECTIONS, trigger: "manual",
+      caller: { kind: "human", displayName: participant.displayName, source: "ui" },
+    });
+    await ctx.scheduler.runAfter(0, internal.exportDoc.build, { exportId });
+    return { exportId };
   },
 });
 
