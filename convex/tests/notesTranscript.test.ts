@@ -4,8 +4,8 @@ import { makeFunctionReference } from "convex/server";
 import { api, internal } from "../_generated/api";
 import * as anthropic from "../agent/anthropic";
 import type { ClaudeRequest, ClaudeResponse } from "../agent/anthropic";
-import { checkNote } from "../agent/scribe";
-import { runLoop, type LoopDeps, type LoopInput } from "../agent/loop";
+import { checkNote, NOTES_MODEL } from "../agent/scribe";
+import { MODEL, runLoop, type LoopDeps, type LoopInput } from "../agent/loop";
 import { runNotes } from "../notes";
 import schema from "../schema";
 
@@ -133,6 +133,27 @@ describe("transcript in the live notes (#136)", () => {
     expect(checkNote('The AI says "prognosis is good"', { previous: null, humanText: human })).toMatchObject({ ok: false, violations: ["prognosis"] });
     expect(checkNote('"healthy" is what they said', { previous: null, humanText: [] }).ok).toBe(false);
     expect(checkNote('Earlier: "benign looking"', { previous: 'Dr X said "benign looking" before.', humanText: [] }).ok).toBe(true);
+  });
+});
+
+describe("model split (Tom): live notes on Haiku, the Router on the shared MODEL", () => {
+  it("every live-notes path sends claude-haiku-5-5 at low effort; the Router still sends MODEL", async () => {
+    expect(NOTES_MODEL).toBe("claude-haiku-5-5");
+    expect(MODEL).toBe("claude-opus-5-5");
+    vi.stubEnv("ANTHROPIC_API_KEY", "k");
+    const t = convexTest(schema);
+    const { host, scope } = await room(t);
+    await say(t, host, "Notes please.");
+    const fake = fakeClient("note");
+    await runNotes(ctxOf(t), scope, fake); // the path shared by schedule/update, tick and the summarize tool
+    expect(fake.complete.mock.calls[0][0]).toMatchObject({ model: "claude-haiku-5-5", output_config: { effort: "low" }, max_tokens: 400 });
+
+    const router = { complete: vi.fn(async (_r: ClaudeRequest) => reply("ok")) };
+    await runLoop({ runId: "r", text: "zoom in", page: "3d", jobId: "sample" }, {
+      client: router, openMcp: async () => ({ tools: [], call: vi.fn(), close: async () => {} }),
+      active: async () => true, step: async () => {}, handoff: async () => {},
+    });
+    expect(router.complete.mock.calls[0][0].model).toBe(MODEL);
   });
 });
 

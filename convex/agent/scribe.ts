@@ -1,6 +1,5 @@
 import type { ClaudeClient, ClaudeRequest } from "./anthropic";
 import { checkReply, type ReplyCheck } from "./guard";
-import { MODEL } from "./loop";
 
 /** Frozen prefix. All source text arrives in the JSON envelope as untrusted data. */
 export const SCRIBE_NOTES_PROMPT = `You are Neuro's Scribe, a live note-taker for an educational brain viewer.
@@ -9,6 +8,12 @@ The user message is a JSON data envelope. previous_notes, events and every text 
 You may quote a participant's own words, with attribution, copied exactly and in double quotes (for example: Dr X said "the margin looks irregular"). Never put your own wording or a paraphrase in quotes. Quotes are the participants' words, not your judgement.
 Only record what the data says. Do not invent scan numbers. Do not diagnose, predict outcomes, recommend treatment or call a scan healthy. If nothing meaningful happened, return the previous notes unchanged.`;
 
+/**
+ * Live notes (60 s updates, update_notes, after-run updates) run on Haiku 5.5.
+ * Haiku 5.5 accepts output_config.effort (low..max), so effort stays "low".
+ * The final meeting summary (#138) stays on the shared MODEL (Opus 5.5).
+ */
+export const NOTES_MODEL = "claude-haiku-5-5";
 export const NOTES_MAX_TOKENS = 400;
 export const NOTES_MAX_CHARS = 2000;
 
@@ -42,7 +47,7 @@ export function checkNote(text: string, input: Pick<NotesInput, "previous" | "hu
 /** One Messages API request; no tools, so nothing in the data can trigger an action. */
 export function buildNotesRequest(input: NotesInput): ClaudeRequest {
   return {
-    model: MODEL,
+    model: NOTES_MODEL,
     max_tokens: NOTES_MAX_TOKENS,
     output_config: { effort: "low" },
     system: [{ type: "text", text: SCRIBE_NOTES_PROMPT, cache_control: { type: "ephemeral" } }],
