@@ -30,6 +30,7 @@ export type ViewerCommand =
   | { type: 'setHemisphereVisible'; side: Hemi; visible: boolean }
   | { type: 'setLayerVisible'; layer: Layer; visible: boolean }
   | { type: 'setCameraTarget'; target: 'brain' | 'tumor' }
+  | { type: 'setCamera'; position: number[]; target: number[] }
   | { type: 'resetView' };
 
 /** Mirror of convex/messages.ts PublicMessage. */
