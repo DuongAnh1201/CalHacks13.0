@@ -2,7 +2,7 @@ import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SESSION_ENDED, SYNC_FAILED } from './copy';
-import { endShare, joinShare, sendCursor, sendView, setFollowing, startShare, useClientForTest, useShare, watchCursors } from './store';
+import { endShare, joinShare, sendCursor, sendView, setFollowing, setReportEmail, startShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
 import type { SessionState } from './types';
 
 type Ref = Parameters<typeof getFunctionName>[0];
@@ -56,21 +56,21 @@ describe('share store', () => {
   });
   it('joinShare remembers which job the session is on', async () => {
     const f = fakeClient(); useClientForTest(f.client as never);
-    expect(await joinShare('ABC123', 'Ana')).toBeNull();
+    expect(await joinShare('ABC123', 'Ana', 'ana@example.com')).toBeNull();
     expect(useShare.getState().stored).toMatchObject({ role: 'viewer', jobId: 'job-7' });
   });
   it('joinShare maps INVALID_INVITE to the invite copy', async () => {
     const f = fakeClient({ 'sessions:join': () => { throw new ConvexError({ code: 'INVALID_INVITE', message: 'x' }); } });
     useClientForTest(f.client as never);
-    expect(await joinShare('NOPE', 'Ana')).toBe("That invite link doesn't work. Ask the host for a new one.");
+    expect(await joinShare('NOPE', 'Ana', 'ana@example.com')).toBe("That invite link doesn't work. Ask the host for a new one.");
     expect(useShare.getState().stored).toBeNull();
   });
   it('SESSION_ENDED clears the token and shows the notice; a stale token clears silently', async () => {
     const f = fakeClient(); useClientForTest(f.client as never);
-    await joinShare('ABC123', 'Ana');
+    await joinShare('ABC123', 'Ana', 'ana@example.com');
     f.subs[0].onError!(new ConvexError({ code: 'SESSION_ENDED', message: 'x' }));
     expect(useShare.getState()).toMatchObject({ stored: null, session: null, notice: SESSION_ENDED });
-    await joinShare('ABC123', 'Ana');
+    await joinShare('ABC123', 'Ana', 'ana@example.com');
     f.subs[1].onError!(new ConvexError({ code: 'NOT_A_MEMBER', message: 'x' }));
     expect(useShare.getState()).toMatchObject({ stored: null, notice: null });
   });
@@ -97,9 +97,25 @@ describe('share store', () => {
   });
   it('setFollowing passes the flag', async () => {
     const f = fakeClient(); useClientForTest(f.client as never);
-    await joinShare('ABC123', 'Ana');
+    await joinShare('ABC123', 'Ana', 'ana@example.com');
     await setFollowing(false);
     expect(f.calls.at(-1)).toEqual(['sessions:setFollowMode', { sessionId: 's1', participantToken: 'guest-t', following: false }]);
+  });
+  it('joinShare sends the email to sessions.join', async () => {
+    const f = fakeClient(); useClientForTest(f.client as never);
+    await joinShare('ABC123', 'Ana', 'ana@example.com');
+    expect(f.calls).toContainEqual(['sessions:join', { inviteCode: 'ABC123', displayName: 'Ana', email: 'ana@example.com' }]);
+  });
+  it('setReportEmail saves the address for this participant', async () => {
+    const f = fakeClient(); useClientForTest(f.client as never);
+    await startShare('job-7');
+    expect(await setReportEmail('host@example.com')).toBeNull();
+    expect(f.calls).toContainEqual(['reportMail:setMyEmail', { sessionId: 's1', participantToken: 'host-t', email: 'host@example.com' }]);
+  });
+  it('validEmail matches the server rule', () => {
+    expect(validEmail(' a@b.co ')).toBe(true);
+    expect(validEmail('a@b')).toBe(false);
+    expect(validEmail(`${'a'.repeat(250)}@x.io`)).toBe(false);
   });
 });
 

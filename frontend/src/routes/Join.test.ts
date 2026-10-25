@@ -15,4 +15,11 @@ describe('Join', () => {
     expect(h).toContain('Join');
   });
   it('says when sharing is not configured', () => expect(html()).toContain('Sharing is not configured'));
+  it('requires an email and explains the report', () => {
+    const h = html();
+    expect(h).toMatch(/<input[^>]*type="email"[^>]*required/i);
+    expect(h).toMatch(/<input[^>]*type="email"[^>]*maxLength="254"/i);
+    expect(h).toContain('email the session report, including the transcript');
+    expect(h).toContain('Educational, not clinically validated.');
+  });
 });
