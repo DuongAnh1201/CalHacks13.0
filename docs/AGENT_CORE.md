@@ -122,6 +122,15 @@ MCP listing passed; annotation/message/summary/transcript tools remained present
 The disposable room/token were cleaned up and our recorded CLI/backend PIDs were
 stopped explicitly; ports 3380/3381 were confirmed clear. No push or PR.
 
+## Two chat boxes: human session chat and Agent Panel (#58)
+
+Agents never write into the human session chat. MCP exposes only the authorized
+read-only `list_messages` tool and `messages://{jobId}` resource; `post_message`
+and its internal mutation are removed. Room capability checks remain required
+for reads. Completed agent conversations continue through the shared insert
+helper into clientId/jobId-scoped rows with no sessionId, queried by listChat.
+Sage's human send/list API and the shared insert helper remain unchanged.
+
 ## /learn cleanup
 
 The agent no longer has a `/learn` page: `Page` is `mri | 3d`, the tool registry and chips have no learn entries, `export_document` always needs the run's job (no atlas export from the panel), and chat persistence needs a `jobId` (there is no `atlas` chat). The eval set has no `/learn` cases: the viewer phrases stay on `/3d` (40, plus two left/right ask-backs) and `/mri` (30 plus 8 off-page refusals), and every question kind has at least 10 cases on those two pages. Kinds 3 and 5 still need 100%. MCP itself still accepts `page: "learn"` as input and treats it as "no report".
@@ -131,3 +140,14 @@ The agent no longer has a `/learn` page: `Page` is `mri | 3d`, the tool registry
 - **MCP `summarize_tumor({job_id, page?})`:** read-only and code-built (`lib/tumorSummary.ts::buildTumorCard`), no model. Every number is copied from report.json: side, lesion count, volume and outline certainty for whole / core / enhancing, the source line, the 3D layer names, and "No tumor detected in this scan" with no numbers when there is none. Registered for `mri` and `3d`; the Router prompt tells it to prefer this tool for "summarize the tumor" asks (eval kind-1 cases cover it, including the no-tumor job).
 - **Fast path:** `tumorSummaryIntent` matches only the exact ask (the panel's "Summarize tumor" script line, "give me a tumor summary", ...). `agent.run` then answers from the card directly: no Claude call, no API key needed, no daily run taken (`reserveSpend` and `claim` skip it). Anything longer ("... and zoom in") and every follow-up goes through the normal loop.
 - **Panel binding:** `frontend/src/agent/useAgent.ts` returns exactly AgentPanel's props `{messages, status, onSend, onRun}` (no `onMic` until voice, #66). It calls `agent.ask` with page `3d`, the job, a viewer snapshot, the tools the 3D viewer can actually apply (`applyStep.ts`) and the `participantToken` only when the tab is in an active session for that case; subscribes to `getRun`; maps steps to Tool Call rows; applies viewer steps once per step id through `dispatch`; loads `listChat` history (shown, never re-applied); status is `ready` or `offline`. Viewer tools the viewer cannot do yet (zoom, rotate, spin, undo, structure focus) show as failed rows with the reason.
+
+## Note-taker panel on /3d (`useNoteTaker`)
+
+`frontend/src/agent/useNoteTaker.ts` drives the "Meeting notes" rail panel on /3d (an AgentPanel; the "Assistant" panel next to it is `useAgent`, see above). It reads `sessionId`, `participantToken` and the role from Sage's share store (`useShare().stored`) and returns AgentPanel props `{messages, status, onMic, script, onRun, onConfirm, onDismiss}` (no `onSend`: it is a live meeting log, not a chat).
+
+- **No live session:** status `offline`, one system message "Start a live session to take notes", no controls.
+- **Mic:** the host's mic toggles `transcript.setEnabled` for everyone. When transcription is on, every member's browser runs `transcribe.ts` (Web Speech) and appends final segments with `transcript.append`. A non-host's mic only mutes or unmutes their own local capture (no server call). Status is `listening` while capturing. While on, the first message is the T2a banner ("Transcribing · ... audio stays on your device"), plus notes when you are muted, the microphone is blocked or the browser has no speech support.
+- **Messages:** transcript lines (live `transcript.list`, windowed by `after`) as `user` messages via `voice` ("Speaker: text"); screenshots as `Scribe` agent messages with caption and link, interleaved by time; the live Scribe note ("Live notes (vN)"); after the end the "Final meeting summary".
+- **Screenshots:** only the presenter's client listens to `screenshots.events` (from the controller start time), dedupes by event id, and captures + uploads with `screenshot.ts` using the server-approved reason. A failed capture is ignored.
+- **Export (members only, existing builder and `exports` table):** `exportDoc.requestMember` creates a `manual` export of the meeting so far (notes, transcript, screenshots, annotations, chat), labelled with the member, reuses a fresh pending export, caps 20 per session, and also works after the session ended. The script line "Export summary" calls it. `notes.forSession` now returns the newest export of the session (auto or manual, failed included) as `{exportId, version, status, trigger, url}`. The panel shows "Preparing export…" while pending, then a confirm row "Download summary (.md)" / "Close"; a failed export shows "Try again". After the meeting the same confirm row downloads the auto export.
+- **Share store note:** Sage's store forgets the token when the session ends, so the controller keeps its own copy for the page visit to show the final summary. A page reload after the end loses it.

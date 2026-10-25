@@ -14,3 +14,4 @@ export const HomeIcon = () => <Icon><path d="M4 11l8-7 8 7M6 10v10h12V10" /></Ic
 export const TargetIcon = () => <Icon><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></Icon>;
 export const CloseIcon = () => <Icon><path d="M6 6l12 12M18 6L6 18" /></Icon>;
 export const MinimizeIcon = () => <Icon><path d="M6 12h12" /></Icon>;
+export const MicIcon = () => <Icon><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></Icon>;

@@ -697,8 +697,11 @@ const notes = useQuery(api.annotations.list, { sessionId, participantToken });
 ```
 
 `PublicMessage` = `{ messageId, role: "user"|"assistant", author: "human"|"agent",
-authorName, text, createdAt }`. Agent replies in the same session appear in the
-same feed. `clientId`, `runId` and `toolSteps` are not exposed.
+authorName, text, createdAt }`. This is the human session feed. Agents cannot
+post into it: MCP exposes only list_messages and the messages://{jobId} read-only
+resource. Agent replies use the separate client-scoped Agent Panel chat (#133),
+with no sessionId. The shared insert helper is retained. `clientId`, `runId` and
+`toolSteps` are not exposed in the human feed.
 
 `PublicAnnotation` = `{ annotationId, text, anchor, status: "accepted"|"suggested",
 author, authorName, createdAt, canRemove }`. Dismissed agent suggestions are

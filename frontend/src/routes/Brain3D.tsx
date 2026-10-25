@@ -10,8 +10,9 @@ import type { Report } from '../api/types';
 import checkIcon from '../assets/figma/7e35a.svg';
 import { AgentPanel } from '../components/agent/AgentPanel';
 import { useAgent } from '../agent/useAgent';
+import { useNoteTaker } from '../agent/useNoteTaker';
 import { ExplodeSlider } from '../components/ExplodeSlider';
-import { HomeIcon, InfoIcon, PinIcon, SlidersIcon, SparkIcon, TargetIcon } from '../components/workspace/icons';
+import { HomeIcon, InfoIcon, MicIcon, PinIcon, SlidersIcon, SparkIcon, TargetIcon } from '../components/workspace/icons';
 import { Workspace, type Tool } from '../components/workspace/Workspace';
 import { useCameraShare } from '../share/cameraSync';
 import { setDraft, setPlacing, useNoteUi } from '../share/notes';
@@ -90,6 +91,7 @@ export default function Brain3D() {
   const result = res?.key === key ? res.result : null;
   useShareSync(id, '3d', result?.kind === 'ready');
   const agent = useAgent('3d', id);
+  const noteTaker = useNoteTaker(id);
   const camera = useCameraShare(id);
   if (result?.kind === 'pending') return <Navigate to={`/jobs/${id}/processing`} replace />;
 
@@ -151,6 +153,7 @@ export default function Brain3D() {
     { id: 'notes', label: 'Notes', icon: <PinIcon />, badge: notes.length, panel: <NotesPanel report={report} notes={notes} mode="3d" /> },
     { id: 'view', label: 'View', icon: <SlidersIcon />, panel: view },
     { id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><AgentPanel {...agent} script={SUMMARY_SCRIPT} /></div> },
+    { id: 'meeting', label: 'Meeting notes', icon: <MicIcon />, panel: <div className={css.agent}><AgentPanel {...noteTaker} /></div> },
   ] : [];
 
   const dock = report && !modelFailed && (
