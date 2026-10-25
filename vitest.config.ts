@@ -16,7 +16,7 @@ import { defineConfig } from "vitest/config";
  *   here and fail on deploy. Running them in the edge runtime means a test that
  *   passes is evidence the code can actually run in Convex.
  *
- * `server.deps.inline: ["convex-test"]` — forces Vite to transform
+ * `server.deps.inline: ["convex-test", "@convex-dev/presence", "@convex-dev/batch-worker"]` — forces Vite to transform
  *   `convex-test` rather than loading it as an external CommonJS dependency,
  *   which it needs because it uses `import.meta.glob` to discover your Convex
  *   function modules.
@@ -37,7 +37,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
-    server: { deps: { inline: ["convex-test"] } },
+    server: { deps: { inline: ["convex-test", "@convex-dev/presence", "@convex-dev/batch-worker"] } },
     include: ["convex/tests/**/*.test.ts"],
   },
 });

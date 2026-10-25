@@ -329,14 +329,14 @@ Send `hc send qa "T0 ready: <hash>"` and `hc send lead "T0 done: <hash>, <n> tes
   - `api.presence.list({ roomToken })` → `{ userId: string, online: boolean, lastDisconnected: number }[]`. `userId` is a `sessionParticipants` id.
   - `api.presence.disconnect({ sessionToken })` → `null`. Its function path is `presence:disconnect`, which the browser beacon targets.
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 Run `npm install @convex-dev/presence@0.4.0` from the repo root.
 
 - Expected: root `package.json` dependencies gain `"@convex-dev/presence": "^0.4.0"`.
 - npm may also install the `react` / `react-dom` peers into root `node_modules`. That is harmless; leave it.
 
-- [ ] **Step 2: Register the component**
+- [x] **Step 2: Register the component**
 
 Replace `convex/convex.config.ts`:
 
@@ -365,7 +365,7 @@ In `vitest.config.ts`, change the inline list:
 
 Why: the presence test helper and its batch-worker child use `import.meta.glob`, which only works on code that Vite transforms.
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 Create `convex/tests/presence.test.ts`:
 
@@ -429,12 +429,12 @@ describe("presence", () => {
 });
 ```
 
-- [ ] **Step 4: Run, expect failure**
+- [x] **Step 4: Run, expect failure**
 
 Run: `npx vitest run convex/tests/presence.test.ts`
 Expected: FAIL (`api.presence` is undefined).
 
-- [ ] **Step 5: Implement `convex/presence.ts`**
+- [x] **Step 5: Implement `convex/presence.ts`**
 
 ```ts
 /**
@@ -488,14 +488,14 @@ export const disconnect = mutation({
 });
 ```
 
-- [ ] **Step 6: Run tests + typecheck**
+- [x] **Step 6: Run tests + typecheck**
 
 Run: `npx vitest run convex/tests/presence.test.ts && npm run typecheck`
 
 - Expected: PASS.
 - If tsc rejects `presenceTest.register(t)` with a schema generic mismatch, change the line to `presenceTest.register(t as never);`. The helper only calls `t.registerComponent`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 Run GitNexus `detect_changes()`. Then:
 

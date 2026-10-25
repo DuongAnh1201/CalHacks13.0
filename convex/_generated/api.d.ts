@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as agent_eval_cases from "../agent/eval/cases.js";
+import type * as agent_eval_score from "../agent/eval/score.js";
+import type * as agent_guard from "../agent/guard.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as http from "../http.js";
@@ -29,6 +32,7 @@ import type * as mcp_rateLimit from "../mcp/rateLimit.js";
 import type * as mcp_server from "../mcp/server.js";
 import type * as mcp_types from "../mcp/types.js";
 import type * as mcpTokens from "../mcpTokens.js";
+import type * as presence from "../presence.js";
 import type * as scans from "../scans.js";
 import type * as seed from "../seed.js";
 import type * as sessionParticipants from "../sessionParticipants.js";
@@ -41,6 +45,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agent/eval/cases": typeof agent_eval_cases;
+  "agent/eval/score": typeof agent_eval_score;
+  "agent/guard": typeof agent_guard;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
   http: typeof http;
@@ -62,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   "mcp/server": typeof mcp_server;
   "mcp/types": typeof mcp_types;
   mcpTokens: typeof mcpTokens;
+  presence: typeof presence;
   scans: typeof scans;
   seed: typeof seed;
   sessionParticipants: typeof sessionParticipants;
@@ -96,4 +104,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
+  presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
 };
