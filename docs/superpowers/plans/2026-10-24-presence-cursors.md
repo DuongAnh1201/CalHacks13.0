@@ -15,7 +15,7 @@
 - React 19, react-three-fiber 9, drei 10, three 0.186, zustand 5.
 - Frontend vitest uses the node env, runs `src/**/*.test.ts` only, and has no DOM.
 
-Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: Learning Mode removed, T0; reconciled with main, spec §R → tasks R1–R5 below. **T0–T7 are done; only R1–R5 are open.**)
+Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: Learning Mode removed, T0; reconciled with main, spec §R → tasks R1–R5 below. **T0–T7 and R1–R5 are done.**)
 
 ## Global Constraints
 
@@ -1491,7 +1491,7 @@ The PR needs Sage's review (schema change + guardrail 7). Do not open it unless 
 
 ---
 
-## Reconcile with main (R1–R5) — open
+## Reconcile with main (R1–R5) — done (d778e49, 43ba08c, 42591d0)
 
 Spec §R. Main has its own presence (Phase 3), chat, any-scan sharing and camera follow. One merge commit takes main's presence and keeps our cursors, face pile and Learn removal. Then one small commit widens cursors to any shared case.
 
@@ -1553,26 +1553,26 @@ export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void
 
 ### Task R2: Resolve frontend share + Brain3D (fe)
 
-- [ ] Run `impact` (or grep) on `useShare`, `startPresence`, `SharePopover`, `Brain3D`.
-- [ ] Resolve your rows per the table, then `git add` them by path.
-- [ ] `grep -rn "<<<<<<<\|>>>>>>>" frontend/src` → only `viewer/CaseCanvas.tsx` remains.
-- [ ] `hc send ai "R2 done: your row (CaseCanvas) next"`.
+- [x] Run `impact` (or grep) on `useShare`, `startPresence`, `SharePopover`, `Brain3D`.
+- [x] Resolve your rows per the table, then `git add` them by path.
+- [x] `grep -rn "<<<<<<<\|>>>>>>>" frontend/src` → only `viewer/CaseCanvas.tsx` remains.
+- [x] `hc send ai "R2 done: your row (CaseCanvas) next"`.
 
 ### Task R3: Resolve CaseCanvas, run all gates, commit the merge (ai)
 
-- [ ] Run `impact` on `CaseScene`, `CaseCanvas`.
-- [ ] Resolve `CaseCanvas.tsx` per the table, keeping `live = jobId === 'sample'` for now (R4 widens it). Then `git add` it.
-- [ ] `git diff --name-only --diff-filter=U` → empty, and `grep -rn "<<<<<<<" convex frontend/src docs` → empty.
-- [ ] Gates: `npm run typecheck && npm test && npm --prefix frontend test && npm --prefix frontend run build`. Expected: all exit 0. Paste failures verbatim. A failure in someone else's row goes back to that owner by `hc send`; do not fix it yourself.
-- [ ] `detect_changes({scope: "compare", base_ref: "main"})` (or `git diff --stat origin/main`): only this branch's files differ from main.
-- [ ] Commit: `git commit -m "Merge origin/main into agents/presence-cursors" -m "Take main's Phase 3 presence (server, client, roster dots); keep cursors, face pile and Learning Mode removal." -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
-- [ ] Do R4 next, then `hc send qa "R3+R4 ready: <merge hash> <R4 hash>"` and `hc send lead "R3 done: <merge hash>, R4 done: <hash>, <root n>/<frontend n> tests"`.
+- [x] Run `impact` on `CaseScene`, `CaseCanvas`.
+- [x] Resolve `CaseCanvas.tsx` per the table, keeping `live = jobId === 'sample'` for now (R4 widens it). Then `git add` it.
+- [x] `git diff --name-only --diff-filter=U` → empty, and `grep -rn "<<<<<<<" convex frontend/src docs` → empty.
+- [x] Gates: `npm run typecheck && npm test && npm --prefix frontend test && npm --prefix frontend run build`. Expected: all exit 0. Paste failures verbatim. A failure in someone else's row goes back to that owner by `hc send`; do not fix it yourself.
+- [x] `detect_changes({scope: "compare", base_ref: "main"})` (or `git diff --stat origin/main`): only this branch's files differ from main.
+- [x] Commit: `git commit -m "Merge origin/main into agents/presence-cursors" -m "Take main's Phase 3 presence (server, client, roster dots); keep cursors, face pile and Learning Mode removal." -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
+- [x] Do R4 next, then `hc send qa "R3+R4 ready: <merge hash> <R4 hash>"` and `hc send lead "R3 done: <merge hash>, R4 done: <hash>, <root n>/<frontend n> tests"`.
 
 ### Task R4: Cursors on any shared case (ai)
 
 **Files:** Modify `frontend/src/viewer/CaseCanvas.tsx` (the `live` line only); import `useShare` from `../share/store`.
 
-- [ ] Replace
+- [x] Replace
 
 ```ts
   const live = jobId === 'sample'; // sharing is sample-only (W2)
@@ -1584,20 +1584,20 @@ with
   const live = useShare((s) => s.stored?.jobId === jobId); // cursors on the case this session reviews; useCursorPush / RemoteCursors also require an active session
 ```
 
-- [ ] Gates: `npm --prefix frontend test && npm --prefix frontend run build`. Expected: exit 0.
-- [ ] Commit `feat(share): live 3D cursors on any shared case`, with the trailer.
+- [x] Gates: `npm --prefix frontend test && npm --prefix frontend run build`. Expected: exit 0.
+- [x] Commit `feat(share): live 3D cursors on any shared case`, with the trailer.
 
 ### Task R5: Review + gates + browser re-run (qa)
 
-- [ ] **Merge review.** Check `git show --stat <merge>` and `git diff origin/main..HEAD --stat`. Every path that differs from main must be in T0–T5 or R4's rows. Main's `convex/presence.ts`, `frontend/src/share/presence.ts` and `SharePopover.tsx` must be byte-identical to main's: `git diff origin/main HEAD -- <path>` prints nothing.
-- [ ] **R4 review.** `git show <R4>`: one-line gate change plus the import.
-- [ ] **Gates.** Run `npm run typecheck && npm test && npm --prefix frontend run build && npm --prefix frontend test`, then paste the counts.
-- [ ] **Browser** (servers are already running; ask lead only if one is down). Re-run T7 Step 3, with these changes:
+- [x] **Merge review.** Check `git show --stat <merge>` and `git diff origin/main..HEAD --stat`. Every path that differs from main must be in T0–T5 or R4's rows. Main's `convex/presence.ts`, `frontend/src/share/presence.ts` and `SharePopover.tsx` must be byte-identical to main's: `git diff origin/main HEAD -- <path>` prints nothing.
+- [x] **R4 review.** `git show <R4>`: one-line gate change plus the import.
+- [x] **Gates.** Run `npm run typecheck && npm test && npm --prefix frontend run build && npm --prefix frontend test`, then paste the counts.
+- [x] **Browser** (servers are already running; ask lead only if one is down). Re-run T7 Step 3, with these changes:
   - drop the "hide the guest tab → offline" line, because main keeps hidden tabs online by design;
   - add "a following guest sees the host's camera move and the host's cursor at the same time";
   - add "if a finished non-sample job exists (`GET http://localhost:8000/jobs`, or the Home list), share it and check cursors on its `/3d`". Otherwise mark that line SKIP and say why.
   - add "Session chat still sends both ways".
-- [ ] **Report.** Append "## Re-run after merge with main" to `docs/qa/2026-10-24-presence-cursors/README.md`, one PASS/FAIL/SKIP per line. Commit it with the trailer. Send `hc send lead "R5: <n> PASS / <m> FAIL / <k> SKIP, commit <hash>"`, and send each FAIL to its owner.
+- [x] **Report.** Append "## Re-run after merge with main" to `docs/qa/2026-10-24-presence-cursors/README.md`, one PASS/FAIL/SKIP per line. Commit it with the trailer. Send `hc send lead "R5: <n> PASS / <m> FAIL / <k> SKIP, commit <hash>"`, and send each FAIL to its owner.
 
 Reconcile prompts (lead sends):
 
