@@ -1,35 +1,56 @@
 import { createTranscriber, type Transcriber, type TranscriptSegment } from '../agent/transcribe';
+import { transcriptionKey, useTranscription } from '../agent/transcription';
 import { sendTranscript, useShare, watchTranscriptEnabled } from '../share/store';
 import { useCall } from './store';
 
 type Make = (onSegment: (s: TranscriptSegment) => void) => Transcriber;
 
-/**
- * Speech-to-text on this tab's mic while in the call, unmuted, and with the host's
- * transcript switch on (#135). Returns an unlink.
- */
+/** Captures call speech when the note-taker panel does not already own this tab's mic. */
 export function linkTranscriber(make: Make = (onSegment) => createTranscriber({ onSegment })): () => void {
-  const t = make((s) => void sendTranscript(s.text, s.endedAt - s.startedAt));
+  let t: Transcriber | null = null;
   let enabled = false;
-  let watching: string | null = null; // sessionId the switch subscription is for
+  let watching: string | null = null;
   let unwatch = () => {};
+  let disposed = false;
+  let generation = 0;
 
-  const sync = () => {
+  const wanted = () => {
     const { status, muted } = useCall.getState();
-    const key = status === 'live' ? useShare.getState().stored?.sessionId ?? null : null;
+    const stored = useShare.getState().stored;
+    const pref = useTranscription.getState();
+    const key = stored ? transcriptionKey(stored) : null;
+    return !disposed && status === 'live' && !muted && enabled && key !== null && key === watching
+      && useShare.getState().session?.status !== 'ended'
+      && pref.owner?.key !== key && !(pref.memberKey === key && pref.muted);
+  };
+  const stop = () => { generation++; const old = t; t = null; old?.stop(); };
+  const sync = () => {
+    const { status } = useCall.getState();
+    const stored = useShare.getState().stored;
+    const key = status === 'live' && stored ? transcriptionKey(stored) : null;
     if (key !== watching) {
+      stop();
       unwatch();
       enabled = false;
       watching = key;
-      unwatch = key ? watchTranscriptEnabled((on) => { enabled = on; sync(); }) : () => {};
+      unwatch = key ? watchTranscriptEnabled((on) => {
+        if (disposed || watching !== key) return;
+        enabled = on; sync();
+      }) : () => {};
     }
-    const want = t.supported && status === 'live' && !muted && enabled;
-    if (want && !t.running()) t.start();
-    else if (!want && t.running()) t.stop();
+    if (!wanted()) { if (t) stop(); return; }
+    if (!t) {
+      const current = ++generation;
+      t = make((s) => {
+        if (current === generation && wanted()) void sendTranscript(s.text, s.endedAt - s.startedAt);
+      });
+      if (t.supported) t.start();
+    }
   };
 
   const offCall = useCall.subscribe(sync);
   const offShare = useShare.subscribe(sync);
+  const offPref = useTranscription.subscribe(sync);
   sync();
-  return () => { offCall(); offShare(); unwatch(); if (t.running()) t.stop(); };
+  return () => { disposed = true; offCall(); offShare(); offPref(); unwatch(); stop(); };
 }

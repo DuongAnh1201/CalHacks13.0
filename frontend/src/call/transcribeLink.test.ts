@@ -71,6 +71,8 @@ describe('linkTranscriber', () => {
     const f = fakeClient(); useClientForTest(f.client as never);
     const tr = fakeTranscriber();
     unlink = linkTranscriber(tr.make);
+    useCall.setState({ status: 'live' });
+    f.subs.find((s) => s.name === 'transcript:state')!.onData({ enabled: true });
     tr.emit({ text: 'enhancing rim at the margin', startedAt: 1000, endedAt: 3500 });
     await Promise.resolve();
     expect(f.calls).toEqual([['transcript:append', { sessionId: 's1', participantToken: 'tok', text: 'enhancing rim at the margin', durationMs: 2500 }]]);
