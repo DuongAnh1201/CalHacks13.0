@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import * as annotations from "../annotations";
+import * as board from "../board";
 import * as games from "../games";
 import type { AppErrorCode, AppErrorData } from "../lib/errors";
 import { MAX_CREDENTIAL_LENGTH } from "../lib/tokens";
@@ -70,13 +71,15 @@ async function setUp() {
     anchor: { kind: "point", ras_mm: [0, 0, 0] },
   });
 
+  const { replyId } = await t.mutation(api.annotations.reply, { ...asHost, annotationId, text: "Host reply" });
+  const item = await t.mutation(api.board.create, { ...asHost, item: { kind: "text", anchor: { kind: "point", ras_mm: [0, 0, 0] }, text: "Label" } });
   const { roundId } = await t.mutation(api.games.start, {
     ...asHost,
     prompt: { kind: "whichSide", jobId: "sample" },
     secret: { kind: "whichSide", side: "left" },
   });
 
-  return { t, scanId, asHost, asViewer, otherToken: other.participantToken, annotationId, roundId };
+  return { t, scanId, asHost, asViewer, otherToken: other.participantToken, annotationId, replyId, item, roundId };
 }
 
 type Ctx = Awaited<ReturnType<typeof setUp>>;
@@ -120,6 +123,14 @@ const MATRIX: Record<string, { hostOnly: boolean; call: (t: T, auth: Auth, ctx: 
     hostOnly: false,
     call: (t, a, ctx) => t.mutation(api.annotations.remove, { ...a, annotationId: ctx.annotationId }),
   },
+  "annotations.reply": { hostOnly: false, call: (t, a, ctx) => t.mutation(api.annotations.reply, { ...a, annotationId: ctx.annotationId, text: "Reply" }) },
+  "annotations.removeReply": { hostOnly: false, call: (t, a, ctx) => t.mutation(api.annotations.removeReply, { ...a, replyId: ctx.replyId }) },
+  "annotations.resolve": { hostOnly: false, call: (t, a, ctx) => t.mutation(api.annotations.resolve, { ...a, annotationId: ctx.annotationId }) },
+  "annotations.unresolve": { hostOnly: false, call: (t, a, ctx) => t.mutation(api.annotations.unresolve, { ...a, annotationId: ctx.annotationId }) },
+  "board.list": { hostOnly: false, call: (t, a) => t.query(api.board.list, a) },
+  "board.create": { hostOnly: false, call: (t, a) => t.mutation(api.board.create, { ...a, item: { kind: "text", anchor: { kind: "point", ras_mm: [0, 0, 0] }, text: "Label" } }) },
+  "board.update": { hostOnly: false, call: (t, a, ctx) => t.mutation(api.board.update, { ...a, itemId: ctx.item.itemId, expectedUpdatedAt: ctx.item.updatedAt, patch: { text: "Edited" } }) },
+  "board.remove": { hostOnly: false, call: (t, a, ctx) => t.mutation(api.board.remove, { ...a, itemId: ctx.item.itemId }) },
   "games.start": {
     hostOnly: true,
     call: (t, a) => t.mutation(api.games.start, { ...a, prompt: { kind: "beatAi", jobId: "sample", slice: 70 } }),
@@ -201,6 +212,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   sessionParticipants,
   messages,
   annotations,
+  board,
   games,
 };
 

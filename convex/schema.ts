@@ -71,6 +71,20 @@ export const vAnnotationAnchor = v.union(
   v.object({ kind: v.literal("tumor") }),
 );
 
+export const vStickyColor = v.union(v.literal("yellow"), v.literal("pink"), v.literal("blue"), v.literal("green"));
+export const vBoardItem = v.union(
+  v.object({ kind: v.literal("sticky"), anchor: vAnnotationAnchor, text: v.string(), color: vStickyColor }),
+  v.object({ kind: v.literal("text"), anchor: vAnnotationAnchor, text: v.string() }),
+  v.object({
+    kind: v.literal("stroke"),
+    camera: v.object({ position: vVec3, target: vVec3 }),
+    points: v.array(v.number()), // flat x,y pairs in 0..1 of the stage
+    color: v.string(),
+    width: v.number(),
+    mode: v.union(v.literal("pen"), v.literal("highlight")),
+  }),
+);
+
 /** Same compact step fields as the agentRuns plan; args are tool-specific data. */
 export const vToolStep = v.object({
   id: v.string(),
@@ -344,12 +358,26 @@ export default defineSchema({
 
   // Shared human/agent records. Writers stamp attribution on the server.
   // Text lengths, anchor bounds and D10 transitions belong to shared mutations.
+  boardItems: defineTable({
+    sessionId: v.id("sessions"),
+    jobId: v.string(),
+    authorParticipantId: v.id("sessionParticipants"),
+    authorName: v.string(), // display label only, never identity
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    updatedBy: v.id("sessionParticipants"),
+    item: vBoardItem,
+  }).index("by_session", ["sessionId"]),
+
   annotations: defineTable({
     ...vAuthor.fields,
     jobId: v.string(),
     sessionId: v.optional(v.id("sessions")),
     text: v.string(), // Shared mutation enforces <= 280 characters.
     anchor: vAnnotationAnchor,
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.id("sessionParticipants")),
+
     // Server-resolved writer for human rows, so "only the author or host may
     // remove" can be enforced; authorName is a label, not identity. Absent on
     // agent rows and on rows with no session.
@@ -357,6 +385,16 @@ export default defineSchema({
     status: v.union(v.literal("accepted"), v.literal("suggested"), v.literal("dismissed")),
   })
     .index("by_job", ["jobId"])
+    .index("by_session", ["sessionId"]),
+
+  annotationReplies: defineTable({
+    ...vAuthor.fields,
+    sessionId: v.id("sessions"),
+    annotationId: v.id("annotations"),
+    authorParticipantId: v.optional(v.id("sessionParticipants")),
+    text: v.string(), // <= MAX_REPLY_LENGTH, enforced in annotations.reply
+  })
+    .index("by_annotation", ["annotationId"])
     .index("by_session", ["sessionId"]),
 
   messages: defineTable({

@@ -1,5 +1,5 @@
 import { useGLTF } from '@react-three/drei';
-import { Component, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { dispatch, initCase, viewEvents } from '../actions/dispatch';
@@ -11,13 +11,22 @@ import checkIcon from '../assets/figma/7e35a.svg';
 import { MeetingOverlay, MeetingPanel } from '../agent/MeetingNotes';
 import { useNoteTaker } from '../agent/useNoteTaker';
 import { ExplodeSlider } from '../components/ExplodeSlider';
-import { HomeIcon, InfoIcon, PinIcon, SlidersIcon, SparkIcon, TargetIcon } from '../components/workspace/icons';
+import { HomeIcon, InfoIcon, SlidersIcon, SparkIcon, TargetIcon } from '../components/workspace/icons';
 import { Workspace, type Tool } from '../components/workspace/Workspace';
 import { useCameraShare } from '../share/cameraSync';
-import { setDraft, setPlacing, useNoteUi } from '../share/notes';
+import { removeItem } from '../board/commands';
+import { history, toast } from '../board/history';
+import { CommentIcon } from '../board/icons';
+import { useBoardKeys } from '../board/keys';
+import { StrokeLayer } from '../board/StrokeLayer';
+import { Toast } from '../board/Toast';
+import { Toolbar } from '../board/Toolbar';
+import { selectItem, setBoardDraft, setTool, useBoardTool } from '../board/tool';
+import { useBoard } from '../board/useBoard';
+import { messageFor } from '../share/copy';
 import { NotesPanel } from '../share/NotesPanel';
 import { useNotes } from '../share/useNotes';
-import { useShare } from '../share/store';
+import { sessionCall, useShare } from '../share/store';
 import { useShareSync } from '../share/useShareSync';
 import { LAYERS, type Layer } from '../viewer/layers';
 import { CaseCanvas } from '../viewer/CaseCanvas';
@@ -60,9 +69,28 @@ export default function Brain3D() {
   const [message, setMessage] = useState<DispatchResult | null>(null);
   const { mode, brainOpacity, hidden, layers, tumorRevealed } = useViewer(useShallow((s) => ({ mode: s.mode, brainOpacity: s.brainOpacity, hidden: s.hidden, layers: s.layers, tumorRevealed: s.tumorRevealed })));
   const notes = useNotes(id);
-  const placing = useNoteUi((s) => s.placing);
-  const pinning = useNoteUi((s) => s.placing || !!s.draft);
+  const board = useBoard(id);
   const live = useShare((s) => s.stored?.jobId === id && s.session?.status === 'active');
+  const onDelete = useCallback(() => {
+    const selected = useBoardTool.getState().selected;
+    if (!selected) return;
+    const row = board.find((r) => r.itemId === selected);
+    if (row) {
+      if (row.canRemove) void history.run(removeItem(row)).then(() => selectItem(null)).catch((e) => toast(messageFor(e)));
+      return;
+    }
+    const note = notes.find((n) => n.annotationId === selected);
+    if (!note?.canRemove) return;
+    void sessionCall('annotations.remove', { annotationId: selected }).then(() => selectItem(null)).catch((e) => toast(messageFor(e)));
+  }, [board, notes]);
+  useBoardKeys(live, onDelete);
+  useEffect(() => {
+    if (live) return;
+    history.clear();
+    setTool('select');
+    selectItem(null);
+    setBoardDraft(null);
+  }, [live]);
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -146,7 +174,7 @@ export default function Brain3D() {
 
   const tools: Tool[] = report ? [
     { id: 'info', label: 'Case info', icon: <InfoIcon />, panel: <CaseInfo report={report} /> },
-    { id: 'notes', label: 'Notes', icon: <PinIcon />, badge: notes.length, panel: <NotesPanel report={report} notes={notes} mode="3d" /> },
+    { id: 'notes', label: 'Comments', icon: <CommentIcon />, badge: notes.filter((n) => !n.resolvedAt).length, panel: <NotesPanel report={report} notes={notes} mode="3d" /> },
     { id: 'view', label: 'View', icon: <SlidersIcon />, panel: view },
     ...(!noteTaker.hidden ? [{ id: 'agent', label: 'Assistant', icon: <SparkIcon />, panel: <div className={css.agent}><MeetingPanel binding={noteTaker} /></div> }] : []),
   ] : [];
@@ -155,15 +183,13 @@ export default function Brain3D() {
     <>
       <button type="button" className={css.dockBtn} onClick={() => act({ type: 'resetView' })}><HomeIcon />Reset</button>
       <button type="button" className={css.dockBtn} disabled={!report.tumorDetected} title={report.tumorDetected ? undefined : 'No tumor detected in this scan'} onClick={focusTumor}><TargetIcon />Focus tumor</button>
-      <button type="button" className={css.dockBtn} aria-pressed={placing} disabled={!live} title={live ? undefined : 'Share this case to pin notes'} onClick={() => setPlacing(!placing)}><PinIcon />{placing ? 'Click the brain…' : 'Pin note'}</button>
     </>
   );
 
   return (
-    <Workspace jobId={id} title={report ? caseTitle(report) : 'Loading case…'} tools={tools} initialTool="info" focusTool={pinning ? 'notes' : null}
-      onToolClose={(t) => { if (t === 'notes') setDraft(null); }} dock={dock}>
+    <Workspace jobId={id} title={report ? caseTitle(report) : 'Loading case…'} tools={tools} initialTool="info" dock={dock}>
       <MeetingOverlay binding={noteTaker} />
-      <div className={placing ? `${css.stage} ${css.placing}` : css.stage} aria-label="3D brain">
+      <div className={css.stage} aria-label="3D brain">
         {!result && <p className={css.loading}>Loading results…</p>}
         {result?.kind === 'unknown' && (
           <div className={css.error} role="alert">
@@ -181,9 +207,16 @@ export default function Brain3D() {
           <>
             <LoadBoundary key={id} id={id} onFail={(f) => setFailedId(f ? id : null)}>
               <Suspense fallback={<p className={css.loading}>Loading 3D brain…</p>}>
-                <CaseCanvas jobId={id} report={report} onLayers={setAvailable} camera={camera} notes={notes} />
+                <CaseCanvas jobId={id} report={report} onLayers={setAvailable} camera={camera} notes={notes} board={board} />
               </Suspense>
             </LoadBoundary>
+            {!modelFailed && (
+              <>
+                <StrokeLayer rows={board} />
+                <div className={css.boardBar}><Toolbar disabled={!live} /></div>
+                <Toast />
+              </>
+            )}
             {!modelFailed && report.tumorDetected && tumorRevealed && (
               <div className={css.toast} role="status">
                 <img src={checkIcon} alt="" width={14} height={14} />

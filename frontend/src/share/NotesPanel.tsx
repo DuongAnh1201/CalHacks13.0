@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Report } from '../api/types';
-import { anchorMm, goToMm, indicesToScanMm, scanMmToRas, selectNote, setDraft, setPlacing, useNoteUi } from './notes';
+import { selectItem } from '../board/tool';
+import { anchorMm, goToMm, indicesToScanMm, scanMmToRas, selectNote, useNoteUi } from './notes';
 import css from './NotesPanel.module.css';
 import { addNote, removeNote, setFollowing, useShare } from './store';
 import type { Note, NoteAnchor, SliceIndices } from './types';
@@ -19,22 +20,58 @@ interface Props {
 
 export function NotesPanel({ report, notes, mode, crosshair }: Props) {
   const live = useShare((s) => s.stored?.jobId === report.jobId && s.session?.status === 'active');
-  const { placing, draft, selected } = useNoteUi();
+  const { selected } = useNoteUi();
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showResolved, setShowResolved] = useState(false);
 
   if (!live) return <p className={css.empty}>Share this case to pin notes that everyone in the session sees.</p>;
+
+  if (mode === '3d') {
+    const shown = notes.filter((n) => showResolved || !n.resolvedAt);
+    const open = (n: Note) => {
+      const mm = anchorMm(n.anchor, report);
+      selectItem(n.annotationId);
+      if (!mm) return;
+      goToMm(mm);
+      const { stored, session } = useShare.getState();
+      if (stored?.role === 'viewer' && session?.me.following) void setFollowing(false);
+    };
+    return (
+      <div className={css.notes}>
+        <label className={css.hint}>
+          <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} /> Show resolved
+        </label>
+        {shown.length === 0
+          ? <p className={css.empty}>No comments yet.</p>
+          : (
+            <ol className={css.list}>
+              {shown.map((n) => (
+                <li key={n.annotationId}>
+                  <button type="button" className={css.threadRow} onClick={() => open(n)}>
+                    <p className={css.text}>{n.text}</p>
+                    <p className={css.meta}>
+                      {n.authorName} · {(n.replies ?? []).length} {(n.replies ?? []).length === 1 ? 'reply' : 'replies'}
+                      {n.resolvedAt != null && <span className={css.tag}>Resolved</span>}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+      </div>
+    );
+  }
 
   const save = async (anchor: NoteAnchor) => {
     setBusy(true);
     const err = await addNote(text, anchor);
     setBusy(false);
     setError(err);
-    if (!err) { setText(''); setDraft(null); }
+    if (!err) setText('');
   };
   const pinHere = () => {
-    if (mode === '3d') { if (draft) void save({ kind: 'point', ras_mm: scanMmToRas(draft, report) }); return; }
     const idx = crosshair?.();
     if (idx) void save({ kind: 'point', ras_mm: scanMmToRas(indicesToScanMm(idx, report), report) });
     else setError('Click a slice to set the crosshair first.');
@@ -48,26 +85,16 @@ export function NotesPanel({ report, notes, mode, crosshair }: Props) {
     if (stored?.role === 'viewer' && session?.me.following) void setFollowing(false); // the guest chose where to look
   };
 
-  const ready = text.trim().length > 0 && !busy && (mode === 'mri' || !!draft);
+  const ready = text.trim().length > 0 && !busy;
   return (
     <div className={css.notes}>
       <form className={css.compose} onSubmit={(e) => { e.preventDefault(); if (ready) pinHere(); }}>
-        {mode === '3d' && !draft && (
-          <button type="button" className={placing ? `${css.place} ${css.placing}` : css.place} aria-pressed={placing} onClick={() => setPlacing(!placing)}>
-            {placing ? 'Click a spot on the brain…' : 'Place a pin on the brain'}
-          </button>
-        )}
-        {(mode === 'mri' || draft) && (
-          <>
-            <p className={css.hint}>{mode === '3d' ? 'Pin placed. What should the room know?' : 'Pins go at the crosshair. Click a slice to move it.'}</p>
-            <textarea className={css.field} rows={2} maxLength={MAX} placeholder="Add a note" aria-label="Note text" value={text}
-              onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (ready) pinHere(); } }} />
-            <div className={css.row}>
-              {mode === '3d' && <button type="button" className={css.ghost} onClick={() => setDraft(null)}>Cancel</button>}
-              <button type="submit" className={css.primary} disabled={!ready}>{mode === '3d' ? 'Save note' : 'Pin at crosshair'}</button>
-            </div>
-          </>
-        )}
+        <p className={css.hint}>Pins go at the crosshair. Click a slice to move it.</p>
+        <textarea className={css.field} rows={2} maxLength={MAX} placeholder="Add a note" aria-label="Note text" value={text}
+          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (ready) pinHere(); } }} />
+        <div className={css.row}>
+          <button type="submit" className={css.primary} disabled={!ready}>Pin at crosshair</button>
+        </div>
         {error && <p className={css.error} role="alert">{error}</p>}
       </form>
 

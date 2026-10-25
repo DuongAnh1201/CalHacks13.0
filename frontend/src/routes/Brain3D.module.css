@@ -1,5 +1,6 @@
 .stage { position: absolute; inset: 0; }
 .placing canvas { cursor: crosshair; }
+.boardBar { position: absolute; left: 12px; top: 50%; z-index: 6; transform: translateY(-50%); }
 
 /* View panel */
 .controls { display: flex; flex-direction: column; gap: 16px; }

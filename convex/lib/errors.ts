@@ -67,7 +67,9 @@ export type AppErrorCode =
   /** The scan's stored geometry is unusable (bad affine, non-RAS, zero dimension). */
   | "BAD_SCAN_GEOMETRY"
   /** A service this call depends on is missing, unconfigured or answered badly (e.g. the imaging service). */
-  | "UNAVAILABLE";
+  | "UNAVAILABLE"
+  /** The record changed since the caller last saw it. */
+  | "STALE";
 
 export type AppErrorData = { code: AppErrorCode; message: string };
 

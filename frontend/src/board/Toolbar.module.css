@@ -1,0 +1,12 @@
+.bar {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: max-content; padding: 6px;
+  background: #fff; border-radius: 8px; box-shadow: var(--nv-shadow);
+}
+.btn {
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 6px; background: transparent; color: var(--nv-text); cursor: pointer;
+}
+.btn[aria-pressed='true'] { background: var(--nv-primary-soft); color: var(--nv-primary); }
+.btn:hover:not(:disabled):not([aria-pressed='true']) { background: var(--nv-primary-soft); }
+.btn:disabled { opacity: .4; cursor: default; }
+.sep { width: 24px; height: 0; margin: 4px 0; border: 0; border-top: 1px solid var(--nv-border); }

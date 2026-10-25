@@ -128,3 +128,67 @@ describe("clinical report", () => {
     expect(back).toBe(text);
   });
 });
+
+describe("whiteboard report", () => {
+  it("includes replies, resolved flag, stickies, text and a sketch count", async () => {
+    const base = await input();
+    const annotation = { ...base.data.annotations[0], _id: "a1" as any, resolvedAt: 1 };
+    const doc = buildReportDoc({
+      ...base,
+      data: { ...base.data, annotations: [annotation] },
+      replies: [{ annotationId: "a1", author: "human", authorName: "Judge", text: "Agree, diagnosis pending", createdAt: 2 } as any],
+      board: [
+        { authorName: "Judge", item: { kind: "sticky", text: "Check T2", color: "pink", anchor: { kind: "tumor" } }, createdAt: 3 } as any,
+        { authorName: "Host", item: { kind: "text", text: "Rim", anchor: { kind: "tumor" } }, createdAt: 4 } as any,
+        { authorName: "Host", item: { kind: "stroke" }, createdAt: 5 } as any,
+      ],
+    });
+    expect(doc.annotations[0]).toMatchObject({ resolved: true, replies: [{ author: "Human: Judge", text: "Agree, [redacted] pending" }] });
+    expect(doc.board).toEqual([
+      { author: "Judge", kind: "Sticky", color: "pink", text: "Check T2" },
+      { author: "Host", kind: "Text", color: null, text: "Rim" },
+    ]);
+    expect(doc.sketches).toBe(1);
+    const zip = await JSZip.loadAsync(await renderDocx(doc), { base64: true });
+    const xml = await zip.file("word/document.xml")!.async("string");
+    for (const out of [renderMarkdown(doc), renderHtml(doc), xml]) {
+      expect(out).toContain(out === xml || out.startsWith("<!doctype") ? "Sticky notes &amp; text" : "Sticky notes & text");
+      expect(out).toContain("Check T2");
+      expect(out).toContain("1 sketch was drawn on the board.");
+      expect(out).toContain("resolved");
+    }
+  });
+
+});
+
+describe("whiteboard report safety", () => {
+  it("redacts and escapes board and reply text in all formats, with chronological board items", async () => {
+    const base = await input();
+    const doc = buildReportDoc({
+      ...base,
+      data: { ...base.data, annotations: [{ ...base.data.annotations[0], _id: "a1" as any }] },
+      replies: [
+        { annotationId: "other", author: "human", authorName: "Other", text: "Hidden reply", createdAt: 0 } as any,
+        { annotationId: "a1", author: "human", authorName: "diagnosis <script>reply</script>", text: "malignant <script>reply-text</script>", createdAt: 2 } as any,
+      ],
+      board: [
+        { authorName: "prognosis <script>board</script>", item: { kind: "sticky", color: "yellow", text: "Second diagnosis <script>sticky</script>" }, createdAt: 3 } as any,
+        { authorName: "Host", item: { kind: "text", text: "First label" }, createdAt: 1 } as any,
+        { item: { kind: "stroke" } } as any,
+        { item: { kind: "stroke" } } as any,
+      ],
+    });
+    expect(doc.board.map((row) => row.text)).toEqual(["First label", "Second [redacted] <script>sticky</script>"]);
+    expect(doc.annotations[0].replies).toHaveLength(1);
+    expect(JSON.stringify(doc)).not.toMatch(/diagnosis|malignant|prognosis|Hidden reply/);
+    const zip = await JSZip.loadAsync(await renderDocx(doc), { base64: true });
+    const xml = await zip.file("word/document.xml")!.async("string");
+    for (const out of [renderMarkdown(doc), renderHtml(doc), xml]) {
+      expect(out).toContain("2 sketches were drawn on the board.");
+      expect(out).toContain("reply-text");
+      expect(out).toContain("&lt;script&gt;");
+      expect(out).not.toMatch(/diagnosis|malignant|prognosis|<script>|Hidden reply/);
+      expect(out.indexOf("First label")).toBeLessThan(out.indexOf("Second"));
+    }
+  });
+});

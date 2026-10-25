@@ -7,6 +7,8 @@
  *   annotations.create   public mutation  a member pins a note to the scan
  *   annotations.list     public query     the session's notes, reactive
  *   annotations.remove   public mutation  author or host deletes a note
+ *   annotations.reply / removeReply       member replies, author or host removes
+ *   annotations.resolve / unresolve       author or host closes or reopens
  *
  * ANCHORS (#56 contract, not BACKEND_CONTEXT's voxel {i,j,k})
  * ------------------------------------------------------------
@@ -30,7 +32,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireSessionMember } from "./lib/auth";
-import { annotationFor, type ResolvedCaller } from "./lib/author";
+import { annotationFor, authorFor, type ResolvedCaller } from "./lib/author";
 import { appError } from "./lib/errors";
 import { isVoxelInBounds, rasMmToVoxel, type Vec3 } from "./lib/transform";
 import { vAnnotationAnchor } from "./schema";
@@ -49,6 +51,11 @@ export const MAX_STRUCTURE_ID_LENGTH = 64;
  */
 export const MAX_ANNOTATIONS_PER_SESSION = 200;
 
+export const MAX_REPLY_LENGTH = 1000;
+export const MAX_REPLIES_PER_THREAD = 100;
+
+export type PublicReply = { replyId: Id<"annotationReplies">; text: string; author: "human" | "agent"; authorName: string; createdAt: number; canRemove: boolean };
+
 type Anchor = Doc<"annotations">["anchor"];
 
 /** What a client sees for one annotation. */
@@ -64,6 +71,9 @@ export type PublicAnnotation = {
   createdAt: number;
   /** Whether the CALLER may remove it, so the UI can show or hide the button. */
   canRemove: boolean;
+  resolvedAt: number | null;
+  canResolve: boolean;
+  replies: PublicReply[];
 };
 
 /**
@@ -121,6 +131,7 @@ export const remove = mutation({
     sessionId: v.id("sessions"),
     participantToken: v.string(),
     annotationId: v.id("annotations"),
+    ifNoReplies: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ removed: true }> => {
     const { session, participant } = await requireSessionMember(ctx, args);
@@ -133,6 +144,12 @@ export const remove = mutation({
     if (!isAuthor && !isSessionHost(session, participant)) {
       throw appError("NOT_ALLOWED", "Only the author or the host can remove this annotation.");
     }
+
+    if (args.ifNoReplies) {
+      const any = await ctx.db.query("annotationReplies").withIndex("by_annotation", (q) => q.eq("annotationId", annotation._id)).first();
+      if (any) throw appError("STALE", "Others replied; delete it from the thread instead.");
+    }
+    await deleteReplies(ctx, annotation._id);
 
     await ctx.db.delete(annotation._id);
     return { removed: true };
@@ -203,6 +220,16 @@ export async function listLiveAnnotations(
   const rows = await sessionAnnotations(ctx, session._id);
   // A room can move between cases (sessions.setScan): only this case's notes.
   const { jobId } = await loadScan(ctx, session.scanId);
+  const replies = await ctx.db.query("annotationReplies").withIndex("by_session", (q) => q.eq("sessionId", session._id)).collect();
+  const host = isSessionHost(session, participant);
+  const byThread = new Map<string, PublicReply[]>();
+  for (const r of replies.sort((a, b) => a.createdAt - b.createdAt)) {
+    const list = byThread.get(r.annotationId) ?? [];
+    list.push({ replyId: r._id, text: r.text, author: r.author, authorName: r.authorName, createdAt: r.createdAt,
+      canRemove: host || r.authorParticipantId === participant._id });
+    byThread.set(r.annotationId, list);
+  }
+
   const out: PublicAnnotation[] = [];
   for (const a of rows) {
     if (a.status === "dismissed" || a.jobId !== jobId) continue;
@@ -215,6 +242,9 @@ export async function listLiveAnnotations(
       authorName: a.authorName,
       createdAt: a.createdAt,
       canRemove: canRemoveRow(a),
+      resolvedAt: a.resolvedAt ?? null,
+      canResolve: host || a.authorParticipantId === participant._id,
+      replies: byThread.get(a._id) ?? [],
     });
   }
   out.sort((a, b) => a.createdAt - b.createdAt);
@@ -290,6 +320,7 @@ export const agentRemove = internalMutation({
     if (!isOwnAgentNote(annotation, args.agentName)) {
       throw appError("NOT_ALLOWED", "An agent can only remove its own notes.");
     }
+    await deleteReplies(ctx, annotation._id);
     await ctx.db.delete(annotation._id);
     return { removed: true };
   },
@@ -303,7 +334,7 @@ export const agentRemove = internalMutation({
  * Semantic checks the schema validator cannot express. Returns the anchor to
  * store (a point is narrowed to exactly three numbers).
  */
-function validateAnchor(scan: Doc<"scans">, anchor: Anchor): Anchor {
+export function validateAnchor(scan: Doc<"scans">, anchor: Anchor): Anchor {
   switch (anchor.kind) {
     case "point": {
       const p = anchor.ras_mm;
@@ -355,6 +386,63 @@ async function sessionAnnotations(
 }
 
 /** Same double check as `requirePresenter`: role AND the session's host pointer. */
-function isSessionHost(session: Doc<"sessions">, participant: Doc<"sessionParticipants">): boolean {
+export function isSessionHost(session: Doc<"sessions">, participant: Doc<"sessionParticipants">): boolean {
   return participant.role === "host" && session.hostParticipantId === participant._id;
 }
+
+async function deleteReplies(ctx: MutationCtx, annotationId: Id<"annotations">) {
+  const rows = await ctx.db.query("annotationReplies").withIndex("by_annotation", (q) => q.eq("annotationId", annotationId)).collect();
+  for (const r of rows) await ctx.db.delete(r._id);
+  return rows.length;
+}
+
+async function threadIn(ctx: MutationCtx, session: Doc<"sessions">, annotationId: Id<"annotations">) {
+  const a = await ctx.db.get(annotationId);
+  if (a === null || a.sessionId !== session._id) throw appError("NOT_FOUND", "That annotation does not exist in this session.");
+  return a;
+}
+
+export const reply = mutation({
+  args: { sessionId: v.id("sessions"), participantToken: v.string(), annotationId: v.id("annotations"), text: v.string() },
+  handler: async (ctx, args): Promise<{ replyId: Id<"annotationReplies"> }> => {
+    const { session, participant } = await requireSessionMember(ctx, args);
+    const a = await threadIn(ctx, session, args.annotationId);
+    const text = args.text.trim();
+    if (!text) throw appError("INVALID_ARGUMENT", "A reply needs some text.");
+    if (text.length > MAX_REPLY_LENGTH) throw appError("INVALID_ARGUMENT", `A reply can be at most ${MAX_REPLY_LENGTH} characters.`);
+    const count = (await ctx.db.query("annotationReplies").withIndex("by_annotation", (q) => q.eq("annotationId", a._id)).collect()).length;
+    if (count >= MAX_REPLIES_PER_THREAD) throw appError("INVALID_ARGUMENT", `A thread can hold at most ${MAX_REPLIES_PER_THREAD} replies.`);
+    const replyId = await ctx.db.insert("annotationReplies", {
+      ...authorFor({ kind: "human", displayName: participant.displayName, source: "ui" }),
+      sessionId: session._id, annotationId: a._id, authorParticipantId: participant._id, text,
+    });
+    return { replyId };
+  },
+});
+
+export const removeReply = mutation({
+  args: { sessionId: v.id("sessions"), participantToken: v.string(), replyId: v.id("annotationReplies") },
+  handler: async (ctx, args): Promise<{ removed: true }> => {
+    const { session, participant } = await requireSessionMember(ctx, args);
+    const r = await ctx.db.get(args.replyId);
+    if (r === null || r.sessionId !== session._id) throw appError("NOT_FOUND", "That reply does not exist in this session.");
+    if (r.authorParticipantId !== participant._id && !isSessionHost(session, participant)) throw appError("NOT_ALLOWED", "Only the author or the host can remove this reply.");
+    await ctx.db.delete(r._id);
+    return { removed: true };
+  },
+});
+
+function resolver(resolved: boolean) {
+  return mutation({
+    args: { sessionId: v.id("sessions"), participantToken: v.string(), annotationId: v.id("annotations") },
+    handler: async (ctx, args): Promise<null> => {
+      const { session, participant } = await requireSessionMember(ctx, args);
+      const a = await threadIn(ctx, session, args.annotationId);
+      if (a.authorParticipantId !== participant._id && !isSessionHost(session, participant)) throw appError("NOT_ALLOWED", "Only the author or the host can resolve this.");
+      await ctx.db.patch(a._id, resolved ? { resolvedAt: Date.now(), resolvedBy: participant._id } : { resolvedAt: undefined, resolvedBy: undefined });
+      return null;
+    },
+  });
+}
+export const resolve = resolver(true);
+export const unresolve = resolver(false);

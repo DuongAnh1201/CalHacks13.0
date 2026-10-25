@@ -49,4 +49,17 @@ export type NoteAnchor = { kind: 'point'; ras_mm: number[] } | { kind: 'structur
 export interface Note {
   annotationId: string; text: string; anchor: NoteAnchor; status: 'accepted' | 'suggested'; author: 'human' | 'agent';
   authorName: string; createdAt: number; canRemove: boolean;
+  resolvedAt: number | null; canResolve: boolean; replies: Reply[];
 }
+
+export type StickyColor = 'yellow' | 'pink' | 'blue' | 'green';
+export interface CameraPoseDto { position: number[]; target: number[] }
+/** Mirror of convex/schema.ts vBoardItem. Strokes: flat x,y pairs in 0..1 of the stage. */
+export type BoardItem =
+  | { kind: 'sticky'; anchor: NoteAnchor; text: string; color: StickyColor }
+  | { kind: 'text'; anchor: NoteAnchor; text: string }
+  | { kind: 'stroke'; camera: CameraPoseDto; points: number[]; color: string; width: number; mode: 'pen' | 'highlight' };
+/** Mirror of convex/board.ts PublicBoardItem. */
+export interface BoardRow { itemId: string; item: BoardItem; authorName: string; mine: boolean; canRemove: boolean; createdAt: number; updatedAt: number }
+/** Mirror of convex/annotations.ts PublicReply. */
+export interface Reply { replyId: string; text: string; author: 'human' | 'agent'; authorName: string; createdAt: number; canRemove: boolean }

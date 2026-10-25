@@ -2,7 +2,7 @@ import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SESSION_ENDED, SYNC_FAILED } from './copy';
-import { endShare, joinShare, sendCursor, sendView, setFollowing, setReportEmail, startShare, switchShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
+import { endShare, joinShare, sendCursor, sendView, sessionCall, setFollowing, setReportEmail, startShare, switchShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
 import type { SessionState } from './types';
 
 type Ref = Parameters<typeof getFunctionName>[0];
@@ -166,4 +166,14 @@ describe('cursors', () => {
     expect(f.calls).toEqual([['cursors:move', { sessionId: 's1', participantToken: 't', cursor: { node: 'n', localMm: [1, 2, 3] } }]]);
     expect(f.subs.at(-1)).toMatchObject({ name: 'cursors:list', args: { sessionId: 's1', participantToken: 't' } });
   });
+});
+
+it('sessionCall passes auth and rethrows the ConvexError data', async () => {
+  const calls: unknown[] = [];
+  const err = new ConvexError({ code: 'STALE', message: 'Changed' });
+  const f = fakeClient({ 'board:update': (args) => { calls.push(args); throw err; } });
+  useClientForTest(f.client as never);
+  useShare.setState({ stored: { sessionId: 's1', participantToken: 'tok', role: 'host', inviteCode: 'c', jobId: 'sample' } as never });
+  await expect(sessionCall('board.update', { itemId: 'i1' })).rejects.toBe(err);
+  expect(calls).toEqual([{ sessionId: 's1', participantToken: 'tok', itemId: 'i1' }]);
 });
