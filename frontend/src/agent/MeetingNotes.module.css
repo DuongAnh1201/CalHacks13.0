@@ -22,3 +22,18 @@
 .notes img { max-width: 100%; border-radius: 8px; }
 .notes > a { display: inline-block; margin: 8px; }
 @media (max-width: 760px) { .overlay { top: 128px; left: 16px; right: 16px; } .consent { font-size: 11px; } .caption { font-size: 14px; } }
+.live { position: fixed; top: 80px; right: 16px; width: 320px; pointer-events: none; padding: 12px 14px; font-family: var(--nv-font); color: var(--nv-text); background: rgba(255, 255, 255, .55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, .8); border-radius: 14px; box-shadow: 0 6px 24px #0000001a; }
+.liveHead { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid #00000014; font-size: 12px; }
+.liveHead time { font: 10px ui-monospace, monospace; color: var(--nv-text-3); }
+.liveOn, .liveMuted { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.liveOn { color: var(--nv-success-2); }
+.liveMuted { color: var(--nv-text-3); }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.liveOn .pulse { animation: livePulse 1.6s ease-in-out infinite; }
+@keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 #3fa66d55; } 50% { box-shadow: 0 0 0 4px #3fa66d00; } }
+.liveLine p { margin: 0; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.liveWho { margin-top: 8px !important; font: 600 10px ui-monospace, monospace !important; }
+.liveEmpty { margin: 6px 0 0; font-size: 12px; color: var(--nv-text-3); }
+@media (prefers-reduced-motion: reduce) { .liveOn .pulse { animation: none; } }
+/* shortcut: hiding by CSS can drop the speaker label of the 3rd-from-last line on phones; compute lines in JS if that matters. */
+@media (max-width: 760px) { .live { top: 128px; left: 16px; right: 16px; width: auto; } .liveLine:nth-last-child(n+3) { display: none; } }
