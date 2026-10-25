@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { convexTest } from "convex-test";
 import { makeFunctionReference } from "convex/server";
@@ -17,7 +18,7 @@ const args = {
   clientId: "private-client-capability-a",
   text: "zoom in",
   source: "chat" as const,
-  page: "learn" as const,
+  page: "3d" as const,
 };
 const text = (value: string): ClaudeResponse => ({
   content: [{ type: "text", text: value, citations: null }],
@@ -163,7 +164,8 @@ describe("Convex agent lifecycle", () => {
     const runId = await t.mutation(refs.ask, {
       ...args,
       text: "Is it cancer?",
-      availableTools: ["get_tumor_metrics", "zoom_view", "made_up"],
+      page: "mri",
+      availableTools: ["rotate_view", "zoom_view", "made_up"], // rotate_view is 3D-only
     });
     await t.action(refs.run, { runId });
     const row = await t.query(refs.get, { runId, clientId: args.clientId });
@@ -201,7 +203,7 @@ it("enforces the spend cap if a key appears after a no-key request was queued", 
   expect(row.error).toBe("DAILY_LIMIT");
   expect(factory).not.toHaveBeenCalled();
 });
-it.each(["/learn", "/mri", "/3d"] as const)(
+it.each(["/mri", "/3d"] as const)(
   "normalizes %s to its canonical page",
   async (page) => {
     const t = convexTest(schema);
@@ -211,6 +213,29 @@ it.each(["/learn", "/mri", "/3d"] as const)(
     ).toBe(page.slice(1));
   },
 );
+
+it.each(["learn", "/learn"] as const)("rejects the removed %s page with a clear error and stores nothing", async (page) => {
+  const t = convexTest(schema);
+  const err = await t.mutation(refs.ask, { ...args, page }).catch((e) => e);
+  expect(err).toBeInstanceOf(ConvexError);
+  expect((err as ConvexError<{ code: string; message: string }>).data).toMatchObject({ code: "BAD_PAGE", message: expect.stringContaining("/learn") });
+  expect(await t.run((ctx) => ctx.db.query("agentRuns").collect())).toHaveLength(0);
+});
+
+it("finishes a legacy queued learn row without a model call", async () => {
+  vi.stubEnv("ANTHROPIC_API_KEY", "fake-injected-key");
+  const factory = vi.spyOn(anthropic, "createClaudeClient");
+  const t = convexTest(schema);
+  const runId = await t.run((ctx) =>
+    ctx.db.insert("agentRuns", {
+      clientId: args.clientId, text: "zoom in", source: "chat", page: "learn", status: "queued", steps: [],
+      reply: "", agent: "Router", error: null, createdAt: Date.now(), availableTools: [],
+    }),
+  );
+  await t.action(refs.run, { runId });
+  expect(await t.query(refs.get, { runId, clientId: args.clientId })).toMatchObject({ status: "failed", error: "PAGE_REMOVED" });
+  expect(factory).not.toHaveBeenCalled();
+});
 
 it("does not persist late model output after cancellation in flight", async () => {
   vi.stubEnv("ANTHROPIC_API_KEY", "fake-injected-key");

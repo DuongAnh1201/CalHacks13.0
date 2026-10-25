@@ -66,7 +66,6 @@ export function safeReply(reply: string) {
   return checkReply(reply).ok ? reply : MEDICAL_REFUSAL;
 }
 const chips: Record<Page, readonly string[]> = {
-  learn: ["zoom in", "reset view", "explain the hippocampus"],
   mri: ["zoom in", "reset view", "how big is the tumor?"],
   "3d": ["zoom in", "reset view", "show the tumor"],
 };
@@ -382,15 +381,14 @@ export async function runLoop(input: LoopInput, deps: LoopDeps) {
               args = {
                 ...rest,
                 ...(input.jobId ? { job_id: input.jobId } : {}),
-                page: input.page === "learn" ? "learn" : "explore",
+                page: "explore",
               };
             }
             if (call.name === "export_document") {
-              if (input.page !== "learn" && !input.jobId)
-                throw new Error("No report");
+              if (!input.jobId) throw new Error("No report");
               args = {
                 ...args,
-                job_id: input.page === "learn" ? "atlas" : input.jobId!,
+                job_id: input.jobId,
               };
             }
             const value = await mcp.call(call.name, args);
