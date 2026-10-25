@@ -8,6 +8,9 @@
 .ghost { border: 1px solid var(--nv-border); background: #fff; color: var(--nv-text-2); }
 .row { display: flex; justify-content: flex-end; gap: 6px; }
 .hint { font-size: 12px; color: var(--nv-text-3); }
+.hint input { margin-right: 6px; }
+.threadRow { display: block; width: 100%; padding: 9px 10px; border: 1px solid var(--nv-border); border-radius: 10px; background: #fff; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.threadRow:hover { border-color: var(--nv-primary); }
 .field { resize: vertical; padding: 8px 10px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); font: 13px/1.4 var(--nv-font); }
 .error { font-size: 11px; color: var(--nv-accent-warm); }
 .empty { font-size: 12px; color: var(--nv-text-3); }
