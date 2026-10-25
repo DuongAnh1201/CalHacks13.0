@@ -399,6 +399,8 @@ export default defineSchema({
 
   messages: defineTable({
     ...vAuthor.fields,
+    /** Who sent a human line. Absent on agent rows and on lines from before rename. Display only via `mine`. */
+    authorParticipantId: v.optional(v.id("sessionParticipants")),
     jobId: v.string(),
     sessionId: v.optional(v.id("sessions")),
     clientId: v.optional(v.string()),

@@ -7,3 +7,9 @@
 .title { font: 600 18px/26px var(--nv-font); letter-spacing: -.09px; color: var(--nv-primary); }
 .sep { width: 6px; height: 6px; border-radius: var(--nv-radius-pill); background: #c1c7ce; }
 .detail { padding-left: 12px; font: 600 11px/16px var(--nv-font); letter-spacing: .33px; color: var(--nv-success); border-left: 1px solid rgba(193, 199, 206, .4); }
+@media (max-width: 760px) {
+  .pill { max-width: 100%; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  .title { font-size: 15px; line-height: 22px; }
+  .sep { flex: none; }
+  .detail { padding-left: 8px; }
+}

@@ -99,6 +99,10 @@ const MATRIX: Record<string, { hostOnly: boolean; call: (t: T, auth: Auth, ctx: 
     hostOnly: false,
     call: (t, a) => t.mutation(api.sessions.setFollowMode, { ...a, following: false }),
   },
+  "sessions.setDisplayName": {
+    hostOnly: false,
+    call: (t, a) => t.mutation(api.sessions.setDisplayName, { ...a, displayName: "Ada" }),
+  },
   // The room's own case: a no-op, so it also passes in this playground room.
   "sessions.setScan": {
     hostOnly: true,

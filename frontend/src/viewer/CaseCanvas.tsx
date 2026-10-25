@@ -30,6 +30,7 @@ interface Props { jobId: string; report: Report; onLayers: (available: Partial<R
 const MIN_FRAME_RADIUS_MM = 12;
 const NOTE_VIEW_MM = 170; // camera distance when flying to a note
 const CLICK_SLOP_PX = 4; // a pointer that moved further was an orbit, not a click
+const reduced = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 // Front-left three-quarter view; the brain centroid is the scene origin.
 const HOME: [number, number, number, number, number, number] = [-260, 80, -200, 0, 0, 0];
 
@@ -76,7 +77,7 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [], 
     if (!c) return;
     void c.setLookAt(...HOME, false);
     c.saveState();
-    const onReset = () => { void c.reset(true); };
+    const onReset = () => { void c.reset(!reduced()); };
     viewEvents.addEventListener('reset', onReset);
     return () => viewEvents.removeEventListener('reset', onReset);
   }, []);
@@ -94,7 +95,7 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [], 
     // Approach from the tumor's own side (brain centroid is the scene origin): from the home side an opaque hemisphere would hide it.
     const eye = center.length() > 1 ? center.clone().normalize().multiplyScalar(c.getDistanceToFitSphere(radius)).add(center) : null;
     log();
-    void (eye ? c.setLookAt(...eye.toArray(), ...center.toArray(), true) : c.fitToSphere(new THREE.Sphere(center, radius), true)).then(log);
+    void (eye ? c.setLookAt(...eye.toArray(), ...center.toArray(), !reduced()) : c.fitToSphere(new THREE.Sphere(center, radius), !reduced())).then(log);
   }, [cs, report]);
 
   useEffect(() => { if (target === 'tumor') focus(); }, [target, focus]);
@@ -126,7 +127,7 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [], 
     if (samePose(applied.current, remote)) return;
     applied.current = remote;
     const [px, py, pz] = remote.position, [tx, ty, tz] = remote.target;
-    void c.setLookAt(px, py, pz, tx, ty, tz, true);
+    void c.setLookAt(px, py, pz, tx, ty, tz, !reduced());
   }, [remote]);
 
   // A note's "Go to": keep the viewing direction, centre the note. The host's move reaches followers through onMove.
@@ -138,7 +139,7 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [], 
     cs.world.updateMatrixWorld(true);
     const at = worldOf(cs, goTo.mm);
     const eye = c.getPosition(new THREE.Vector3(), true).sub(c.getTarget(new THREE.Vector3(), true)).setLength(NOTE_VIEW_MM).add(at);
-    void c.setLookAt(...eye.toArray(), ...at.toArray(), true);
+    void c.setLookAt(...eye.toArray(), ...at.toArray(), !reduced());
   }, [goTo, cs]);
 
   // Pose for stroke fading, on every tab (the host's onMove above is for guests following).
@@ -158,7 +159,7 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [], 
     if (!c || !goToPose || goToPose.n === seenPose.current) return;
     seenPose.current = goToPose.n;
     const [px, py, pz] = goToPose.pose.position, [tx, ty, tz] = goToPose.pose.target;
-    void c.setLookAt(px, py, pz, tx, ty, tz, true);
+    void c.setLookAt(px, py, pz, tx, ty, tz, !reduced());
   }, [goToPose]);
 
   const onUserControl = camera?.onUserControl;

@@ -34,6 +34,7 @@ export function JoinInvite({ open, onOpenChange }: { open: boolean; onOpenChange
       <button type="button" className={css.trigger} aria-expanded={open} aria-controls="join-invite" onClick={() => onOpenChange(!open)}>Join a session</button>
       {open && (
         <form id="join-invite" className={css.panel} onSubmit={go('session')}>
+          <button type="button" className={css.close} onClick={() => onOpenChange(false)}>Close</button>
           <label className={css.label} htmlFor="join-invite-code">Paste an invite link or code</label>
           <input id="join-invite-code" ref={input} className={css.input} value={text} autoComplete="off" spellCheck={false}
             placeholder="lobe.app/join/… or C7RR-63PY-FT94-D6AK" onChange={(e) => { setText(e.target.value); setError(null); }} />

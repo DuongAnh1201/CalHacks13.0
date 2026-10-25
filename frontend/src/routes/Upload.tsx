@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, createJob } from '../api/client';
 import { INVALID_FORMAT_MESSAGE, SEQUENCE_LABEL, SEQUENCES, guessSequence, isNifti, type Sequence } from '../api/upload';
@@ -31,10 +31,20 @@ export default function Upload() {
   const [slots, setSlots] = useState(empty);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [over, setOver] = useState(false);
+  const [invalidAttempt, setInvalidAttempt] = useState(0);
+  const dragDepth = useRef(0);
 
   function take(list: FileList | File[], only?: Sequence) {
+    if (busy) return;
     const files = [...list];
-    if (files.some((f) => !isNifti(f.name))) { setError(INVALID_FORMAT_MESSAGE); return; }
+    if (!files.length) return;
+    if (files.some((f) => !isNifti(f.name))) {
+      setError(INVALID_FORMAT_MESSAGE);
+      setInvalidAttempt((n) => n + 1);
+      return;
+    }
     setError(null);
     setSlots((prev) => {
       const next = { ...prev };
@@ -52,9 +62,10 @@ export default function Upload() {
   }
 
   async function start() {
-    setBusy(true); setError(null);
+    if (!ready || busy) return;
+    setBusy(true); setError(null); setProgress(null); setOver(false); dragDepth.current = 0;
     try {
-      const jobId = await createJob(slots as Record<Sequence, File>);
+      const jobId = await createJob(slots as Record<Sequence, File>, setProgress);
       saveWorkspace({ id: jobId, kind: 'mri', name: scanName(slots.flair!.name, jobId), openedAt: Date.now() });
       navigate(`/jobs/${jobId}/processing`);
     }
@@ -78,17 +89,21 @@ export default function Upload() {
         </div>
         <div
           className={css.drop}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); take(e.dataTransfer.files); }}
+          data-over={over && !busy}
+          onDragEnter={(e) => { e.preventDefault(); if (!busy) { dragDepth.current++; setOver(true); } }}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = busy ? 'none' : 'copy'; }}
+          onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setOver(false); }}
+          onDrop={(e) => { e.preventDefault(); dragDepth.current = 0; setOver(false); if (!busy) take(e.dataTransfer.files); }}
         >
+          {invalidAttempt > 0 && <span key={invalidAttempt} className={css.invalidFlash} aria-hidden="true" />}
           <div className={css.well}><img src={uploadIcon} alt="" width={32} height={32} /></div>
-          <p className={css.dropTitle}>Drag & drop 4 NIfTI files here</p>
+          <p className={css.dropTitle}><span className={css.desktopTitle}>{over && !busy ? 'Drop to add files' : 'Drag & drop 4 NIfTI files here'}</span><span className={css.touchTitle}>Tap to add 4 NIfTI files</span></p>
           <p className={css.sub}>T1c, T1, T2 and FLAIR · .nii or .nii.gz · BraTS-style preprocessed MRI only</p>
-          <label className={css.primary}>
+          <label className={css.primary} aria-disabled={busy}>
             <img src={browseIcon} alt="" width={18} height={18} />
             Browse files
             {/* macOS matches accept on the last suffix only, so '.nii.gz' never enables .gz files. */}
-            <input className={css.file} type="file" multiple accept=".nii,.gz" onChange={(e) => picked(e)} />
+            <input className={css.file} type="file" multiple accept=".nii,.gz" disabled={busy} onChange={(e) => picked(e)} />
           </label>
           <p className={css.foot}>Max 200 MB per file</p>
         </div>
@@ -99,23 +114,32 @@ export default function Upload() {
         <ul className={css.slots}>
           {SEQUENCES.map((seq) => (
             <li key={seq} className={css.slot}>
+              {slots[seq] && <span key={slots[seq].name} className={css.slotFill} aria-hidden="true" />}
               <span className={css.slotLabel}>{SEQUENCE_LABEL[seq]}</span>
-              {slots[seq] && <img src={checkIcon} alt="" width={12} height={12} />}
+              {slots[seq] && <img key={`check-${slots[seq].name}`} className={css.slotCheck} src={checkIcon} alt="" width={12} height={12} />}
               <span className={slots[seq] ? css.fileName : css.fileEmpty}>{slots[seq]?.name ?? 'No file'}</span>
-              <label className={css.ghost}>
+              <label className={css.ghost} aria-disabled={busy}>
                 Choose
-                <input className={css.file} type="file" accept=".nii,.gz" onChange={(e) => picked(e, seq)} />
+                <input className={css.file} type="file" accept=".nii,.gz" disabled={busy} onChange={(e) => picked(e, seq)} />
               </label>
             </li>
           ))}
         </ul>
         {error && (
-          <div className={css.alert} role="alert">
+          <div key={invalidAttempt} className={css.alert} role="alert">
             <p>{error}</p>
             <Link className={css.ghost} to="/jobs/sample/processing" onClick={() => saveWorkspace({ id: 'sample', kind: 'mri', name: 'Sample case A', openedAt: Date.now() })}>Use sample case</Link>
           </div>
         )}
-        <button className={css.primary} type="button" disabled={!ready || busy} onClick={start}>{busy ? 'Uploading…' : 'Start'}</button>
+        <button className={css.primary} type="button" disabled={!ready || busy} aria-busy={busy} onClick={start}>
+          {busy && <span className={css.spinner} aria-hidden="true" />}
+          {busy ? progress === 1 ? 'Starting job…' : 'Uploading 4 files…' : 'Start'}
+        </button>
+        {busy && progress !== null && (
+          <div className={css.progress} role="progressbar" aria-label="File upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
+            <span className={css.progressFill} style={{ transform: `scaleX(${progress})` }} />
+          </div>
+        )}
         <aside className={css.notice}>
           <p className={css.cardTitle}>Educational visualization</p>
           <p className={css.cardDetail}>Not clinically validated. Not for diagnosis or surgical planning.</p>

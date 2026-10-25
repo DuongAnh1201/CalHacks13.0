@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import brandMark from '../../assets/figma/664bf.svg';
 import { ChatDock } from '../../share/ChatDock';
@@ -23,12 +23,16 @@ interface Props {
   children: ReactNode;
 }
 
+let entered = false; // once per page load; Workspace remounts on 3D <-> Slices
+
 /**
  * Whiteboard-style case page: the viewer fills the window and everything else floats over it.
  * Top left: brand, case and the 3D / Slices switch. Top right: sharing. Left: a tool rail whose
  * tools open one panel at a time. Bottom right: the session chat.
  */
 export function Workspace({ jobId, title, tools, initialTool = null, focusTool = null, onToolClose, dock, children }: Props) {
+  const [enter] = useState(() => !entered);
+  useEffect(() => { entered = true; }, []);
   const [open, setOpenState] = useState<string | null>(initialTool);
   const setOpen = (next: string | null) => {
     if (open && open !== next) onToolClose?.(open);
@@ -41,7 +45,7 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
   }
   const tool = tools.find((t) => t.id === open);
   return (
-    <div className={css.page} data-tool-open={open ? '' : undefined}>
+    <div className={css.page} data-tool-open={open ? '' : undefined} data-dock={dock ? '' : undefined} data-enter={enter ? '' : undefined}>
       <main className={css.stage}>{children}</main>
 
       <header className={css.case}>
@@ -66,7 +70,7 @@ export function Workspace({ jobId, title, tools, initialTool = null, focusTool =
       </nav>
 
       {tool && (
-        <aside className={css.panel} aria-label={tool.label}>
+        <aside key={tool.id} className={css.panel} aria-label={tool.label}>
           <header className={css.panelHead}>
             <h2 className={css.panelTitle}>{tool.label}</h2>
             <button type="button" className={css.iconBtn} aria-label={`Close ${tool.label}`} onClick={() => setOpen(null)}><CloseIcon /></button>

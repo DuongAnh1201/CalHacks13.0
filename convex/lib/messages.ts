@@ -34,10 +34,10 @@ export function publicMessage(row: Doc<"messages">) {
     text: row.text, createdAt: row.createdAt };
 }
 
-/** Same newest-first index and pagination for every reader; auth remains mandatory. */
-export async function listMessagePage(ctx: QueryCtx, sessionId: Id<"sessions">, paginationOpts: PaginationOptions) {
+/** Same newest-first index and pagination for every reader; auth remains mandatory. `me` marks the caller's own lines. */
+export async function listMessagePage(ctx: QueryCtx, sessionId: Id<"sessions">, paginationOpts: PaginationOptions, me?: Id<"sessionParticipants">) {
   const page = await ctx.db.query("messages")
     .withIndex("by_session_time", (q) => q.eq("sessionId", sessionId))
     .order("desc").paginate(paginationOpts);
-  return { ...page, page: page.page.map(publicMessage) };
+  return { ...page, page: page.page.map((row) => ({ ...publicMessage(row), mine: !!me && row.authorParticipantId === me })) };
 }

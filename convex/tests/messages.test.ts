@@ -79,11 +79,12 @@ describe("messages: two participants share one chat", () => {
       paginationOpts: firstPage,
     });
 
-    expect(asViewer.page).toEqual(asHost.page);
-    expect(asHost.page.map((m) => [m.authorName, m.text])).toEqual([
-      ["Judge", "I see it"],
-      ["Presenter", "Look at the left temporal lobe"],
+    expect(asViewer.page.map((m) => [m.authorName, m.text])).toEqual(asHost.page.map((m) => [m.authorName, m.text]));
+    expect(asHost.page.map((m) => [m.authorName, m.text, m.mine])).toEqual([
+      ["Judge", "I see it", false],
+      ["Presenter", "Look at the left temporal lobe", true],
     ]);
+    expect(asViewer.page.map((m) => m.mine)).toEqual([true, false]);
     expect(asHost.isDone).toBe(true);
   });
 
@@ -135,9 +136,9 @@ describe("messages: two participants share one chat", () => {
 
     expect(page).toHaveLength(1);
     expect(Object.keys(page[0]).sort()).toEqual(
-      ["author", "authorName", "createdAt", "messageId", "role", "text"].sort(),
+      ["author", "authorName", "createdAt", "messageId", "mine", "role", "text"].sort(),
     );
-    expect(page[0]).toMatchObject({ role: "assistant", author: "agent", authorName: "Navigator" });
+    expect(page[0]).toMatchObject({ role: "assistant", author: "agent", authorName: "Navigator", mine: false });
   });
 
   it("pages walk back through history without gaps or repeats", async () => {

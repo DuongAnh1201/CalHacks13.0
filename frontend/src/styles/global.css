@@ -7,6 +7,26 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body { font: 500 14px/1.45 var(--nv-font); color: var(--nv-text-2); background: #fbf9f5; }
-button { font: inherit; color: inherit; cursor: pointer; }
+button {
+  font: inherit; color: inherit; cursor: pointer;
+  transition:
+    background-color var(--nv-dur-fast) var(--nv-ease),
+    border-color var(--nv-dur-fast) var(--nv-ease),
+    color var(--nv-dur-fast) var(--nv-ease),
+    box-shadow var(--nv-dur-fast) var(--nv-ease),
+    opacity var(--nv-dur-fast) var(--nv-ease),
+    transform var(--nv-dur-fast) var(--nv-ease);
+}
 button:disabled { cursor: not-allowed; opacity: 0.5; }
+:where(button:not(:disabled)):active { transform: scale(.97); }
 :focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto;
+  }
+}

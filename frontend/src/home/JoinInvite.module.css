@@ -22,6 +22,17 @@
 .primary { border: 0; background: var(--nv-primary); color: #fff; }
 .secondary { border: 1px solid rgba(31, 86, 115, .28); background: #fff; color: var(--nv-primary); }
 .hint { margin: 0; font: 500 12px var(--nv-font); color: var(--nv-text-3); }
+.close { align-self: flex-end; min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid var(--nv-border); border-radius: 10px; background: #fff; color: var(--nv-primary); font: 700 13px var(--nv-font); }
 
-@keyframes pop { from { opacity: 0; transform: translateY(-4px); } }
-@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+@media (max-width: 760px) {
+  .panel { position: fixed; inset: auto 12px max(12px, env(safe-area-inset-bottom)); width: auto; max-height: 70dvh; overflow-y: auto; overscroll-behavior: contain; padding: 16px; }
+  .close { position: sticky; top: 0; z-index: 1; }
+  .input { font-size: 16px; min-width: 0; width: 100%; height: 48px; }
+  .actions { flex-wrap: wrap; }
+  .primary, .secondary { min-height: 44px; height: auto; padding: 10px; }
+}
+@media (max-width: 540px) { .actions { flex-direction: column; } }
+@media (pointer: coarse) { .trigger, .primary, .secondary { min-height: 44px; min-width: 44px; } }
+
+@keyframes pop { from { opacity: 0; transform: translateY(-10px) scale(.96); } }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } .close:active { transform: none; } }

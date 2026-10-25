@@ -1,8 +1,8 @@
 import { getFunctionName } from 'convex/server';
 import { ConvexError } from 'convex/values';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SESSION_ENDED, SYNC_FAILED } from './copy';
-import { endShare, joinShare, sendCursor, sendView, sessionCall, setFollowing, setReportEmail, startShare, switchShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
+import { endShare, joinShare, messagesAfter, sendCursor, sendView, sessionCall, setDisplayName, setFollowing, setReportEmail, startShare, switchShare, useClientForTest, useShare, validEmail, watchCursors } from './store';
 import type { SessionState } from './types';
 
 type Ref = Parameters<typeof getFunctionName>[0];
@@ -34,7 +34,21 @@ function fakeClient(over: Partial<Record<string, (args: unknown) => unknown>> = 
   return { client, calls, subs };
 }
 
-beforeEach(() => useShare.setState({ stored: null, session: null, notice: null, syncNote: null }));
+beforeEach(() => {
+  useShare.setState({ stored: null, session: null, notice: null, syncNote: null });
+  try { globalThis.localStorage?.removeItem('nv.displayName'); } catch { /* node without storage */ }
+});
+
+describe('messagesAfter', () => {
+  const line = (messageId: string, createdAt: number) => ({ messageId, createdAt, role: 'user' as const, author: 'human' as const, authorName: 'A', text: messageId });
+  it('counts rows newer than the seen id even when the page stays 50 long', () => {
+    expect(messagesAfter([line('1', 1), line('2', 2), line('3', 3)], { messageId: '2', createdAt: 2 }).map((m) => m.messageId)).toEqual(['3']);
+    const capped = Array.from({ length: 50 }, (_, i) => line(String(i + 2), i + 2));
+    expect(messagesAfter(capped, { messageId: '1', createdAt: 1 })).toHaveLength(50);
+    expect(messagesAfter(capped, { messageId: '50', createdAt: 50 }).map((m) => m.messageId)).toEqual(['51']);
+    expect(messagesAfter(capped, null)).toEqual([]);
+  });
+});
 
 describe('share store', () => {
   it('startShare registers the job scan, creates a session on it and subscribes', async () => {
@@ -46,6 +60,34 @@ describe('share store', () => {
     expect(useShare.getState().stored).toMatchObject({ role: 'host', inviteCode: 'ABC123', jobId: 'job-7' });
     f.subs[0].onData(SESSION);
     expect(useShare.getState().session).toBe(SESSION);
+  });
+  it('startShare sends a trimmed name, then the saved name, and otherwise Host', async () => {
+    const bag = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => bag.get(k) ?? null, setItem: (k: string, v: string) => { bag.set(k, v); }, removeItem: (k: string) => { bag.delete(k); } });
+    try {
+      const f = fakeClient(); useClientForTest(f.client as never);
+      expect(await startShare('job-7', '  Ada  ')).toBeNull();
+      expect(f.calls[1][1]).toEqual({ scanId: 'scan1', hostDisplayName: 'Ada' });
+      f.calls.length = 0;
+      expect(await startShare('job-7')).toBeNull();
+      expect(f.calls[1][1]).toEqual({ scanId: 'scan1', hostDisplayName: 'Ada' });
+      f.calls.length = 0;
+      bag.delete('nv.displayName');
+      expect(await startShare('job-7', '   ')).toBeNull();
+      expect(f.calls[1][1]).toEqual({ scanId: 'scan1', hostDisplayName: 'Host' });
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('setDisplayName renames this participant and remembers the name', async () => {
+    const bag = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => bag.get(k) ?? null, setItem: (k: string, v: string) => { bag.set(k, v); }, removeItem: (k: string) => { bag.delete(k); } });
+    try {
+      const f = fakeClient(); useClientForTest(f.client as never);
+      await startShare('job-7');
+      expect(await setDisplayName('  Bea  ')).toBeNull();
+      expect(f.calls).toContainEqual(['sessions:setDisplayName', { sessionId: 's1', participantToken: 'host-t', displayName: 'Bea' }]);
+      expect(bag.get('nv.displayName')).toBe('Bea');
+      expect(await setDisplayName('   ')).toBe('Enter a name.');
+    } finally { vi.unstubAllGlobals(); }
   });
   it('startShare on a job that is still processing shows the server message and starts nothing', async () => {
     const f = fakeClient({ 'jobs:registerScan': () => { throw new ConvexError({ code: 'INVALID_ARGUMENT', message: 'This scan is still processing.' }); } });

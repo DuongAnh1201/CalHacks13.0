@@ -43,10 +43,33 @@
 }
 
 .shareWrap { position: relative; display: flex; align-items: center; gap: 8px; }
+.share:hover:not(:disabled) { background: #d5e4f0; border-color: rgba(31, 86, 115, .28); }
 .share:disabled { opacity: 0.55; }
 .notice, .error { margin: 0; font-size: 12px; color: var(--nv-primary); }
 
 .links { display: flex; gap: 4px; margin-right: auto; }
-.link { padding: 6px 12px; border-radius: var(--nv-radius-control); color: var(--nv-text-2); font-weight: 600; font-size: 13px; text-decoration: none; }
-.link:hover { background: var(--nv-primary-soft); }
+.link {
+  padding: 6px 12px; border-radius: var(--nv-radius-control); color: var(--nv-text-2); font-weight: 600; font-size: 13px; text-decoration: none;
+  transition: background-color var(--nv-dur-fast) var(--nv-ease), color var(--nv-dur-fast) var(--nv-ease);
+}
+.link:hover { background: var(--nv-primary-soft); color: var(--nv-primary); }
 .on { color: var(--nv-primary); background: var(--nv-primary-soft); }
+
+@media (max-width: 760px) {
+  .bar {
+    height: auto; min-height: 52px; margin: 8px 8px 0; padding: 4px 8px; gap: 8px; flex-wrap: wrap;
+  }
+  .links {
+    flex: 1; min-width: 0; margin-right: 0; overflow-x: auto; scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+  .links::-webkit-scrollbar { display: none; }
+  .link { display: inline-flex; align-items: center; scroll-snap-align: start; white-space: nowrap; }
+  .notice, .error { flex: 1 1 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (max-width: 540px) { .brand { font-size: 0; gap: 0; } }
+@media (pointer: coarse) {
+  .link, .share { min-height: 44px; display: inline-flex; align-items: center; }
+  /* Hit slop around the 19×20 mark. Negative margin keeps the bar from growing. */
+  .brand { box-sizing: border-box; min-width: 44px; min-height: 44px; justify-content: center; margin: -9px -12px; padding: 9px 12px; }
+}

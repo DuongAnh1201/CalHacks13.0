@@ -67,12 +67,27 @@ export function resume(): void {
 }
 
 // shortcut: a Convex deployment that is down makes these await until it is back, add a timeout if that bites in the demo.
-/** Shares any finished job: Convex fetches its report from the imaging service and registers the scan first. */
-export async function startShare(jobId: string): Promise<string | null> {
+const NAME_KEY = 'nv.displayName';
+
+function savedName(): string | null {
+  try {
+    const n = globalThis.localStorage?.getItem(NAME_KEY)?.trim().slice(0, 64);
+    return n || null;
+  } catch { return null; }
+}
+
+function rememberName(name: string): void {
+  try { globalThis.localStorage?.setItem(NAME_KEY, name); } catch { /* private window: this session only */ }
+}
+
+/** Shares any finished job: Convex fetches its report from the imaging service and registers the scan first. A blank name falls back to the last saved one, then "Host". */
+export async function startShare(jobId: string, name?: string): Promise<string | null> {
   if (!client) return NOT_CONFIGURED;
+  const hostDisplayName = (name?.trim() || savedName() || 'Host').slice(0, 64);
   try {
     const { scanId } = (await client.action(api.jobs.registerScan, { jobId })) as { scanId: string };
-    const r = (await client.mutation(api.sessions.create, { scanId, hostDisplayName: 'Host' })) as { sessionId: string; participantToken: string; inviteCode: string };
+    const r = (await client.mutation(api.sessions.create, { scanId, hostDisplayName })) as { sessionId: string; participantToken: string; inviteCode: string };
+    if (name?.trim()) rememberName(hostDisplayName);
     begin({ sessionId: r.sessionId, participantToken: r.participantToken, role: 'host', inviteCode: r.inviteCode, jobId });
     return null;
   } catch (e) { return messageFor(e); }
@@ -123,6 +138,19 @@ export async function endShare(): Promise<void> {
   try { await client.mutation(api.sessions.end, auth(s)); } catch (e) { console.error('[share]', e); }
 }
 
+/** Renames this tab's participant. The name is a label, never an identity. */
+export async function setDisplayName(name: string): Promise<string | null> {
+  const displayName = name.trim().slice(0, 64);
+  if (!displayName) return 'Enter a name.';
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try {
+    await client.mutation(api.sessions.setDisplayName, { ...auth(s), displayName });
+    rememberName(displayName);
+    return null;
+  } catch (e) { return messageFor(e); }
+}
+
 export async function setFollowing(following: boolean): Promise<void> {
   const s = useShare.getState().stored;
   if (!client || !s) return;
@@ -141,6 +169,14 @@ export async function sendView(cmds: ViewerCommand[]): Promise<void> {
     console.error('[share]', e);
     useShare.setState({ syncNote: SYNC_FAILED });
   }
+}
+
+/** Rows in an oldest-first page that arrived after `seen`. The page is capped, so length cannot be used. */
+export function messagesAfter(ms: ChatMessage[], seen: { messageId: string; createdAt: number } | null): ChatMessage[] {
+  if (!seen) return [];
+  const i = ms.findIndex((m) => m.messageId === seen.messageId);
+  if (i >= 0) return ms.slice(i + 1);
+  return ms.filter((m) => m.createdAt > seen.createdAt);
 }
 
 /** Newest page of session chat, oldest first. Returns an unsubscribe; a no-op outside a session. */

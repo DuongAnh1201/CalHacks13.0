@@ -920,3 +920,35 @@ describe("moving a room to another case (setScan)", () => {
     );
   });
 });
+
+describe("setDisplayName", () => {
+  it("renames only the caller; the other roster row is unchanged", async () => {
+    const { t, host, viewer } = await setUpRoom();
+    const renamed = await t.mutation(api.sessions.setDisplayName, {
+      sessionId: host.sessionId, participantToken: host.participantToken, displayName: "  Dr Ada  ",
+    });
+    expect(renamed.displayName).toBe("Dr Ada");
+    const seen = await t.query(api.sessions.get, { sessionId: viewer.sessionId, participantToken: viewer.participantToken });
+    expect(seen.participants.map((p) => [p.role, p.displayName])).toEqual([["host", "Dr Ada"], ["viewer", "Judge"]]);
+    expect(seen.me.displayName).toBe("Judge");
+  });
+
+  it("lets a guest rename themselves", async () => {
+    const { t, viewer } = await setUpRoom();
+    await t.mutation(api.sessions.setDisplayName, {
+      sessionId: viewer.sessionId, participantToken: viewer.participantToken, displayName: "Sage",
+    });
+    const seen = await t.query(api.sessions.get, { sessionId: viewer.sessionId, participantToken: viewer.participantToken });
+    expect(seen.me.displayName).toBe("Sage");
+  });
+
+  it("rejects a blank name, a name over 64 characters, and an ended room", async () => {
+    const { t, host } = await setUpRoom();
+    const auth = { sessionId: host.sessionId, participantToken: host.participantToken };
+    await expectAppError(t.mutation(api.sessions.setDisplayName, { ...auth, displayName: "   " }), "INVALID_ARGUMENT");
+    await expectAppError(t.mutation(api.sessions.setDisplayName, { ...auth, displayName: "a".repeat(65) }), "INVALID_ARGUMENT");
+    await expectAppError(t.mutation(api.sessions.setDisplayName, { ...auth, participantToken: "nope", displayName: "Later" }), "NOT_AUTHENTICATED");
+    await t.mutation(api.sessions.end, auth);
+    await expectAppError(t.mutation(api.sessions.setDisplayName, { ...auth, displayName: "Later" }), "SESSION_ENDED");
+  });
+});

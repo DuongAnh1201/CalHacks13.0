@@ -10,3 +10,9 @@
   background: rgba(255, 255, 255, .94); color: var(--nv-text); font: 600 12px var(--nv-font);
   box-shadow: var(--nv-shadow); cursor: pointer;
 }
+@media (max-width: 760px) {
+  .chips { flex-wrap: nowrap; justify-content: flex-start; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; scroll-snap-align: start; }
+}
+@media (pointer: coarse) { .chip { min-width: 44px; min-height: 44px; } }

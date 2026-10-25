@@ -40,3 +40,5 @@
 .speaking { outline: 2px solid; outline-offset: 2px; }
 .dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #9aa0a6; }
 .dotOn { background: #2ea043; }
+@media (max-width: 760px) { .pop { width: min(300px, calc(100vw - 16px)); } .link { font-size: 16px; } }
+@media (pointer: coarse) { .btn, .end { min-height: 44px; } }

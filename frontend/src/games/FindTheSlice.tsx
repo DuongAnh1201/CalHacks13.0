@@ -53,7 +53,7 @@ export function FindTheSlice({ prompt, revealed, mine, others, canAnswer, onAnsw
   return (
     <div className={css.game}>
       <h2 className={css.ask}>Find the slice: put the crosshair on the ★</h2>
-      <p className={css.hint}>The orange star marks a spot in the 3D brain. Click the slices on the right until their crosshair sits on that same spot, then lock in. Every millimetre off costs 2 points.</p>
+      <p className={css.hint}>The orange star marks a spot in the 3D brain. Tap or click the slices until their crosshair sits on that same spot, then lock in. Every millimetre off costs 2 points.</p>
       {r
         ? (
           <div className={css.split}>
@@ -63,10 +63,11 @@ export function FindTheSlice({ prompt, revealed, mine, others, canAnswer, onAnsw
               </Suspense>
             </div>
             <div className={css.pane}><MprPanel jobId={prompt.jobId} fill onCrosshair={onCrosshair} /></div>
+            <div className={css.scrollRail} aria-hidden="true">↕ Scroll page</div>
           </div>
         )
         : <p className={css.note}>Loading the case…</p>}
-      {canAnswer && !mine && <button type="button" className={css.primary} disabled={!moved} title={moved ? undefined : 'Click a slice first'} onClick={lockIn}>Lock in my crosshair</button>}
+      {canAnswer && !mine && <button type="button" className={css.primary} disabled={!moved} title={moved ? undefined : 'Select a point on a slice first'} onClick={lockIn}>Lock in my crosshair</button>}
       {mine && !revealed && <p className={css.note}>Locked in. Waiting for the host to reveal.</p>}
       {revealed && (
         <div className={`${css.verdict} ${mine?.result ? (mine.result.points >= 70 ? css.good : css.bad) : ''}`}>

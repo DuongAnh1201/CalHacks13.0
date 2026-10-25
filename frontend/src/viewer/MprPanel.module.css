@@ -5,7 +5,8 @@
 .preset { padding: 5px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--nv-text-2); font: 600 11px var(--nv-font); cursor: pointer; }
 .preset[aria-pressed='true'] { background: white; color: var(--nv-primary); box-shadow: var(--nv-shadow); }
 .views { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(320px, 1.4fr) minmax(220px, 1fr); gap: 12px; }
-.view { position: relative; min-width: 0; margin: 0; overflow: hidden; border: 1px solid var(--nv-border); border-radius: 12px; background: var(--nv-canvas-bg); box-shadow: var(--nv-shadow-card); }
+/* #14212b = NiiVue backColor, so the tile is dark before the canvas paints. */
+.view { position: relative; min-width: 0; margin: 0; overflow: hidden; border: 1px solid var(--nv-border); border-radius: 12px; background: #14212b; box-shadow: var(--nv-shadow-card); }
 .view:first-child { grid-column: 1 / -1; }
 .canvasHost { position: absolute; inset: 0; }
 .canvas { width: 100%; height: 100%; display: block; }
@@ -14,6 +15,8 @@
 .mono { flex-shrink: 0; font: 11px var(--nv-mono); }
 .sliceBar input { min-width: 0; width: 100%; accent-color: var(--nv-primary); }
 .overlay { position: absolute; inset: 48px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 16px; background: var(--nv-surface); border-radius: 8px; text-align: center; font-size: 13px; }
+.loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin: 0; color: rgba(255, 255, 255, .75); font-size: 12px; font-weight: 600; pointer-events: none; animation: delayIn var(--nv-dur) var(--nv-ease) 300ms both; }
+.loading::before { content: ''; width: 24px; height: 24px; border: 2px solid rgba(255, 255, 255, .18); border-top-color: rgba(255, 255, 255, .85); border-radius: 50%; animation: spin .9s linear infinite; }
 .retry { padding: 8px 16px; border: 1px solid var(--nv-border); border-radius: 8px; background: var(--nv-primary); color: white; font: inherit; cursor: pointer; }
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 13px; border: 1px solid var(--nv-border); border-radius: 12px; background: var(--nv-primary-soft); }
 .tool { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--nv-border); border-radius: 8px; background: white; color: var(--nv-text); font: 500 10px var(--nv-font); }
@@ -25,8 +28,36 @@ button.tool { cursor: pointer; }
 .on { color: var(--nv-success); }
 .hint { margin: -8px 0 0; color: var(--nv-text-3); font-size: 12px; }
 .panel button:focus-visible, .panel input:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 3px; }
-@media (max-width: 540px) { .views { grid-template-columns: 1fr; grid-template-rows: 320px 240px 240px; } .view:first-child { grid-column: auto; } .title { font-size: 16px; } }
 .fill { height: 100%; gap: 10px; }
 .fill .views { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr); }
 .fill .tools { order: -1; padding: 6px 8px; background: var(--nv-surface); }
 .fill .presets { padding: 3px; }
+
+@keyframes delayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) {
+  .tools, .fill .tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .tools::-webkit-scrollbar { display: none; }
+  .tool { flex: none; scroll-snap-align: start; }
+  .presets, .fill .presets { max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .presets::-webkit-scrollbar { display: none; }
+  .preset { flex: none; }
+  .fill { height: 100%; min-height: 0; overflow: hidden; }
+  .fill .views { flex: 1 1 auto; min-height: 0; overflow: hidden; grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .fill .view { min-height: 0; }
+  .fill .tools, .fill .hint { flex: none; }
+  .tool input { font-size: 16px; }
+}
+@media (max-width: 540px) {
+  .views { grid-template-columns: 1fr; grid-template-rows: 240px 200px 200px; }
+  .fill .views { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); overflow: auto; }
+  .view:first-child { grid-column: auto; }
+  .title { font-size: 16px; }
+}
+@media (pointer: coarse) {
+  .preset, button.tool, .retry { min-height: 44px; }
+  .sliceBar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
+  .sliceBar input { height: 44px; }
+  .tool input { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .loading::before { animation: none; } .loading { animation: none; } }

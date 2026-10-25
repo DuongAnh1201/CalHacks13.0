@@ -53,3 +53,11 @@
 .text { flex: 1; min-width: 0; padding: 6px 4px; background: transparent; border: 0; outline: none; font: 500 12px var(--nv-font); color: var(--nv-text); }
 .text:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 2px; border-radius: 6px; }
 .mic:focus-visible, .tab:focus-visible, .run:focus-visible, .primary:focus-visible, .ghost:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 2px; }
+.lines:focus-visible { outline: 2px solid var(--nv-primary); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .panel { padding: 12px; }
+  .text, .lines { font-size: 16px; }
+  .sub { white-space: normal; }
+  .user { width: auto; }
+}
+@media (pointer: coarse) { .tab, .primary, .ghost, .run { min-height: 44px; } }

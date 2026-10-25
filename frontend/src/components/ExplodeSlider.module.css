@@ -18,3 +18,9 @@
 .tick { padding: 0; font: 400 10px/22px var(--nv-mono); letter-spacing: 0; color: var(--nv-text-3); background: none; border: 0; cursor: pointer; }
 .on { font-weight: 700; color: var(--nv-primary); }
 .tick:focus-visible { outline: 2px solid var(--nv-primary); }
+@media (pointer: coarse) {
+  .tick { min-width: 44px; min-height: 44px; }
+  .range { height: 28px; }
+  .range::-webkit-slider-thumb { width: 28px; height: 28px; }
+  .range::-moz-range-thumb { width: 28px; height: 28px; }
+}
