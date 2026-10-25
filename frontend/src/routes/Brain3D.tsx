@@ -17,6 +17,7 @@ import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { ExplodeSlider } from '../learn/ExplodeSlider';
 import { SessionChat } from '../share/SessionChat';
+import { useCameraShare } from '../share/cameraSync';
 import { useShareSync } from '../share/useShareSync';
 import { StatusPill } from '../learn/StatusPill';
 import { LAYERS, type Layer } from '../viewer/layers';
@@ -82,6 +83,7 @@ export default function Brain3D() {
 
   const result = res?.key === key ? res.result : null;
   useShareSync(id, '3d', result?.kind === 'ready');
+  const camera = useCameraShare(id);
   if (result?.kind === 'pending') return <Navigate to={`/jobs/${id}/processing`} replace />;
 
   const act = (a: Parameters<typeof dispatch>[0]) => setMessage(dispatch(a, 'pointer'));
@@ -161,7 +163,7 @@ export default function Brain3D() {
             <>
               <LoadBoundary key={id} id={id} onFail={(f) => setFailedId(f ? id : null)}>
                 <Suspense fallback={<p className={css.loading}>Loading 3D brain…</p>}>
-                  <CaseCanvas jobId={id} report={report} onLayers={setAvailable} />
+                  <CaseCanvas jobId={id} report={report} onLayers={setAvailable} camera={camera} />
                 </Suspense>
               </LoadBoundary>
               {!modelFailed && (

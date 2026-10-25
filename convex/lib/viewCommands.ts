@@ -71,7 +71,15 @@ export type Scene = {
   hidden: { left: boolean; right: boolean };
   layers: { edema: boolean; core: boolean; enhancing: boolean };
   cameraTarget: "brain" | "tumor";
+  /**
+   * The presenter's 3D camera, in the /3d scene's world units (mm, brain centroid at the
+   * origin). Absent until the presenter first moves the camera. Sent throttled by the
+   * frontend (a few writes a second while orbiting), never per frame (guardrail 7).
+   */
+  camera?: Camera;
 };
+
+export type Camera = { position: number[]; target: number[] };
 
 export const DEFAULT_SCENE: Scene = {
   page: "mri", mode: "whole", brainOpacity: 0.3, explodeAmount: 0,
@@ -89,6 +97,7 @@ export const vScene = v.object({
   hidden: v.object({ left: v.boolean(), right: v.boolean() }),
   layers: v.object({ edema: v.boolean(), core: v.boolean(), enhancing: v.boolean() }),
   cameraTarget: vTarget,
+  camera: v.optional(v.object({ position: v.array(v.number()), target: v.array(v.number()) })),
 });
 
 /**
@@ -119,6 +128,8 @@ export type ViewerCommand =
   | { type: "setHemisphereVisible"; side: "left" | "right"; visible: boolean }
   | { type: "setLayerVisible"; layer: "edema" | "core" | "enhancing"; visible: boolean }
   | { type: "setCameraTarget"; target: "brain" | "tumor" }
+  /** The presenter's orbit, mirrored by following guests. */
+  | { type: "setCamera"; position: number[]; target: number[] }
   /** Maps to SPEC §7.3 `resetView`. */
   | { type: "resetView" };
 
@@ -150,6 +161,7 @@ export const vViewerCommand = v.union(
   v.object({ type: v.literal("setHemisphereVisible"), side: vSide, visible: v.boolean() }),
   v.object({ type: v.literal("setLayerVisible"), layer: vLayer, visible: v.boolean() }),
   v.object({ type: v.literal("setCameraTarget"), target: vTarget }),
+  v.object({ type: v.literal("setCamera"), position: v.array(v.number()), target: v.array(v.number()) }),
   v.object({ type: v.literal("resetView") }),
 );
 
@@ -234,6 +246,16 @@ function requireTumor(scan: ScanForView): void {
   // Wording fixed by SPEC §7.3 and BACKEND_CONTRACT §5. "No tumor
   // detected", never "healthy" — the UI shows this string verbatim.
   if (!scan.tumor.detected) throw appError("INVALID_ARGUMENT", "No tumor detected in this scan.");
+}
+
+/** Far past CameraControls' maxDistance (900 mm): anything beyond is a bug, not an orbit. */
+const MAX_CAMERA_MM = 5000;
+
+function cameraVec(a: number[], what: string): number[] {
+  if (a.length !== 3 || !a.every((n) => Number.isFinite(n) && Math.abs(n) <= MAX_CAMERA_MM)) {
+    throw appError("INVALID_ARGUMENT", `Camera ${what} must be three finite numbers within ${MAX_CAMERA_MM} mm.`);
+  }
+  return [a[0], a[1], a[2]];
 }
 
 function unit(value: number, what: string): number {
@@ -357,6 +379,8 @@ export function applyCommand(
     case "setCameraTarget":
       if (command.target === "tumor") requireTumor(scan);
       return { ...view, cursorRasMm: cursor, scene: { ...view.scene, cameraTarget: command.target } };
+    case "setCamera":
+      return { ...view, cursorRasMm: cursor, scene: { ...view.scene, camera: { position: cameraVec(command.position, "position"), target: cameraVec(command.target, "target") } } };
 
     case "resetView": {
       return defaultSharedView(scan);
@@ -386,8 +410,14 @@ export function viewsEqual(a: SharedView, b: SharedView): boolean {
   if (sa.page !== sb.page || sa.mode !== sb.mode || sa.brainOpacity !== sb.brainOpacity || sa.explodeAmount !== sb.explodeAmount || sa.cameraTarget !== sb.cameraTarget) return false;
   if (sa.hidden.left !== sb.hidden.left || sa.hidden.right !== sb.hidden.right) return false;
   if (sa.layers.edema !== sb.layers.edema || sa.layers.core !== sb.layers.core || sa.layers.enhancing !== sb.layers.enhancing) return false;
+  if (!sameCamera(sa.camera, sb.camera)) return false;
   for (let i = 0; i < 3; i++) {
     if (Math.abs(a.cursorRasMm[i] - b.cursorRasMm[i]) > 1e-9) return false;
   }
   return true;
+}
+
+function sameCamera(a: Camera | undefined, b: Camera | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.position.every((n, i) => n === b.position[i]) && a.target.every((n, i) => n === b.target[i]);
 }
