@@ -10,6 +10,7 @@ import { useViewer } from '../actions/store';
 import { samePose, type CameraPose } from '../share/cameraSync';
 import { cursorOf } from '../share/cursorSync';
 import { RemoteCursors, useCursorPush } from '../share/RemoteCursors';
+import { useShare } from '../share/store';
 import { applyView } from './applyView';
 import type { Layer } from './layers';
 import { buildCaseScene } from './loadCase';
@@ -51,7 +52,7 @@ function CaseScene({ jobId, report, onLayers, camera }: Props) {
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
   const view = useViewer(useShallow((s) => ({ tumorRevealed: s.tumorRevealed, layers: s.layers, mode: s.mode, brainOpacity: s.brainOpacity, hidden: s.hidden, explodeAmount: s.explodeAmount })));
   const target = useViewer((s) => s.cameraTarget);
-  const live = jobId === 'sample'; // sharing is sample-only (W2)
+  const live = useShare((s) => s.stored?.jobId === jobId); // cursors on the case this session reviews; useCursorPush / RemoteCursors also require an active session
   const push = useCursorPush(live);
 
   useEffect(() => onLayers(Object.fromEntries(Object.keys(cs.tumor).map((k) => [k, true]))), [cs, onLayers]);
