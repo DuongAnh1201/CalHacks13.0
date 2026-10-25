@@ -34,10 +34,24 @@
 }
 
 .current { background: var(--nv-primary-soft-2); color: var(--nv-primary); font-weight: 700; }
-.current .index { background: var(--nv-primary); color: #fff; }
+.current .index { background: var(--nv-primary); color: #fff; animation: indexIn 160ms var(--nv-ease) both; }
+
+@keyframes indexIn { from { transform: scale(0.85); } to { transform: scale(1); } }
 
 .done { background: var(--nv-success-bg); color: var(--nv-success-2); font-weight: 700; }
 .done .index { background: var(--nv-success-2); color: #fff; }
 
 .future { color: var(--nv-text-3); font-weight: 600; }
 .future .index { border: 1px solid #c1c7ce; }
+
+@media (max-width: 760px) {
+  .stepper { gap: 8px; max-width: 100%; }
+  .item { gap: 8px; }
+  .connector { width: 16px; }
+  .pill { position: relative; }
+  .pill:not(.current) .label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .pill:not(.current) { padding-right: 6px; }
+  .current .label { white-space: nowrap; }
+}
+@media (max-width: 540px) { .connector { width: 8px; } .current { font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) { .current .index { animation: none; } }

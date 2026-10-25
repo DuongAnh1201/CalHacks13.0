@@ -597,6 +597,29 @@ export const setFollowMode = mutation({
 });
 
 // ---------------------------------------------------------------------------
+// sessions.setDisplayName
+// ---------------------------------------------------------------------------
+
+/**
+ * Renames the CALLER. There is no participantId argument, so a token can only
+ * change its own roster label. authorName already stored on chat lines stays
+ * as it was when those lines were sent.
+ */
+export const setDisplayName = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    participantToken: v.string(),
+    displayName: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ displayName: string }> => {
+    const { participant } = await requireSessionMember(ctx, args);
+    const displayName = normaliseDisplayName(args.displayName);
+    if (participant.displayName !== displayName) await ctx.db.patch(participant._id, { displayName });
+    return { displayName };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // sessions.end
 // ---------------------------------------------------------------------------
 

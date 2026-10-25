@@ -27,3 +27,12 @@
 .heading { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .heading h1 { margin: 0; color: var(--nv-text); font-size: 36px; font-weight: 700; line-height: normal; }
 .heading p { margin: 0; max-width: 640px; color: var(--nv-text-3); font-size: 15px; font-weight: 500; line-height: normal; }
+
+@media (max-width: 760px) {
+  .page { min-height: 100dvh; }
+  .column { width: min(880px, calc(100% - 24px)); padding: 16px 0 calc(24px + env(safe-area-inset-bottom)); gap: 16px; }
+  .fill { height: auto; min-height: 0; }
+  .heading h1 { font-size: 28px; }
+  .heading p { font-size: 14px; }
+}
+@media (max-width: 540px) { .heading h1 { font-size: 24px; } }

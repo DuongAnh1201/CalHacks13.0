@@ -17,3 +17,7 @@
 .off { color: var(--nv-accent-warm); background: var(--nv-muted-bg); }
 
 .banner code { font-family: var(--nv-mono); font-weight: 400; }
+@media (max-width: 760px) {
+  .banner { max-width: 100%; flex-wrap: wrap; gap: 4px; padding: 8px 12px; font-size: 12px; line-height: 1.4; border-radius: 10px; }
+  .banner code { overflow-wrap: anywhere; }
+}

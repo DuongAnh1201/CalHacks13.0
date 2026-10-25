@@ -10,3 +10,5 @@
   border: 1px solid var(--nv-border); border-radius: 8px; background: #fff; color: var(--nv-text);
   font-size: 12px; line-height: 1.4; box-shadow: 0 6px 16px -4px rgba(0, 0, 0, .2); white-space: pre-wrap;
 }
+@media (pointer: coarse) { .badge { position: relative; } .badge::after { content: ''; position: absolute; inset: -11px; } }
+@media (max-width: 540px) { .card { max-width: min(220px, 58vw); } }

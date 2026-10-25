@@ -16,11 +16,15 @@ export class ApiError extends Error {
   }
 }
 
+export function responseError(status: number, body: unknown): ApiError {
+  const b = body as { code?: string; message?: string; detail?: unknown } | null;
+  const detail = typeof b?.detail === 'string' ? b.detail : undefined;
+  return new ApiError(status, b?.code ?? `HTTP_${status}`, b?.message ?? detail ?? `HTTP ${status}`);
+}
+
 async function json<T>(r: Response): Promise<T> {
   if (r.ok) return r.json() as Promise<T>;
-  const b = (await r.json().catch(() => null)) as { code?: string; message?: string; detail?: unknown } | null;
-  const detail = typeof b?.detail === 'string' ? b.detail : undefined;
-  throw new ApiError(r.status, b?.code ?? `HTTP_${r.status}`, b?.message ?? detail ?? `HTTP ${r.status}`);
+  throw responseError(r.status, await r.json().catch(() => null));
 }
 
 export const getLibrary = (signal?: AbortSignal) => fetch(`${API_URL}/library`, { signal }).then((r) => json<LibraryCase[]>(r));
@@ -32,9 +36,23 @@ export const modelUrl = (id: string) => `${API_URL}/jobs/${encodeURIComponent(id
 export const segUrl = (id: string) => `${API_URL}/jobs/${encodeURIComponent(id)}/seg.nii.gz`;
 export const flairUrl = (id: string) => `${API_URL}/jobs/${encodeURIComponent(id)}/flair.nii.gz`;
 
-export async function createJob(files: Record<Sequence, File>): Promise<string> {
+export async function createJob(files: Record<Sequence, File>, onProgress?: (fraction: number) => void): Promise<string> {
   const body = new FormData();
   for (const [seq, f] of Object.entries(files)) body.append(seq, f, f.name);
-  const r = await fetch(`${API_URL}/jobs`, { method: 'POST', body });
-  return (await json<{ jobId: string }>(r)).jobId;
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) onProgress?.(event.loaded / event.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) reject(responseError(xhr.status, xhr.response));
+      else if (typeof xhr.response?.jobId === 'string') resolve(xhr.response.jobId);
+      else reject(new Error('Invalid job response'));
+    };
+    xhr.onerror = () => reject(new Error('Upload network error'));
+    xhr.onabort = () => reject(new Error('Upload aborted'));
+    xhr.open('POST', `${API_URL}/jobs`);
+    xhr.responseType = 'json';
+    xhr.send(body);
+  });
 }

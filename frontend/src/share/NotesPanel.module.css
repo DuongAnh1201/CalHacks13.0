@@ -26,3 +26,8 @@
 .actions { grid-column: 2; display: flex; gap: 10px; }
 .link { padding: 0; border: 0; background: none; color: var(--nv-primary); font: 700 11px var(--nv-font); }
 .link:hover { text-decoration: underline; }
+@media (max-width: 760px) { .field { font-size: 16px; } }
+@media (pointer: coarse) {
+  .place, .primary, .ghost, .threadRow { min-height: 44px; }
+  .link { min-height: 44px; display: inline-flex; align-items: center; }
+}

@@ -75,7 +75,14 @@ export default function MriWorkspace() {
   return (
     <Workspace jobId={id} title={ready ? caseTitle(ready) : 'Loading case…'} tools={tools}>
       <MeetingOverlay binding={noteTaker} />
-      {phase === 'loading' && <p className={css.status}>Loading results…</p>}
+      {phase === 'loading' && (
+        <div className={`${css.views} ${css.skeleton}`}>
+          <span className={css.skBar} />
+          <span className={css.skTile} role="status">Loading results…</span>
+          <span className={css.skTile} />
+          <span className={css.skTile} />
+        </div>
+      )}
       {phase === 'unknown' && (
         <div className={css.status}>
           <div className={css.alert} role="alert">

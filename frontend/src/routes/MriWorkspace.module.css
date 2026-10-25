@@ -9,9 +9,29 @@
   border: 1px solid var(--nv-accent-warm); border-radius: 12px; background: #fff; color: var(--nv-accent-warm);
 }
 .alert p { margin: 0; }
+.alert { animation: riseIn 180ms var(--nv-ease) both; }
+
+@keyframes delayIn { from { opacity: 0; } to { opacity: 1; } }
+/* Skeleton mirrors MprPanel fill layout (tool bar, 1 wide + 2 slice tiles) so nothing jumps when it mounts. */
+.skeleton { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1.4fr) minmax(0, 1fr); gap: 10px 12px; animation: delayIn var(--nv-dur) var(--nv-ease) 300ms both; }
+.skBar { grid-column: 1 / -1; height: 44px; border: 1px solid var(--nv-border); border-radius: 12px; background: var(--nv-surface); }
+.skTile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--nv-border); border-radius: 12px; background: #14212b; color: rgba(255, 255, 255, .75); font-size: 12px; font-weight: 600; }
+.skTile:nth-child(2) { grid-column: 1 / -1; }
+.skTile:not(:empty)::before { content: ''; width: 24px; height: 24px; border: 2px solid rgba(255, 255, 255, .18); border-top-color: rgba(255, 255, 255, .85); border-radius: 50%; animation: spin .9s linear infinite; }
+@media (max-width: 540px) { .skeleton { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); } .skTile:nth-child(2) { grid-column: auto; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .ghost {
   display: inline-flex; align-items: center; padding: 8px 14px; border: 1px solid #c1c7ce; border-radius: var(--nv-radius-control);
   background: #fff; color: var(--nv-text); font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer;
 }
 
-@media (max-width: 760px) { .views { inset: 128px 16px 72px; overflow: auto; } }
+@media (max-width: 760px) {
+  .views { inset: calc(72px + env(safe-area-inset-top)) 8px calc(76px + env(safe-area-inset-bottom)) 8px; overflow: auto; }
+  .agent { min-height: 0; }
+  .ghost { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skTile:not(:empty)::before { animation: none; }
+  .alert { animation: none; }
+}

@@ -48,6 +48,8 @@ export type PublicMessage = {
   authorName: string;
   text: string;
   createdAt: number;
+  /** True only for the caller who wrote the line. Never derived from authorName. */
+  mine: boolean;
 };
 
 /**
@@ -76,6 +78,7 @@ export const send = mutation({
     const messageId = await insertMessage(ctx, {
       jobId: scan.jobId, sessionId: session._id, role: "user", text,
     }, { kind: "human", displayName: participant.displayName, source: "ui" });
+    await ctx.db.patch(messageId, { authorParticipantId: participant._id });
 
     return { messageId };
   },
@@ -100,8 +103,8 @@ export const list = query({
   },
   handler: async (ctx, args): Promise<PaginationResult<PublicMessage>> => {
     // Chat is room-private, exactly like the roster.
-    await requireSessionMember(ctx, args);
+    const { participant } = await requireSessionMember(ctx, args);
 
-    return listMessagePage(ctx, args.sessionId, args.paginationOpts);
+    return listMessagePage(ctx, args.sessionId, args.paginationOpts, participant._id);
   },
 });

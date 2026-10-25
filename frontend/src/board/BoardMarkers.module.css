@@ -61,3 +61,26 @@
 .x { margin-left: 6px; border: 0; background: none; color: var(--nv-text-3); cursor: pointer; font: 700 14px var(--nv-font); }
 .actions { display: flex; gap: 6px; justify-content: flex-end; }
 .err { margin: 6px 0 0; color: #a33; }
+
+.sheetClose, .draft .sheetClose { display: block; margin: 0 0 12px auto; min-height: 44px; padding: 8px 12px; border: 1px solid var(--nv-border); border-radius: 8px; background: #fff; color: var(--nv-primary); font: 700 13px var(--nv-font); cursor: pointer; }
+.sheetClose:active { transform: none; }
+
+@media (max-width: 760px) {
+  .thread, .draft { position: fixed; inset: auto 12px max(12px, env(safe-area-inset-bottom)); z-index: 100; width: auto; max-height: 70dvh; overflow-y: auto; overscroll-behavior: contain; padding: 16px; border: 1px solid var(--nv-border); border-radius: 18px; }
+  .sheetClose, .draft .sheetClose { position: sticky; top: 0; z-index: 1; }
+  .draft textarea, .replyBox, .edit { font-size: 16px; }
+  .replyBox { border: 1px solid var(--nv-border); border-radius: 8px; padding: 10px; margin-block: 12px; }
+  .body, .who { overflow-wrap: anywhere; }
+  .actions { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (pointer: coarse) {
+  .commentWrap { width: 44px; height: 44px; }
+  .bubble { width: 44px; height: 44px; border: 8px solid transparent; background-clip: padding-box; box-shadow: none; }
+  .draft button, .actions button, .x { min-height: 44px; min-width: 44px; }
+  .x { padding: 12px; margin-left: 8px; }
+  .label { min-height: 44px; min-width: 44px; padding: 10px 8px; }
+  .sticky { height: auto; min-height: 140px; gap: 8px; }
+  .dots { display: grid; grid-template-columns: repeat(2, 44px); gap: 8px; }
+  .dot { width: 44px; height: 44px; padding: 14px; border-color: transparent; background-clip: content-box; }
+}

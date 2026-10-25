@@ -22,7 +22,7 @@
 .sideL { left: 18px; }
 .sideR { right: 18px; }
 
-.readout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; padding: 0 6px; }
+.readout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; padding: 0 6px; animation: fade 560ms var(--nv-ease) 360ms backwards; }
 .region { display: inline-flex; align-items: center; gap: 8px; font: 700 15px var(--nv-font); color: var(--nv-text); }
 .region::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 22%, transparent); }
 .enhancing { --dot: #eb5757; }
@@ -37,5 +37,11 @@
 .planes small { font-weight: 600; font-size: 11px; color: var(--nv-text-3); }
 
 @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.985); } }
-@media (prefers-reduced-motion: reduce) { .table { animation: none; } }
-@media (max-width: 520px) { .planes { gap: 12px; } .table { border-radius: 22px; } }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .table, .readout { animation: none; } }
+@media (max-width: 760px) {
+  .hero { width: 100%; max-width: 440px; justify-self: center; min-width: 0; }
+  .readout { gap: 12px; padding: 0; }
+  .planes { flex-wrap: wrap; gap: 8px 12px; }
+}
+@media (max-width: 540px) { .planes { gap: 8px 12px; } .table { border-radius: 22px; } .planes dd { font-size: 13px; } }

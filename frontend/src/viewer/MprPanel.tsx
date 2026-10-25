@@ -97,7 +97,7 @@ function SliceView({ jobId, view, onNv, onCross }: { jobId: string; view: View; 
           <input type="range" min={1} max={slice.of} value={slice.n} aria-label={`${view.label} slice`} onChange={(e) => go(Number(e.target.value))} />
         </div>
       )}
-      {state === 'loading' && <p className={css.overlay}>Loading {view.label.toLowerCase()} slice…</p>}
+      {state === 'loading' && <p className={css.loading} role="status">Loading {view.label.toLowerCase()} slice…</p>}
       {state === 'error' && (
         <div className={css.overlay} role="alert">
           <p>The {view.label.toLowerCase()} view could not load the scan.</p>

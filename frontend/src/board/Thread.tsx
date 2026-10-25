@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { messageFor } from '../share/copy';
 import { sessionCall } from '../share/store';
 import type { Note } from '../share/types';
@@ -10,6 +11,22 @@ import css from './BoardMarkers.module.css';
 const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 export function Thread({ note }: { note: Note }) {
+  const [mobile, setMobile] = useState(() => globalThis.matchMedia?.('(max-width: 760px)').matches ?? false);
+  const sheet = useRef<HTMLDivElement>(null);
+  const opener = useRef(document.activeElement);
+  useEffect(() => {
+    const query = globalThis.matchMedia?.('(max-width: 760px)');
+    if (!query) return;
+    const update = (e: MediaQueryListEvent) => setMobile(e.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!mobile) return;
+    const previous = opener.current;
+    sheet.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    return () => { if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
+  }, [mobile]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +48,11 @@ export function Thread({ note }: { note: Note }) {
     catch (e) { fail(e); }
   };
 
-  return (
-    <div className={css.thread} role="dialog" aria-label="Comment thread">
+  const content = (
+    <div ref={sheet} className={css.thread} role="dialog" aria-label="Comment thread"
+      onPointerDown={(e) => e.stopPropagation()} onPointerMove={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); selectItem(null); } }}>
+      {mobile && <button type="button" className={css.sheetClose} onClick={() => selectItem(null)}>Close comments</button>}
       <p className={css.who}><strong>{note.authorName}</strong> <time dateTime={new Date(note.createdAt).toISOString()}>{time(note.createdAt)}</time></p>
       <p className={css.body}>{note.text}</p>
       <ul className={css.replies}>
@@ -57,4 +77,5 @@ export function Thread({ note }: { note: Note }) {
       {error && <p className={css.err} role="alert">{error}</p>}
     </div>
   );
+  return mobile ? createPortal(content, document.body) : content;
 }

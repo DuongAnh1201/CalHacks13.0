@@ -11,6 +11,7 @@ import type { GameAnswer, GameKind, GameResult } from '../games/types';
 import type { RoundProps } from '../games/view';
 import { expertUrl, loadVolume } from '../games/volume';
 import { WhichSide } from '../games/WhichSide';
+import { tilt, untilt } from '../home/tilt';
 import { PlaygroundBar } from '../play/PlaygroundBar';
 import { answerRound, leavePlayground, playConfigured, resumePlay, revealRound, startPlayground, startRound, usePlay } from '../play/store';
 import { FALLBACK } from './library';
@@ -159,6 +160,8 @@ export default function Play() {
   const canPick = (!playground || host) && !roundOpen;
   const pickHint = playground && !host ? 'The host picks the game' : roundOpen ? 'Reveal this round first' : undefined;
   const players = game?.leaderboard.length ?? 0;
+  const mineResult = view?.mine?.result;
+  const celebrate = !!mineResult && mineResult.correct !== false && mineResult.points >= 70;
 
   return (
     <div className={css.page}>
@@ -191,8 +194,8 @@ export default function Play() {
           {GAMES.map((g) => (
             <li key={g.kind}>
               <button type="button" className={css.game} aria-pressed={activeKind === g.kind} disabled={!canPick || busy || !library}
-                title={pickHint} onClick={() => void next(g.kind)}>
-                <b>{g.title}</b><span>{g.blurb}</span>
+                title={pickHint} onPointerMove={tilt} onPointerLeave={untilt} onClick={() => void next(g.kind)}>
+                <b className={css.parallax}>{g.title}</b><span className={css.parallax}>{g.blurb}</span>
               </button>
             </li>
           ))}
@@ -201,13 +204,13 @@ export default function Play() {
         <div className={css.body}>
           <section className={css.round} aria-label="Round">
             {busy && <p className={css.note}>Setting up…</p>}
-            {view ? <RoundView {...view} /> : !busy && (
+            {view ? <div key={view.key} className={css.roundIn}><RoundView {...view} /></div> : !busy && (
               <p className={css.empty}>{!playground || host ? 'Pick a game above to start a round.' : 'Waiting for the host to start a round…'}</p>
             )}
           </section>
 
           <aside className={css.side}>
-            <section className={css.card}>
+            <section className={celebrate ? `${css.card} ${css.celebrate}` : css.card}>
               <h2 className={css.cardTitle}>{playground ? 'Leaderboard' : 'Your score'}</h2>
               {playground
                 ? (
@@ -215,11 +218,11 @@ export default function Play() {
                     <li key={r.participantId} className={r.participantId === me ? css.meRow : undefined}>
                       <span className={css.rank}>{i + 1}</span>
                       <span className={css.name}>{r.displayName}{r.participantId === me ? ' (you)' : ''}</span>
-                      <b>{r.points}</b>
+                      <b key={r.points} className={css.points}>{r.points}</b>
                     </li>
                   ))}</ol>
                 )
-                : <p className={css.big}>{total.points}<small> pts · {total.rounds} round{total.rounds === 1 ? '' : 's'}</small></p>}
+                : <p className={css.big} aria-live="polite"><span key={total.rounds} className={total.rounds ? css.scorePop : undefined}>{total.points}</span><small> pts · {total.rounds} round{total.rounds === 1 ? '' : 's'}</small></p>}
             </section>
             {playground && round && (
               <section className={css.card}>

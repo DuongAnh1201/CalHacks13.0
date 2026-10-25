@@ -16,7 +16,7 @@ export function FlowStepper({ step }: { step: 1 | 2 | 3 }) {
             {i > 0 && <span className={css.connector} aria-hidden="true" />}
             <span className={`${css.pill} ${css[state]}`}>
               <span className={css.index}>{state === 'done' ? '✓' : s.n}</span>
-              {s.label}
+              <span className={css.label}>{s.label}</span>
             </span>
           </li>
         );

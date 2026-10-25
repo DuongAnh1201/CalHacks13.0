@@ -14,3 +14,8 @@
 .rows dd { margin: 0; color: var(--nv-text); text-align: right; overflow-wrap: anywhere; }
 .mono { font-family: var(--nv-mono); }
 .export { align-self: flex-start; padding: 7px 12px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; color: var(--nv-primary); font: 700 12px var(--nv-font); text-decoration: none; }
+@media (max-width: 540px) {
+  .tiles { grid-template-columns: 1fr; }
+  .headline { font-size: 18px; line-height: 24px; }
+}
+@media (pointer: coarse) { .export { min-height: 44px; display: inline-flex; align-items: center; } }

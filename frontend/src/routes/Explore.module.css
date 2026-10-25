@@ -13,8 +13,14 @@
 .group button[aria-pressed='true'] { background: var(--nv-primary); color: #fff; }
 
 .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
-.card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); background: #fff; box-shadow: var(--nv-shadow-card); transition: transform .15s, box-shadow .15s; }
+.card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-card); background: #fff; box-shadow: var(--nv-shadow-card); transition: transform var(--nv-dur-fast) var(--nv-ease), box-shadow var(--nv-dur-fast) var(--nv-ease); }
 .card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -8px rgba(30, 37, 43, .16); }
+.card:nth-child(-n+6) { animation: cardIn 220ms var(--nv-ease) backwards; }
+.card:nth-child(2) { animation-delay: 30ms; }
+.card:nth-child(3) { animation-delay: 60ms; }
+.card:nth-child(4) { animation-delay: 90ms; }
+.card:nth-child(5) { animation-delay: 120ms; }
+.card:nth-child(6) { animation-delay: 150ms; }
 
 /* A tiny top-down brain: two hemispheres, tumor spot on the case's side, sized by volume. */
 .thumb { position: relative; display: flex; justify-content: center; gap: 3px; height: 112px; padding: 18px 0; background: radial-gradient(ellipse at center, #22343f 0%, #14222c 80%); }
@@ -41,3 +47,20 @@
 .alert p { margin: 0; }
 .retry { padding: 6px 14px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; font: 700 12px var(--nv-font); }
 .credit { margin: 8px 0 0; font-size: 11px; color: var(--nv-text-3); }
+
+@keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 760px) {
+  .page { min-height: 100dvh; }
+  .main { padding: 16px 12px calc(24px + env(safe-area-inset-bottom)); }
+  .title { font-size: 24px; line-height: 30px; }
+  .search { font-size: 16px; }
+  .group { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .group::-webkit-scrollbar { display: none; }
+  .credit { overflow-wrap: anywhere; }
+}
+@media (max-width: 540px) { .filters { align-items: stretch; } .group { flex: 1 1 100%; } }
+@media (pointer: coarse) {
+  .upload, .group button, .primary, .secondary, .retry { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .card:nth-child(-n+6) { animation: none; } }

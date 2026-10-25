@@ -1,5 +1,5 @@
 .stack { width: 100%; display: flex; flex-direction: column; gap: 16px; }
-.wait { margin: 0; color: var(--nv-text-3); text-align: center; }
+.wait { margin: 0; color: var(--nv-text-3); text-align: center; animation: fadeIn 180ms var(--nv-ease, cubic-bezier(.2,.7,.2,1)) 300ms both; }
 
 .card {
   display: flex;
@@ -59,9 +59,10 @@
   box-sizing: border-box;
 }
 
-.doneMark { background: var(--nv-success-2); display: grid; place-items: center; }
+.doneMark { background: var(--nv-success-2); display: grid; place-items: center; animation: checkIn 160ms var(--nv-ease, cubic-bezier(.2,.7,.2,1)) both; }
+.ring { animation: breathe 1.4s ease-in-out infinite; }
 .pendingMark { border: 1.5px solid #c1c7ce; }
-.failedMark { border: 1.5px solid var(--nv-accent-warm); }
+.failedMark { border: 1.5px solid var(--nv-accent-warm); animation: fadeIn 180ms var(--nv-ease, cubic-bezier(.2,.7,.2,1)) both; }
 
 .label_done { flex: 1; color: var(--nv-text); font-size: 14px; font-weight: 600; }
 .label_active { flex: 1; color: var(--nv-primary); font-size: 14px; font-weight: 700; }
@@ -71,6 +72,7 @@
 .actions { border-top: 1px solid #c1c7ce; padding-top: 16px; display: flex; justify-content: flex-end; }
 
 .alert {
+  animation: alertIn 180ms var(--nv-ease, cubic-bezier(.2,.7,.2,1)) both;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -96,4 +98,32 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+  transition: transform var(--nv-dur-fast, 150ms) var(--nv-ease, cubic-bezier(.2,.7,.2,1));
 }
+
+@media (hover: hover) { .ghost:hover { transform: translateY(-1px); } }
+.ghost:active { transform: scale(.98); }
+
+@keyframes breathe { 0%, 100% { transform: scale(.88); opacity: .7; } 50% { transform: scale(1); opacity: 1; } }
+@keyframes checkIn { from { transform: scale(.6); } to { transform: scale(1); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes alertIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wait, .ring, .doneMark, .failedMark, .alert { animation: none; }
+  .ghost { transition: none; }
+  .ghost:hover, .ghost:active { transform: none; }
+}
+
+@media (max-width: 760px) {
+  .card { padding: 20px 16px; gap: 18px; }
+  .file { flex-wrap: wrap; padding: 12px; gap: 10px; }
+  .job { overflow-wrap: anywhere; flex-basis: calc(100% - 50px); font-size: 12px; }
+  .pill { margin-left: 50px; }
+  .stage { align-items: flex-start; }
+  .ring { flex: none; }
+  .alert p { min-width: 0; flex-basis: 100%; overflow-wrap: anywhere; }
+  .alert { padding: 14px; }
+  .actions { padding-bottom: env(safe-area-inset-bottom); }
+}
+@media (pointer: coarse) { .ghost { min-height: 44px; min-width: 44px; justify-content: center; } }

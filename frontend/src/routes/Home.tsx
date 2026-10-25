@@ -9,6 +9,7 @@ import { BrainFact } from '../home/BrainFact';
 import { JoinInvite } from '../home/JoinInvite';
 import { OUTLINES } from '../home/scanArt';
 import { ScanHero } from '../home/ScanHero';
+import { tilt, untilt } from '../home/tilt';
 import { ago, hrefOf, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from '../home/workspaces';
 import { resumePlay, usePlay } from '../play/store';
 import { resume as resumeShare, useShare } from '../share/store';
@@ -102,18 +103,18 @@ export default function Home() {
             <p className={css.lede}>
               Lobe turns real brain MRIs into 3D models you can turn, slice and study together, then lets you practice on the same scans with quick games.
             </p>
-            <p className={css.try}>The scan here is a real one. Move across it to see what you are pointing at.</p>
+            <p className={css.try}>The scan here is a real one. Tap or move across it to see what you are pointing at.</p>
           </div>
           <ScanHero />
         </section>
 
         <section className={css.destinations} aria-label="Start here">
-          <article className={css.workspace}>
+          <article className={`${css.workspace} ${css.tilt}`} onPointerMove={tilt} onPointerLeave={untilt}>
             <div className={css.planes}>
               <Plane src={sagittalUrl} plane="sagittal" label="Sagittal" />
               <Plane src={coronalUrl} plane="coronal" label="Coronal" />
             </div>
-            <div className={css.destBody}>
+            <div className={`${css.destBody} ${css.parallax}`}>
               <h2 className={css.destTitle}>Workspace</h2>
               <p className={css.destText}>Rotate the brain in 3D, step through all three slice planes, pin notes, and share one live view with your study group.</p>
               <div className={css.destActions}>
@@ -124,12 +125,12 @@ export default function Home() {
             </div>
           </article>
 
-          <article className={css.games}>
+          <article className={`${css.games} ${css.tilt}`} onPointerMove={tilt} onPointerLeave={untilt}>
             <div className={css.gamesHead}>
               <h2 className={css.destTitle}>Games</h2>
               <p className={css.destText}>Short rounds on real scans. Play alone, or start a playground and race your group.</p>
             </div>
-            <ul className={css.gameList}>
+            <ul className={`${css.gameList} ${css.parallax}`}>
               {GAMES.map((g) => (
                 <li key={g.kind}>
                   <Link className={css.game} to={`/play?game=${g.kind}`}>

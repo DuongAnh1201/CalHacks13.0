@@ -90,8 +90,8 @@ export function ScanHero() {
   return (
     <figure className={css.hero}>
       <div className={css.table} tabIndex={0} role="img"
-        aria-label="A real axial FLAIR slice from the sample case with a tumor in the right hemisphere. Move the pointer or use the arrow keys to move the crosshair."
-        onPointerMove={onMove} onPointerLeave={() => aim(HOME.x, HOME.y)} onKeyDown={onKey}>
+        aria-label="A real axial FLAIR slice from the sample case with a tumor in the right hemisphere. Tap, move the pointer or use the arrow keys to move the crosshair."
+        onPointerDown={onMove} onPointerMove={onMove} onPointerLeave={(e) => { if (e.pointerType === 'mouse') aim(HOME.x, HOME.y); }} onKeyDown={onKey}>
         <img className={css.scan} src={axialUrl} alt="" width={480} height={480} draggable={false} />
         <svg ref={svg} className={css.overlay} viewBox={`0 0 ${A.w} ${A.h}`} aria-hidden="true">
           <path ref={(el) => { paths.current.edema = el; }} d={A.edema} className={css.pEdema} />
