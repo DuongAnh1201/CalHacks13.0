@@ -375,6 +375,9 @@ export default defineSchema({
     sessionId: v.optional(v.id("sessions")),
     text: v.string(), // Shared mutation enforces <= 280 characters.
     anchor: vAnnotationAnchor,
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.id("sessionParticipants")),
+
     // Server-resolved writer for human rows, so "only the author or host may
     // remove" can be enforced; authorName is a label, not identity. Absent on
     // agent rows and on rows with no session.
@@ -382,6 +385,16 @@ export default defineSchema({
     status: v.union(v.literal("accepted"), v.literal("suggested"), v.literal("dismissed")),
   })
     .index("by_job", ["jobId"])
+    .index("by_session", ["sessionId"]),
+
+  annotationReplies: defineTable({
+    ...vAuthor.fields,
+    sessionId: v.id("sessions"),
+    annotationId: v.id("annotations"),
+    authorParticipantId: v.optional(v.id("sessionParticipants")),
+    text: v.string(), // <= MAX_REPLY_LENGTH, enforced in annotations.reply
+  })
+    .index("by_annotation", ["annotationId"])
     .index("by_session", ["sessionId"]),
 
   messages: defineTable({

@@ -314,3 +314,85 @@ describe("annotations: removal and authorization", () => {
     );
   });
 });
+
+describe("annotations: threads", () => {
+  it("members reply; replies come back with the thread, oldest first", async () => {
+    const { t, asHost, asViewer } = await setUpRoom();
+    const { annotationId } = await t.mutation(api.annotations.create, { ...asHost, text: "Lesion", anchor: point(1, 2, 3) });
+    await t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: "Agree" });
+    await t.mutation(api.annotations.reply, { ...asHost, annotationId, text: "Check T2" });
+    const [note] = await t.query(api.annotations.list, asViewer);
+    expect(note.replies.map((r) => [r.authorName, r.text])).toEqual([["Judge", "Agree"], ["Presenter", "Check T2"]]);
+    expect(note.replies.map((r) => r.canRemove)).toEqual([true, false]);
+    expect(note.resolvedAt).toBeNull();
+  });
+
+  it("author or host resolves and reopens; others may not", async () => {
+    const { t, asHost, asViewer } = await setUpRoom();
+    const { annotationId } = await t.mutation(api.annotations.create, { ...asHost, text: "Lesion", anchor: point(1, 2, 3) });
+    await expectAppError(t.mutation(api.annotations.resolve, { ...asViewer, annotationId }), "NOT_ALLOWED");
+    await t.mutation(api.annotations.resolve, { ...asHost, annotationId });
+    expect((await t.query(api.annotations.list, asViewer))[0].resolvedAt).toEqual(expect.any(Number));
+    await t.mutation(api.annotations.unresolve, { ...asHost, annotationId });
+    expect((await t.query(api.annotations.list, asViewer))[0].resolvedAt).toBeNull();
+  });
+
+  it("removing a thread removes its replies; ifNoReplies refuses when there are some", async () => {
+    const { t, asHost, asViewer } = await setUpRoom();
+    const { annotationId } = await t.mutation(api.annotations.create, { ...asHost, text: "Lesion", anchor: point(1, 2, 3) });
+    await t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: "Agree" });
+    await expectAppError(t.mutation(api.annotations.remove, { ...asHost, annotationId, ifNoReplies: true }), "STALE");
+    await t.mutation(api.annotations.remove, { ...asHost, annotationId });
+    const left = await t.run((ctx) => ctx.db.query("annotationReplies").collect());
+    expect(left).toHaveLength(0);
+  });
+
+  it("reply author or host removes a reply; text is validated", async () => {
+    const { t, asHost, asViewer } = await setUpRoom();
+    const { annotationId } = await t.mutation(api.annotations.create, { ...asHost, text: "Lesion", anchor: point(1, 2, 3) });
+    await expectAppError(t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: " " }), "INVALID_ARGUMENT");
+    await expectAppError(t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: "x".repeat(1001) }), "INVALID_ARGUMENT");
+    const { replyId } = await t.mutation(api.annotations.reply, { ...asHost, annotationId, text: "Mine" });
+    await expectAppError(t.mutation(api.annotations.removeReply, { ...asViewer, replyId }), "NOT_ALLOWED");
+    await t.mutation(api.annotations.removeReply, { ...asHost, replyId });
+    expect((await t.query(api.annotations.list, asHost))[0].replies).toHaveLength(0);
+  });
+});
+
+describe("annotations: thread boundaries", () => {
+  it("caps replies at 100 and cascades agent removal", async () => {
+    const { t, asHost, asViewer } = await setUpRoom();
+    const { annotationId } = await t.mutation(internal.annotations.agentAdd, { ...asHost, agentName: "Claude Desktop", text: "Review", anchor: point(1, 2, 3) });
+    for (let i = 0; i < 100; i++) await t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: `Reply ${i}` });
+    await expectAppError(t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: "Overflow" }), "INVALID_ARGUMENT");
+    await t.mutation(internal.annotations.agentRemove, { ...asHost, agentName: "Claude Desktop", annotationId });
+    expect(await t.run((ctx) => ctx.db.query("annotationReplies").collect())).toHaveLength(0);
+  });
+
+  it("hides cross-session threads and replies", async () => {
+    const { t, scanId, asHost } = await setUpRoom();
+    const other = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Other room" });
+    const auth = { sessionId: other.sessionId, participantToken: other.participantToken };
+    const { annotationId } = await t.mutation(api.annotations.create, { ...asHost, text: "Private", anchor: point(1, 2, 3) });
+    const { replyId } = await t.mutation(api.annotations.reply, { ...asHost, annotationId, text: "Private reply" });
+    await expectAppError(t.mutation(api.annotations.reply, { ...auth, annotationId, text: "Intrusion" }), "NOT_FOUND");
+    await expectAppError(t.mutation(api.annotations.resolve, { ...auth, annotationId }), "NOT_FOUND");
+    await expectAppError(t.mutation(api.annotations.unresolve, { ...auth, annotationId }), "NOT_FOUND");
+    await expectAppError(t.mutation(api.annotations.removeReply, { ...auth, replyId }), "NOT_FOUND");
+    expect(await t.query(api.annotations.list, auth)).toEqual([]);
+  });
+
+  it("lets the viewer author resolve and the host remove a viewer reply", async () => {
+    const { t, asHost, asViewer } = await setUpRoom();
+    const { annotationId } = await t.mutation(api.annotations.create, { ...asViewer, text: "Review", anchor: point(1, 2, 3) });
+    const { replyId } = await t.mutation(api.annotations.reply, { ...asViewer, annotationId, text: "  Agree  " });
+    await t.mutation(api.annotations.resolve, { ...asViewer, annotationId });
+    const [note] = await t.query(api.annotations.list, asViewer);
+    expect(note.canResolve).toBe(true);
+    expect(note.replies[0].text).toBe("Agree");
+    await t.mutation(api.annotations.unresolve, { ...asHost, annotationId });
+    await t.mutation(api.annotations.removeReply, { ...asHost, replyId });
+    await t.mutation(api.annotations.remove, { ...asViewer, annotationId, ifNoReplies: true });
+    expect(await t.query(api.annotations.list, asHost)).toEqual([]);
+  });
+});
