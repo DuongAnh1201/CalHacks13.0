@@ -17,5 +17,7 @@ export interface McpDependencies {
   };
   /** Actual HTTP action context; omitted only for isolated knowledge-tool tests. */
   ctx?: ActionCtx;
+  /** Untrusted request capabilities: shared message helpers validate membership/job. */
+  sessionCapability?: { sessionId?: string; participantToken?: string };
 }
 export type ToolModule = (server: McpServer, deps: McpDependencies) => void;

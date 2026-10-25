@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as agent_eval_cases from "../agent/eval/cases.js";
+import type * as agent_eval_score from "../agent/eval/score.js";
+import type * as agent_guard from "../agent/guard.js";
 import type * as annotations from "../annotations.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
@@ -17,6 +20,7 @@ import type * as lib_author from "../lib/author.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_exportMarkdown from "../lib/exportMarkdown.js";
 import type * as lib_exportReport from "../lib/exportReport.js";
+import type * as lib_messages from "../lib/messages.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_transform from "../lib/transform.js";
 import type * as lib_viewCommands from "../lib/viewCommands.js";
@@ -26,10 +30,12 @@ import type * as mcp_definitions from "../mcp/definitions.js";
 import type * as mcp_exportTools from "../mcp/exportTools.js";
 import type * as mcp_handler from "../mcp/handler.js";
 import type * as mcp_knowledge from "../mcp/knowledge.js";
+import type * as mcp_messageTools from "../mcp/messageTools.js";
 import type * as mcp_rateLimit from "../mcp/rateLimit.js";
 import type * as mcp_server from "../mcp/server.js";
 import type * as mcp_types from "../mcp/types.js";
 import type * as mcpTokens from "../mcpTokens.js";
+import type * as messageMcp from "../messageMcp.js";
 import type * as messages from "../messages.js";
 import type * as presence from "../presence.js";
 import type * as scans from "../scans.js";
@@ -44,6 +50,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agent/eval/cases": typeof agent_eval_cases;
+  "agent/eval/score": typeof agent_eval_score;
+  "agent/guard": typeof agent_guard;
   annotations: typeof annotations;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
@@ -53,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "lib/errors": typeof lib_errors;
   "lib/exportMarkdown": typeof lib_exportMarkdown;
   "lib/exportReport": typeof lib_exportReport;
+  "lib/messages": typeof lib_messages;
   "lib/tokens": typeof lib_tokens;
   "lib/transform": typeof lib_transform;
   "lib/viewCommands": typeof lib_viewCommands;
@@ -62,10 +72,12 @@ declare const fullApi: ApiFromModules<{
   "mcp/exportTools": typeof mcp_exportTools;
   "mcp/handler": typeof mcp_handler;
   "mcp/knowledge": typeof mcp_knowledge;
+  "mcp/messageTools": typeof mcp_messageTools;
   "mcp/rateLimit": typeof mcp_rateLimit;
   "mcp/server": typeof mcp_server;
   "mcp/types": typeof mcp_types;
   mcpTokens: typeof mcpTokens;
+  messageMcp: typeof messageMcp;
   messages: typeof messages;
   presence: typeof presence;
   scans: typeof scans;
