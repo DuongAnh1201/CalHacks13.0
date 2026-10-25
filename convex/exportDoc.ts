@@ -46,7 +46,7 @@ async function snapshot(ctx: QueryCtx, jobId: string, sections: string[], sessio
   if (wantsShots) data.screenshots = await loadExportScreenshots(ctx, sessionId, jobId);
   if (wantsTranscript) {
     data.transcript = await ctx.db.query("transcriptSegments").withIndex("by_session_time", (q) => q.eq("sessionId", sessionId))
-      .filter((q) => q.eq(q.field("jobId"), jobId)).take(5000);
+      .filter((q) => q.and(q.eq(q.field("jobId"), jobId), q.neq(q.field("final"), false))).take(5000);
   }
   if (sections.includes("conversation") || sections.includes("tool_steps")) {
     data.messages = await ctx.db.query("messages").withIndex("by_job_time", (q) => q.eq("jobId", jobId))

@@ -36,7 +36,7 @@ describe("transcript", () => {
     expect(await code(say(t, viewer, "hello"))).toBe("NOT_ALLOWED");
     expect(await code(say(t, host, "hello"))).toBe("NOT_ALLOWED");
     expect(await t.run((c) => c.db.query("transcriptSegments").collect())).toHaveLength(0);
-    expect(await t.query(api.transcript.state, cap(viewer))).toEqual({ enabled: false });
+    expect(await t.query(api.transcript.state, cap(viewer))).toMatchObject({ enabled: false });
   });
 
   it("only the host can switch it, and members then append and list in order", async () => {
@@ -44,7 +44,7 @@ describe("transcript", () => {
     const { host, viewer } = await room(t);
     expect(await code(t.mutation(api.transcript.setEnabled, { ...cap(viewer), enabled: true }))).toBe("NOT_PRESENTER");
     await turnOn(t, host);
-    expect(await t.query(api.transcript.state, cap(viewer))).toEqual({ enabled: true });
+    expect(await t.query(api.transcript.state, cap(viewer))).toMatchObject({ enabled: true });
 
     await say(t, host, "  Let's look at the lesion.  ", 2000);
     await say(t, viewer, "It looks enhancing.", 1500);

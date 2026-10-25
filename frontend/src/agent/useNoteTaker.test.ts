@@ -24,7 +24,7 @@ function fakeClient(over: { mutation?: (name: string, args: unknown) => unknown 
   return { client, subs, calls, live, mutations: (name: string) => calls.filter(([k, n]) => k === 'mutation' && n === name) };
 }
 function fakeTranscriber(supported = true) {
-  const t = { handlers: null as null | { onSegment(s: TranscriptSegment): void; onError(c: string): void }, running: false, starts: 0, stops: 0 };
+  const t = { handlers: null as null | { onSegment(s: TranscriptSegment): void; onInterim(s: TranscriptSegment): void; onError(c: string): void }, running: false, starts: 0, stops: 0 };
   const make = (h: NonNullable<typeof t.handlers>): Transcriber => {
     t.handlers = h;
     return { supported, running: () => t.running, start: () => { if (supported) { t.running = true; t.starts++; } }, stop: () => { t.running = false; t.stops++; } };
@@ -56,6 +56,7 @@ const exp = (status: 'pending' | 'ready' | 'failed', over: Record<string, unknow
 
 describe('without a live session', () => {
   it('is offline with the start-a-session message and no controls', () => {
+    expect(OFFLINE_NOTE_TAKER.hidden).toBe(true);
     expect(OFFLINE_NOTE_TAKER.status).toBe('offline');
     expect(OFFLINE_NOTE_TAKER.messages).toEqual([{ kind: 'system', agent: 'Neuro Agent', text: NO_SESSION }]);
     expect(NO_SESSION).toBe('Start a live session to take notes');
@@ -76,30 +77,31 @@ describe('subscriptions use the share store credentials', () => {
 describe('mic, transcription banner and local capture', () => {
   it('shows the off state, then the Transcribing banner and listening status when the host turns it on', async () => {
     const { f, tr, ctl } = setup(HOST);
-    expect(texts(ctl)[0]).toMatch(/Transcription is off.*mic/);
+    expect(texts(ctl)[0]).toMatch(/Transcription is off.*AI notes/);
     expect(ctl.getState().status).toBe('ready');
 
-    await ctl.onMic();
+    await ctl.toggleEnabled();
     expect(f.mutations('transcript:setEnabled')[0][2]).toEqual({ sessionId: 's1', participantToken: 'host-tok', enabled: true });
     f.live('transcript:state').push({ enabled: true }); // the server answers through the live query
     expect(texts(ctl)[0]).toMatch(/^Transcribing/);
     expect(tr.t.running).toBe(true);
     expect(ctl.getState().status).toBe('listening');
 
-    await ctl.onMic(); // the host turns it off for everyone
+    await ctl.toggleEnabled(); // the host turns it off for everyone
     expect(f.mutations('transcript:setEnabled')[1][2]).toMatchObject({ enabled: false });
     f.live('transcript:state').push({ enabled: false });
     expect(tr.t.running).toBe(false);
     expect(ctl.getState().status).toBe('ready');
   });
 
-  it('a member mutes only their own capture: no server call, banner stays', async () => {
+  it('a member mutes only their own capture, banner stays', async () => {
     const { f, tr, ctl } = setup(VIEWER);
     expect(texts(ctl)[0]).toMatch(/host can start it/);
     f.live('transcript:state').push({ enabled: true });
     expect(ctl.getState().status).toBe('listening');
     await ctl.onMic();
     expect(f.mutations('transcript:setEnabled')).toHaveLength(0);
+    expect(f.mutations('transcript:setMuted')[0][2]).toMatchObject({ muted: true });
     expect(tr.t.running).toBe(false);
     expect(ctl.getState().status).toBe('ready');
     expect(texts(ctl).slice(0, 2)).toEqual([expect.stringMatching(/^Transcribing/), expect.stringMatching(/You are muted/)]);
@@ -109,11 +111,11 @@ describe('mic, transcription banner and local capture', () => {
   });
 
   it('appends each final segment with its duration, and ignores a server refusal because transcription is off', async () => {
-    const { f, tr, ctl } = setup(VIEWER, { mutation: (n) => { if (n === 'transcript:append') throw new ConvexError({ code: 'NOT_ALLOWED', message: 'off' }); return null; } });
+    const { f, tr, ctl } = setup(VIEWER, { mutation: (n) => { if (n === 'transcript:updateLine') throw new ConvexError({ code: 'NOT_ALLOWED', message: 'off' }); return null; } });
     f.live('transcript:state').push({ enabled: true });
     tr.t.handlers!.onSegment({ text: 'looks irregular', startedAt: 100, endedAt: 2100 });
     await flush();
-    expect(f.mutations('transcript:append')[0][2]).toEqual({ sessionId: 's1', participantToken: 'view-tok', text: 'looks irregular', durationMs: 2000 });
+    expect(f.mutations('transcript:updateLine')[0][2]).toEqual({ sessionId: 's1', participantToken: 'view-tok', text: 'looks irregular', durationMs: 2000, final: true });
     expect(texts(ctl).join('|')).not.toMatch(/could not be saved/);
   });
 
@@ -151,7 +153,7 @@ describe('messages', () => {
     const { f, ctl } = setup(HOST);
     const first = f.live('transcript:list');
     first.push({ segments: [seg('a', 'A', 'one', 1000), seg('b', 'A', 'two', 2000)], hasMore: true });
-    expect(first.closed).toBe(true);
+    expect(first.closed).toBe(false); // older pages stay reactive for interim updates
     const next = f.live('transcript:list');
     expect(next.args.after).toBe(1500); // startedAt of the last line received
     next.push({ segments: [seg('b', 'A', 'two', 2000), seg('c', 'A', 'three', 3000)], hasMore: false });
@@ -253,6 +255,33 @@ describe('presenter screenshots', () => {
     f.live('screenshots:events').push([{ id: 'e', reason: 'Tumor focused' }]);
     await flush(); await flush();
     expect(ctl.getState().status).toBe('ready');
+  });
+});
+
+describe('meeting state', () => {
+  it('the host also mutes only themselves through the mic, and only the separate toggle changes the meeting', async () => {
+    const { f, ctl } = setup(HOST);
+    f.live('transcript:state').push({ enabled: true, participantId: 'host-id', muted: [], promptDismissed: true });
+    await ctl.onMic();
+    expect(f.mutations('transcript:setMuted')[0][2]).toMatchObject({ muted: true });
+    expect(f.mutations('transcript:setEnabled')).toHaveLength(0);
+    expect(ctl.getState()).toMatchObject({ muted: true, enabled: true, selfId: 'host-id' });
+  });
+  it('a member cannot issue a host toggle or dismiss the meeting prompt', async () => {
+    const { f, ctl } = setup(VIEWER);
+    await ctl.toggleEnabled(); await ctl.dismissPrompt();
+    expect(f.mutations('transcript:setEnabled')).toHaveLength(0);
+    expect(f.mutations('transcript:dismissPrompt')).toHaveLength(0);
+  });
+  it('keeps interim edits reactive and removes stale empty rows from the view', () => {
+    const { f, ctl } = setup(VIEWER);
+    const sub = f.live('transcript:list');
+    sub.push({ segments: [{ ...seg('a', 'Guest', 'hel', 3000), final: false }], hasMore: false });
+    sub.push({ segments: [{ ...seg('a', 'Guest', 'hello', 3300), final: true }], hasMore: false });
+    expect(ctl.getState().segments).toHaveLength(1);
+    expect(ctl.getState().segments[0]).toMatchObject({ text: 'hello', final: true });
+    sub.push({ segments: [], hasMore: false });
+    expect(ctl.getState().segments).toEqual([]);
   });
 });
 

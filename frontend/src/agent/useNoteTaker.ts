@@ -3,10 +3,13 @@ import type { AgentMessage, AgentPanelProps } from '../components/agent/types';
 import { api, convex } from '../share/client';
 import { useShare } from '../share/store';
 import { captureCanvas, uploadScreenshot, type CapturedImage, type ScreenshotUpload } from './screenshot';
+import { createTranscriptWriter } from './transcriptWriter';
 import { createTranscriber, type Transcriber, type TranscriptSegment } from './transcribe';
 
 /** Exactly the panel's props for the meeting note-taker. No onSend: the panel here is a live meeting log. */
-export type NoteTakerBinding = Pick<AgentPanelProps, 'messages' | 'status' | 'onMic' | 'onSend' | 'script' | 'onRun' | 'onConfirm' | 'onDismiss'>;
+export type NoteTakerBinding = Pick<AgentPanelProps, 'messages' | 'status' | 'onMic' | 'onSend' | 'script' | 'onRun' | 'onConfirm' | 'onDismiss'> & {
+  hidden: boolean; meeting?: NoteTakerState; toggleEnabled?(): void; dismissPrompt?(): void; exportSummary?(): void;
+};
 
 export interface NoteTakerClient {
   mutation(ref: unknown, args: unknown): Promise<unknown>;
@@ -15,8 +18,9 @@ export interface NoteTakerClient {
 }
 export interface Creds { sessionId: string; participantToken: string; jobId: string; role: 'host' | 'viewer' }
 
-interface Segment { segmentId: string; speakerName: string; text: string; startedAt: number; endedAt: number }
-interface NoteView {
+export interface Segment { segmentId: string; participantId?: string; speakerName: string; text: string; startedAt: number; endedAt: number; final?: boolean; updatedAt?: number }
+export interface MeetingEvent { at: number; participantId: string; speakerName: string; kind: 'on' | 'off' | 'mute' | 'unmute' }
+export interface NoteView {
   text: string | null; version: number; isFinal: boolean;
   screenshots: { caption: string; takenAt: number; url: string }[];
   export: { exportId: string; version: number; status: 'pending' | 'ready' | 'failed'; trigger: 'manual' | 'auto'; url: string | null } | null;
@@ -26,7 +30,7 @@ interface ShotEvent { id: string; reason: string; runId?: string }
 export interface NoteTakerDeps {
   client: NoteTakerClient;
   creds: Creds;
-  makeTranscriber(on: { onSegment(s: TranscriptSegment): void; onError(code: string): void }): Transcriber;
+  makeTranscriber(on: { onSegment(s: TranscriptSegment): void; onInterim(s: TranscriptSegment): void; onError(code: string): void }): Transcriber;
   /** Presenter only. Null outside the browser. */
   getCanvas?(): HTMLCanvasElement | null;
   capture?(canvas: HTMLCanvasElement): Promise<CapturedImage>;
@@ -36,7 +40,10 @@ export interface NoteTakerDeps {
   formatTime?(ms: number): string;
   now?(): number;
 }
-export interface NoteTakerState { messages: AgentMessage[]; status: AgentPanelProps['status'] }
+export interface NoteTakerState {
+  messages: AgentMessage[]; status: AgentPanelProps['status']; segments: Segment[]; note: NoteView | null;
+  enabled: boolean; muted: boolean; ended: boolean; host: boolean; promptDismissed: boolean; events: MeetingEvent[]; selfId?: string;
+}
 
 const fmt = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const codeOf = (e: unknown): string => String(((e as { data?: { code?: unknown } } | null)?.data?.code) ?? '');
@@ -49,7 +56,8 @@ function defaultDownload(url: string, filename: string) {
 
 export const EXPORT_LINE = 'Export summary';
 export const NO_SESSION = 'Start a live session to take notes';
-const BANNER = 'Transcribing · everyone in this session is transcribed in their own browser. Audio stays on your device; only the final text is shared.';
+export const CONSENT_BANNER = "Transcribing. Your browser's speech service turns speech into text; only the text is shared with this session.";
+const BANNER = CONSENT_BANNER;
 
 /** All logic of the note-taker panel. No React in here, so it is tested with a fake Convex client. */
 export function createNoteTakerController(deps: NoteTakerDeps) {
@@ -63,7 +71,9 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
   let note: NoteView | null = null;
   let enabled = false, muted = false, ended = false, blocked = false, failed = false, notice: string | null = null;
   let stops: (() => void)[] = [];
-  let stopTranscript: (() => void) | null = null;
+  let transcriptStops: (() => void)[] = [];
+  let promptDismissed = true, selfId: string | undefined;
+  let events: MeetingEvent[] = [];
   let started = false;
   const seenEvents = new Set<string>();
   const dismissed = new Set<string>(); // `${exportId}:${status}` of confirm rows the user closed
@@ -71,17 +81,19 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
   let confirmAction: 'download' | 'retry' | null = null;
   const since = now();
   const listeners = new Set<() => void>();
-  let state: NoteTakerState = { messages: [], status: 'ready' };
+  let state: NoteTakerState;
 
+  let writer = makeWriter();
+  function makeWriter() {
+    return createTranscriptWriter(async (line) => (await client.mutation(api.transcript.updateLine, { ...auth, ...line })) as { segmentId?: string; retryAfterMs?: number; closed?: boolean }, (e) => {
+      const code = codeOf(e);
+      if (code === 'SESSION_ENDED') markEnded();
+      else if (code !== 'NOT_ALLOWED') { notice = 'A transcript line could not be saved.'; publish(); }
+    });
+  }
   const transcriber = deps.makeTranscriber({
-    onSegment: (s) => {
-      if (ended) return;
-      client.mutation(api.transcript.append, { ...auth, text: s.text, durationMs: Math.max(0, s.endedAt - s.startedAt) }).catch((e: unknown) => {
-        const code = codeOf(e);
-        if (code === 'SESSION_ENDED') markEnded();
-        else if (code !== 'NOT_ALLOWED') { notice = 'A transcript line could not be saved.'; publish(); }
-      });
-    },
+    onInterim: (s) => { if (!ended && enabled && !muted) writer.push(s, false); },
+    onSegment: (s) => { if (!ended && enabled && !muted) writer.push(s, true); },
     onError: (code) => {
       if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') blocked = true;
       syncCapture(); publish();
@@ -104,7 +116,7 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
       if (!transcriber.supported) sys("This browser can't transcribe speech. You will still see everyone else's lines.");
       else if (blocked) sys('Microphone blocked. Allow it in the browser to transcribe your speech.');
       else if (muted) sys('You are muted: your speech is not transcribed.');
-    } else sys(host ? 'Transcription is off. Press the mic to start it for everyone.' : 'Transcription is off. The host can start it.');
+    } else sys(host ? 'Transcription is off. Turn on AI notes to start it for everyone.' : 'Transcription is off. The host can start it.');
     if (notice) sys(notice);
 
     // Transcript lines and screenshots in time order.
@@ -134,18 +146,24 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
       }
     }
     const status: NoteTakerState['status'] = failed ? 'offline' : capturing() ? 'listening' : 'ready';
-    return { messages: out, status };
+    return { messages: out, status, segments: [...segments.values()].sort((a, b) => a.startedAt - b.startedAt), note, enabled, muted, ended, host, promptDismissed, events, selfId };
   }
   function publish() { state = compute(); listeners.forEach((l) => l()); }
 
+  const pages = new Map<string, Segment[]>();
   function watchTranscript(after?: number) {
-    stopTranscript?.();
-    stopTranscript = client.onUpdate(api.transcript.list, { ...auth, ...(after === undefined ? {} : { after }), limit: PAGE }, ((r: { segments: Segment[]; hasMore: boolean }) => {
-      for (const s of r.segments) segments.set(s.segmentId, s);
+    const key = String(after ?? 'start');
+    let following = false;
+    transcriptStops.push(client.onUpdate(api.transcript.list, { ...auth, ...(after === undefined ? {} : { after }), limit: PAGE }, ((r: { segments: Segment[]; hasMore: boolean }) => {
+      pages.set(key, r.segments);
+      segments.clear();
+      for (const page of pages.values()) for (const s of page) segments.set(s.segmentId, s);
       publish();
-      // A long meeting: move the window forward instead of re-reading everything.
-      if (r.hasMore && r.segments.length) watchTranscript(r.segments[r.segments.length - 1].startedAt);
-    }) as (v: never) => void, fail);
+      // Keep older pages reactive: an unfinished utterance can finalize behind the cursor.
+      if (!following && r.hasMore && r.segments.length) {
+        following = true; watchTranscript(r.segments[r.segments.length - 1].startedAt);
+      }
+    }) as (v: never) => void, fail));
   }
   function fail() { failed = true; publish(); }
 
@@ -178,7 +196,9 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
 
   function markEnded() {
     if (ended) return;
+    transcriber.stop();
     ended = true;
+    writer.stop();
     syncCapture();
     publish();
   }
@@ -191,30 +211,41 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
       if (started) return;
       started = true; failed = false;
       stops = [
-        client.onUpdate(api.transcript.state, auth, ((r: { enabled: boolean }) => { enabled = r.enabled; syncCapture(); publish(); }) as (v: never) => void, fail),
+        client.onUpdate(api.transcript.state, auth, ((r: { enabled: boolean; promptDismissed?: boolean; participantId?: string; events?: MeetingEvent[]; muted?: string[] }) => {
+          const wasEnabled = enabled;
+          enabled = r.enabled; promptDismissed = r.promptDismissed ?? true; selfId = r.participantId; events = r.events ?? [];
+          if (r.muted && selfId) muted = r.muted.includes(selfId);
+          if (wasEnabled && !enabled) { writer.stop(); writer = makeWriter(); }
+          syncCapture(); publish();
+        }) as (v: never) => void, fail),
         client.onUpdate(api.notes.forSession, auth, ((r: NoteView | null) => { note = r; publish(); }) as (v: never) => void, fail),
       ];
       if (host) stops.push(client.onUpdate(api.screenshots.events, { ...auth, jobId: creds.jobId, since }, ((events: ShotEvent[]) => { if (!ended) for (const e of events) void present(e); }) as (v: never) => void, () => {}));
       watchTranscript();
       publish();
     },
-    /** The mic button. Host: start or stop transcription for everyone. Member: mute or unmute only yourself. */
+    /** Every member, including the host, can mute their own microphone. */
     async onMic() {
-      if (ended) return;
-      if (host) {
-        try {
-          await client.mutation(api.transcript.setEnabled, { ...auth, enabled: !enabled });
-          muted = false; blocked = false; notice = null;
-        } catch (e) {
-          if (codeOf(e) === 'SESSION_ENDED') markEnded();
-          else { notice = 'Could not change transcription. Try again.'; publish(); }
-        }
-        return;
-      }
-      if (!enabled) return;
-      muted = !muted;
-      syncCapture(); publish();
+      if (ended || !enabled) return;
+      const next = !muted;
+      // Stop locally before the mutation; the server atomically settles any saved interim row.
+      if (next) { transcriber.stop(); writer.stop(); writer = makeWriter(); }
+      try {
+        await client.mutation(api.transcript.setMuted, { ...auth, muted: next });
+        muted = next; blocked = false; syncCapture(); publish();
+      } catch { notice = 'Could not change your microphone. Try again.'; syncCapture(); publish(); }
     },
+    async toggleEnabled() {
+      if (ended || !host) return;
+      try { await client.mutation(api.transcript.setEnabled, { ...auth, enabled: !enabled }); notice = null; }
+      catch (e) { if (codeOf(e) === 'SESSION_ENDED') markEnded(); else { notice = 'Could not change transcription. Try again.'; publish(); } }
+    },
+    async dismissPrompt() {
+      if (!host || ended) return;
+      try { await client.mutation(api.transcript.dismissPrompt, auth); promptDismissed = true; publish(); }
+      catch { notice = 'Could not dismiss the prompt. Try again.'; publish(); }
+    },
+    requestExport,
     /** Script lines. "Export summary" builds a manual export of the meeting so far (members only, same builder). */
     async run(lines: string[]) {
       for (const line of lines) {
@@ -236,7 +267,10 @@ export function createNoteTakerController(deps: NoteTakerDeps) {
     dispose() {
       if (transcriber.running()) transcriber.stop();
       stops.forEach((s) => s()); stops = [];
-      stopTranscript?.(); stopTranscript = null;
+      transcriptStops.forEach((s) => s()); transcriptStops = []; pages.clear();
+      // Explicit departure settles the last saved words; network loss falls back to stale cleanup.
+      void client.mutation(api.transcript.finishOwn, auth).catch(() => {});
+      writer.stop(); writer = makeWriter();
       started = false;
     },
   };
@@ -245,15 +279,15 @@ export type NoteTakerController = ReturnType<typeof createNoteTakerController>;
 
 const SCRIPT = [EXPORT_LINE];
 export const OFFLINE_NOTE_TAKER: NoteTakerBinding = {
+  hidden: true,
   messages: [{ kind: 'system', agent: 'Neuro Agent', text: NO_SESSION }],
   status: 'offline',
 };
 
 /**
  * Binds AgentPanel to the meeting note-taker for the case page.
- * Without a live session the panel is offline and says how to start one. After the
- * session ends, Sage's share store forgets the token, so the controller keeps its own
- * copy for this page visit to show the final summary and the export link.
+ * Outside an active session the Assistant is hidden. The controller retains its
+ * own capability during this page visit so final processing can settle gracefully.
  */
 export function useNoteTaker(jobId: string): NoteTakerBinding {
   const stored = useShare((s) => s.stored);
@@ -261,7 +295,7 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
   const key = stored && stored.jobId === jobId ? stored.sessionId : null;
   const [ctl, setCtl] = useState<{ id: string; ctl: NoteTakerController } | null>(null);
   const latest = useRef(ctl);
-  latest.current = ctl;
+  useEffect(() => { latest.current = ctl; }, [ctl]);
 
   useEffect(() => {
     if (key && stored && convex && latest.current?.id !== key) {
@@ -269,7 +303,7 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
       const created = createNoteTakerController({
         client: convex as unknown as NoteTakerClient,
         creds: { sessionId: stored.sessionId, participantToken: stored.participantToken, jobId, role: stored.role },
-        makeTranscriber: ({ onSegment, onError }) => createTranscriber({ onSegment, onError }),
+        makeTranscriber: (callbacks) => createTranscriber(callbacks),
         getCanvas: () => document.querySelector('canvas'),
       });
       created.start();
@@ -281,9 +315,11 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
 
   const active = ctl?.ctl;
   const state = useSyncExternalStore(active ? active.subscribe : noop, active ? active.getState : offlineState);
-  if (!active) return OFFLINE_NOTE_TAKER;
+  if (!active || !key || sessionStatus !== 'active' || ctl?.id !== key) return OFFLINE_NOTE_TAKER;
   return {
-    messages: state.messages, status: state.status, script: SCRIPT,
+    hidden: false, meeting: state, messages: state.messages, status: state.status, script: SCRIPT,
+    toggleEnabled: () => { void active.toggleEnabled(); }, dismissPrompt: () => { void active.dismissPrompt(); },
+    exportSummary: () => { void active.requestExport(); },
     onMic: () => { void active.onMic(); },
     onRun: (lines) => { void active.run(lines); },
     onConfirm: () => { void active.onConfirm(); },
@@ -291,4 +327,5 @@ export function useNoteTaker(jobId: string): NoteTakerBinding {
   };
 }
 const noop = () => () => {};
-const offlineState = (): NoteTakerState => OFFLINE_NOTE_TAKER as NoteTakerState;
+const offline: NoteTakerState = { messages: OFFLINE_NOTE_TAKER.messages, status: 'offline', segments: [], note: null, enabled: false, muted: false, ended: true, host: false, promptDismissed: true, events: [] };
+const offlineState = () => offline;

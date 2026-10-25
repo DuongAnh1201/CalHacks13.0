@@ -79,33 +79,36 @@ function Message({ m, onConfirm, onDismiss }: { m: AgentMessage; onConfirm?: () 
 export function AgentPanel(p: AgentPanelProps) {
   const [tab, setTab] = useState<'voice' | 'script'>('voice');
   const [draft, setDraft] = useState('');
+  if (p.hidden) return null;
   return (
     <section className={css.panel} aria-label="Neuro Agent">
       <header className={css.head}>
         <span className={css.avatar}><img src={avatarIcon} alt="" width={16} height={16} /></span>
-        <div className={css.titles}><h2 className={css.title}>Neuro Agent</h2><p className={css.sub}>Voice &amp; script control for the workspace</p></div>
+        <div className={css.titles}><h2 className={css.title}>Neuro Agent</h2><p className={css.sub}>{p.tabContent ? 'Live meeting notes' : 'Voice & script control for the workspace'}</p></div>
         <span className={`${css.status} ${css[p.status]}`} role="status"><img src={statusDot} alt="" width={6} height={6} />{STATUS[p.status]}</span>
       </header>
-      <ul className={css.chips} aria-label="Agents">
+      {!p.tabContent && <ul className={css.chips} aria-label="Agents">
         {AGENTS.map((a) => <li key={a} className={css.chip}><img src={chipDot} alt="" width={6} height={6} />{a}</li>)}
-      </ul>
+      </ul>}
       <div className={css.tabs} role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'voice'} className={css.tab} onClick={() => setTab('voice')}><img src={voiceTabIcon} alt="" width={12} height={12} />Voice</button>
-        <button type="button" role="tab" aria-selected={tab === 'script'} className={css.tab} onClick={() => setTab('script')}><img src={scriptTabIcon} alt="" width={12} height={12} />Script</button>
+        <button type="button" role="tab" aria-selected={tab === 'voice'} className={css.tab} onClick={() => setTab('voice')}><img src={voiceTabIcon} alt="" width={12} height={12} />{p.tabLabels?.[0] ?? 'Voice'}</button>
+        <button type="button" role="tab" aria-selected={tab === 'script'} className={css.tab} onClick={() => setTab('script')}><img src={scriptTabIcon} alt="" width={12} height={12} />{p.tabLabels?.[1] ?? 'Script'}</button>
       </div>
+      {p.tabContent ? <div role="tabpanel" aria-label={p.tabLabels?.[tab === 'voice' ? 0 : 1]}>{p.tabContent[tab === 'voice' ? 0 : 1]}</div> : <>
       <ol className={css.log} aria-live="polite">
         {p.messages.map((m, i) => <li key={i}><Message m={m} onConfirm={p.onConfirm} onDismiss={p.onDismiss} /></li>)}
       </ol>
       {tab === 'script' && <ScriptBlock lines={p.script ?? []} onRun={p.onRun} />}
       <form className={css.input} onSubmit={(e) => { e.preventDefault(); const t = draft.trim(); if (!p.onSend || !t) return; p.onSend(t); setDraft(''); }}>
         {tab === 'voice' && (
-          <button type="button" className={css.mic} aria-label="Talk to the agent" disabled={!p.onMic} onClick={p.onMic} title={p.onMic ? 'Click the mic to talk' : 'Agent not connected yet'}>
+          <button type="button" className={css.mic} aria-label={p.micLabel ?? "Toggle microphone"} disabled={!p.onMic} onClick={p.onMic} title={p.micLabel ?? 'Toggle microphone'}>
             <img src={micIcon} alt="" width={18} height={18} />
           </button>
         )}
         <input className={css.text} aria-label="Message the agent" disabled={!p.onSend} value={draft} onChange={(e) => setDraft(e.target.value)}
           placeholder={p.onSend ? 'Type a command' : 'Agent not connected yet'} />
       </form>
+      </>}
     </section>
   );
 }
