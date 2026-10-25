@@ -926,11 +926,11 @@ Then send:
   - `convexUrl` export in `client.ts`
   - `<FacePile session/>`
 
-- [ ] **Step 1: Impact**
+- [x] **Step 1: Impact**
 
 Run GitNexus `impact` upstream on `drop` and `watch` (both in `share/store.ts`), `SharePopover` and `TopNavBar`. Report the risk.
 
-- [ ] **Step 2: Failing test**
+- [x] **Step 2: Failing test**
 
 Create `frontend/src/share/presence.test.ts`:
 
@@ -1016,12 +1016,12 @@ describe('startPresence', () => {
 });
 ```
 
-- [ ] **Step 3: Run, expect failure**
+- [x] **Step 3: Run, expect failure**
 
 Run: `npm --prefix frontend test -- src/share/presence.test.ts`
 Expected: FAIL (`./presence` not found).
 
-- [ ] **Step 4: Implement `presence.ts`**
+- [x] **Step 4: Implement `presence.ts`**
 
 Create `frontend/src/share/presence.ts`:
 
@@ -1082,12 +1082,12 @@ export function startPresence(client: Client, auth: Auth, convexUrl: string, onO
 }
 ```
 
-- [ ] **Step 5: Run, expect pass**
+- [x] **Step 5: Run, expect pass**
 
 Run: `npm --prefix frontend test -- src/share/presence.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Store — online set, presence lifecycle, cursor send/receive**
+- [x] **Step 6: Store — online set, presence lifecycle, cursor send/receive**
 
 **`frontend/src/share/client.ts`**: add after the `url` line:
 
@@ -1210,7 +1210,7 @@ describe('cursors', () => {
 
 Existing tests must pass unchanged. The fixture matches `Stored` in `share/stored.ts` (`sessionId, participantToken, role, inviteCode`).
 
-- [ ] **Step 7: Face pile + roster dots**
+- [x] **Step 7: Face pile + roster dots**
 
 Create `frontend/src/share/FacePile.tsx`:
 
@@ -1267,12 +1267,12 @@ In `frontend/src/components/TopNavBar.tsx`:
       {session?.status === 'active' && <FacePile session={session} />}
 ```
 
-- [ ] **Step 8: Tests + build + lint**
+- [x] **Step 8: Tests + build + lint**
 
 Run: `npm --prefix frontend test && npm --prefix frontend run build && npm --prefix frontend run lint`
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 Run GitNexus `detect_changes()`. Then:
 

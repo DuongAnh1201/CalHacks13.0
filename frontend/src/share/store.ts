@@ -1,18 +1,20 @@
 import type { ConvexClient } from 'convex/browser';
 import { create } from 'zustand';
-import { api, convex } from './client';
+import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NO_SAMPLE, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
+import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
-import type { SessionState, ViewerCommand } from './types';
+import type { Cursor, RemoteCursor, SessionState, ViewerCommand } from './types';
 
 type Client = Pick<ConvexClient, 'query' | 'mutation' | 'onUpdate'>;
 
-interface ShareState { stored: Stored | null; session: SessionState | null; notice: string | null; syncNote: string | null }
+interface ShareState { stored: Stored | null; session: SessionState | null; notice: string | null; syncNote: string | null; online: Set<string> }
 
 let client: Client | null = convex;
 let unsubscribe: (() => void) | null = null;
+let stopPresence: (() => void) | null = null;
 
-export const useShare = create<ShareState>()(() => ({ stored: loadStored(), session: null, notice: null, syncNote: null }));
+export const useShare = create<ShareState>()(() => ({ stored: loadStored(), session: null, notice: null, syncNote: null, online: new Set<string>() }));
 export const shareConfigured = () => client !== null;
 export function useClientForTest(c: Client | null): void { unsubscribe = null; client = c; }
 
@@ -24,8 +26,10 @@ const auth = (s: Stored) => ({ sessionId: s.sessionId, participantToken: s.parti
 function drop(notice: string | null): void {
   unsubscribe?.();
   unsubscribe = null;
+  stopPresence?.();
+  stopPresence = null;
   clearStored();
-  useShare.setState({ stored: null, session: null, notice, syncNote: null });
+  useShare.setState({ stored: null, session: null, notice, syncNote: null, online: new Set() });
 }
 
 function watch(s: Stored): void {
@@ -36,6 +40,8 @@ function watch(s: Stored): void {
     else if (code && STALE.has(code)) drop(null);
     else console.error('[share]', e);
   });
+  stopPresence?.();
+  stopPresence = convexUrl ? startPresence(client!, auth(s), convexUrl, (online) => useShare.setState({ online })) : null;
 }
 
 function begin(s: Stored): void {
@@ -96,4 +102,18 @@ export async function sendView(cmds: ViewerCommand[]): Promise<void> {
     console.error('[share]', e);
     useShare.setState({ syncNote: SYNC_FAILED });
   }
+}
+
+/** Any role. Best-effort: a dropped point is replaced by the next one. */
+export function sendCursor(cursor: Cursor | null): void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return;
+  client.mutation(api.cursors.move, { ...auth(s), cursor }).catch(() => {});
+}
+
+/** Everyone else's cursors in this room. An end or stale token is handled by the sessions.get subscription. */
+export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.cursors.list, auth(s), onRows, () => onRows([]));
 }

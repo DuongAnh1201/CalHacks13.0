@@ -5,6 +5,7 @@ import type { SessionState } from './types';
 
 export function SharePopover({ session, inviteCode }: { session: SessionState; inviteCode: string }) {
   const syncNote = useShare((s) => s.syncNote);
+  const online = useShare((s) => s.online);
   const [copied, setCopied] = useState(false);
   const link = `${globalThis.location?.origin ?? ''}/join/${inviteCode}`;
   const copy = async () => {
@@ -20,7 +21,10 @@ export function SharePopover({ session, inviteCode }: { session: SessionState; i
       <h3 className={css.h}>In this session</h3>
       <ul className={css.roster}>
         {session.participants.map((p) => (
-          <li key={p.participantId}>{p.displayName}{p.role === 'host' ? ' (host)' : p.following ? ' · following' : ''}</li>
+          <li key={p.participantId}>
+            <span className={`${css.dot} ${online.has(p.participantId) ? css.dotOn : ''}`} role="img" aria-label={online.has(p.participantId) ? 'online' : 'offline'} />
+            {p.displayName}{p.role === 'host' ? ' (host)' : p.following ? ' · following' : ''}
+          </li>
         ))}
       </ul>
       {syncNote && <p className={css.note} role="status">{syncNote}</p>}

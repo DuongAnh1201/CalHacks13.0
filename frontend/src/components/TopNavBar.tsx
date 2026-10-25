@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import brandMark from '../assets/figma/664bf.svg';
 import { NOT_CONFIGURED, SAMPLE_ONLY } from '../share/copy';
 import { FollowBanner } from '../share/FollowBanner';
+import { FacePile } from '../share/FacePile';
 import { SharePopover } from '../share/SharePopover';
 import { resume, shareConfigured, startShare, useShare } from '../share/store';
 import css from './TopNavBar.module.css';
@@ -36,6 +37,7 @@ export function TopNavBar() {
         NeuroVision
       </NavLink>
       {notice && <p className={css.notice} role="status">{notice}</p>}
+      {session?.status === 'active' && <FacePile session={session} />}
       {guest && session && <FollowBanner session={session} />}
       {(id || wsId) && !guest && (
         <div className={css.shareWrap}>
