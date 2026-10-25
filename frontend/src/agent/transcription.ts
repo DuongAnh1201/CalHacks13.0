@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export const transcriptionKey = (s: { sessionId: string; participantToken: string }) => `${s.sessionId}:${s.participantToken}`;
 
-/** The panel owns capture while mounted; member consent survives /3d ↔ /mri. */
+/** One recognizer owner per tab: panel while mounted, call fallback otherwise. Mute mirrors the call across routes. */
 export const useTranscription = create<{
   memberKey: string | null;
   muted: boolean;

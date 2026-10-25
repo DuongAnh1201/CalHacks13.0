@@ -109,7 +109,7 @@ export function buildMarkdown(jobId: string, sections: readonly string[], report
     }).join("\n\n") || "No screenshots were taken."));
   }
   if (sections.includes("transcript")) {
-    const rows = data.transcript ?? [];
+    const rows = (data.transcript ?? []).filter((row) => row.final !== false);
     parts.push("## Transcript\n\nSpeech-to-text from the participants' browsers. It may contain recognition errors.\n\n" + (rows.map((row) =>
       `- ${offset(row.startedAt, data.startedAt)} **${exportText(row.speakerName)}**: ${exportText(row.text.replace(/\s+/g, " "))}`).join("\n") || "No transcript was recorded."));
   }
