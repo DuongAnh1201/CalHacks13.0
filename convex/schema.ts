@@ -31,6 +31,7 @@ import { v } from "convex/values";
 import { vScene } from "./lib/viewCommands";
 import { vAuthor } from "./lib/author";
 import { vAgentStep, vHistory } from "./agent/validators";
+import { vGameAnswer, vGamePrompt, vGameResult, vGameSecret } from "./lib/games";
 
 // ---------------------------------------------------------------------------
 // Reusable validators
@@ -481,5 +482,38 @@ export default defineSchema({
     day: v.string(),
     count: v.number(),
   }).index("by_day", ["day"]),
+
+  // Study games (convex/games.ts, lib/games.ts). The host runs rounds; everyone
+  // else answers once per round. `secret` is never returned while a round is open.
+  gameRounds: defineTable({
+    sessionId: v.id("sessions"),
+    prompt: vGamePrompt,
+    secret: v.optional(vGameSecret),
+    status: v.union(v.literal("open"), v.literal("revealed")),
+    startedAt: v.number(),
+  }).index("by_session", ["sessionId"]),
+
+  gameAnswers: defineTable({
+    roundId: v.id("gameRounds"),
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    displayName: v.string(),
+    answer: vGameAnswer,
+    result: vGameResult,
+    answeredAt: v.number(),
+  })
+    .index("by_round", ["roundId"])
+    .index("by_round_participant", ["roundId", "participantId"]),
+
+  /** Running totals, one row per player, so the leaderboard read stays bounded by players. */
+  gameScores: defineTable({
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    displayName: v.string(),
+    points: v.number(),
+    rounds: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_participant", ["participantId"]),
 
 });

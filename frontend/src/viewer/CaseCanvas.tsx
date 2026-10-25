@@ -10,7 +10,7 @@ import { useViewer } from '../actions/store';
 import { samePose, type CameraPose } from '../share/cameraSync';
 import { cursorOf } from '../share/cursorSync';
 import { setDraft, useNoteUi } from '../share/notes';
-import { NotePins } from '../share/NotePins';
+import { MarkerPins, NotePins, type Marker } from '../share/NotePins';
 import { RemoteCursors, useCursorPush } from '../share/RemoteCursors';
 import { useShare } from '../share/store';
 import type { Note } from '../share/types';
@@ -23,7 +23,7 @@ import css from './CaseCanvas.module.css';
 
 /** Shared-session camera (share/cameraSync.ts). Absent outside a session: the camera is local only. */
 interface CameraShare { onMove?: (p: CameraPose) => void; remote: CameraPose | null; onUserControl?: () => void }
-interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare; notes?: Note[] }
+interface Props { jobId: string; report: Report; onLayers: (available: Partial<Record<Layer, boolean>>) => void; camera?: CameraShare; notes?: Note[]; markers?: Marker[] }
 
 const MIN_FRAME_RADIUS_MM = 12;
 const NOTE_VIEW_MM = 170; // camera distance when flying to a note
@@ -52,7 +52,7 @@ export function CaseCanvas(props: Props) {
   );
 }
 
-function CaseScene({ jobId, report, onLayers, camera, notes = [] }: Props) {
+function CaseScene({ jobId, report, onLayers, camera, notes = [], markers = [] }: Props) {
   const { scene } = useGLTF(modelUrl(jobId));
   const controls = useRef<CameraControls>(null);
   const cs = useMemo(() => buildCaseScene(scene, report), [scene, report]); // throws MissingNodeError
@@ -170,6 +170,7 @@ function CaseScene({ jobId, report, onLayers, camera, notes = [] }: Props) {
       />
       <RemoteCursors enabled={live} />
       <NotePins cs={cs} report={report} notes={notes} />
+      <MarkerPins cs={cs} markers={markers} />
     </>
   );
 }

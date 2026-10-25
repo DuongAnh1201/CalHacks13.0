@@ -237,3 +237,16 @@ def test_restart_keeps_seeded_cases_but_drops_uploads(tmp_path, monkeypatch):
     monkeypatch.delenv("KEEP_JOBS", raising=False)
     api.initialize_jobs()
     assert sorted(p.name for p in jobs.iterdir()) == ["lib-001"]
+
+
+def test_expert_label_served_only_where_seeded(tmp_path, monkeypatch):
+    seed = tmp_path / "seed"
+    seed_case(seed, "with-expert", {"tumorDetected": True})
+    (seed / "with-expert" / "expert.nii.gz").write_bytes(b"label")
+    seed_case(seed, "without", {"tumorDetected": True})
+    monkeypatch.setattr(api, "JOBS", tmp_path / "jobs")
+    monkeypatch.setattr(api, "SEED", seed)
+    monkeypatch.setattr(api, "run", Mock())
+    with TestClient(api.app) as c:
+        assert c.get("/jobs/with-expert/expert.nii.gz").content == b"label"
+        assert c.get("/jobs/without/expert.nii.gz").status_code == 404

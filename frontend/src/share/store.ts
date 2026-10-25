@@ -2,6 +2,7 @@ import type { ConvexClient } from 'convex/browser';
 import { create } from 'zustand';
 import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
+import type { GameAnswer, GamePrompt, GameSecret, GameState } from '../games/types';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
 import type { ChatMessage, Cursor, Note, NoteAnchor, RemoteCursor, SessionState, ViewerCommand } from './types';
@@ -187,4 +188,30 @@ export function watchTranscriptEnabled(onEnabled: (on: boolean) => void): () => 
   const s = useShare.getState().stored;
   if (!client || !s) return () => {};
   return client.onUpdate(api.transcript.state, auth(s), (r: { enabled: boolean }) => onEnabled(r.enabled), () => onEnabled(false));
+}
+
+/** Latest game round + leaderboard for this session (convex/games.ts). A no-op outside a session. */
+export function watchGame(onState: (g: GameState) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.games.current, auth(s), onState, (e: Error) => console.error('[games]', e));
+}
+
+/** Host only. Returns an error message, or null. */
+export async function startRound(prompt: GamePrompt, secret: GameSecret | null): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.games.start, { ...auth(s), prompt, ...(secret ? { secret } : {}) }); return null; } catch (e) { return messageFor(e); }
+}
+
+export async function answerRound(roundId: string, answer: GameAnswer): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.games.answer, { ...auth(s), roundId, answer }); return null; } catch (e) { return messageFor(e); }
+}
+
+export async function revealRound(roundId: string): Promise<string | null> {
+  const s = useShare.getState().stored;
+  if (!client || !s) return NOT_CONFIGURED;
+  try { await client.mutation(api.games.reveal, { ...auth(s), roundId }); return null; } catch (e) { return messageFor(e); }
 }
