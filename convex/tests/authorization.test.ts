@@ -59,7 +59,7 @@ async function setUp() {
 
   // Room A is a playground so the games functions run in it too; nothing else in the matrix checks the kind.
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Presenter", kind: "play" });
-  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge", kind: "play" });
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Judge", kind: "play" });
   const other = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Other room" });
 
   const asHost: Auth = { sessionId: host.sessionId, participantToken: host.participantToken };
@@ -175,7 +175,7 @@ describe("cross-cutting rules not in the matrix", () => {
   it("join treats an oversized invite code like an unknown one", async () => {
     const { t } = await setUp();
     await expectAppError(
-      t.mutation(api.sessions.join, { inviteCode: "X".repeat(MAX_CREDENTIAL_LENGTH + 1), displayName: "Judge" }),
+      t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: "X".repeat(MAX_CREDENTIAL_LENGTH + 1), displayName: "Judge" }),
       "INVALID_INVITE",
     );
   });

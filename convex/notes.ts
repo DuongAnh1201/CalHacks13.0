@@ -448,12 +448,14 @@ export const clearPending = internalMutation({
 
 const autoReserveRef = makeFunctionReference<"mutation", { sessionId: Id<"sessions"> }, Id<"exports"> | null>("exportDoc:autoReserve");
 const buildExportRef = makeFunctionReference<"action", { exportId: Id<"exports"> }, unknown>("exportDoc:build");
+const sendReportRef = makeFunctionReference<"action", { sessionId: Id<"sessions"> }, null>("reportMail:send");
 
 /**
  * Scheduled once by sessions.end (server-side trigger, no token). With a key it
  * writes the final summary; with or without one it then builds the automatic
  * Markdown export (T4a), once per session. Without a key the export carries the
  * transcript and screenshots plus a "summary unavailable" line.
+ * Then emails the session report (reportMail:send).
  */
 export const finalizeSession = internalAction({
   args: { sessionId: v.id("sessions") },
@@ -470,6 +472,8 @@ export const finalizeSession = internalAction({
     }
     const exportId = await ctx.runMutation(autoReserveRef, { sessionId });
     if (exportId) await ctx.runAction(buildExportRef, { exportId }).catch(() => null);
+    // Email the report to everyone who gave an address; never fails finalize.
+    await ctx.runAction(sendReportRef, { sessionId }).catch(() => null);
     return null;
   },
 });

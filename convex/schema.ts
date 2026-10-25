@@ -389,6 +389,19 @@ export default defineSchema({
     .index("by_session", ["sessionId"])
     .index("by_client", ["clientId"]),
 
+  // Session report email recipients. Private: no query returns this table.
+  reportRecipients: defineTable({
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    /** Cleared once the send is enqueued; kept on failure for follow-up. */
+    email: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("queued"), v.literal("sent"), v.literal("failed")),
+    outboundId: v.optional(v.string()),
+    sentAt: v.optional(v.number()),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_participant", ["participantId"]),
+
   exports: defineTable({
     ...vAuthor.fields,
     jobId: v.string(),

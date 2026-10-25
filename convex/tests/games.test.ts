@@ -27,8 +27,8 @@ async function setUpRoom() {
   const t = convexTest({ schema });
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Tutor", kind: "play" });
-  const ana = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Ana", kind: "play" });
-  const ben = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Ben", kind: "play" });
+  const ana = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Ana", kind: "play" });
+  const ben = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Ben", kind: "play" });
   const as = (p: { sessionId: typeof host.sessionId; participantToken: string }) => ({ sessionId: p.sessionId, participantToken: p.participantToken });
   return { t, host: as(host), ana: as(ana), ben: as(ben) };
 }
@@ -114,7 +114,7 @@ describe("games: rounds and totals", () => {
     const { roundId } = await t.mutation(api.games.start, { ...host, prompt: { kind: "beatAi", jobId: "sample", slice: 70 } });
     const scanId = await t.mutation(internal.seed.seedSampleScan, {});
     const other = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Elsewhere", kind: "play" });
-    const guest = await t.mutation(api.sessions.join, { inviteCode: other.inviteCode, displayName: "Cara", kind: "play" });
+    const guest = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: other.inviteCode, displayName: "Cara", kind: "play" });
     const g = { sessionId: guest.sessionId, participantToken: guest.participantToken };
     await expectAppError(t.mutation(api.games.answer, { ...g, roundId, answer: { kind: "beatAi", dice: 0.9 } }), "NOT_FOUND");
     await expectAppError(t.mutation(api.games.reveal, { sessionId: other.sessionId, participantToken: other.participantToken, roundId }), "NOT_FOUND");
@@ -136,11 +136,11 @@ describe("games: playgrounds are separate from case workspaces", () => {
     const scanId = await t.mutation(internal.seed.seedSampleScan, {});
     const play = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host", kind: "play" });
     const review = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host" });
-    const wrong1 = await expectAppError(t.mutation(api.sessions.join, { inviteCode: play.inviteCode, displayName: "A" }), "INVALID_INVITE");
+    const wrong1 = await expectAppError(t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: play.inviteCode, displayName: "A" }), "INVALID_INVITE");
     expect(wrong1.message).toMatch(/playground/);
     await expectAppError(t.mutation(api.sessions.join, { inviteCode: review.inviteCode, displayName: "A", kind: "play" }), "INVALID_INVITE");
     expect((await t.mutation(api.sessions.join, { inviteCode: play.inviteCode, displayName: "A", kind: "play" })).kind).toBe("play");
-    expect((await t.mutation(api.sessions.join, { inviteCode: review.inviteCode, displayName: "A" })).kind).toBe("review");
+    expect((await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: review.inviteCode, displayName: "A" })).kind).toBe("review");
   });
 });
 

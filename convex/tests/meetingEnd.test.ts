@@ -24,7 +24,7 @@ const settle = async (t: T) => { await t.finishAllScheduledFunctions(() => vi.ru
 async function meeting(t: T) {
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Dr Host" });
-  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge" });
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Judge" });
   const cap = (x: { sessionId: typeof host.sessionId; participantToken: string }) => ({ sessionId: x.sessionId, participantToken: x.participantToken });
   await t.mutation(api.transcript.setEnabled, { ...cap(host), enabled: true });
   tick();

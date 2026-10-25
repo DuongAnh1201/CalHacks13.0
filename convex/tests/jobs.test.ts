@@ -76,7 +76,7 @@ describe("jobs.registerScan", () => {
     // The point of registering: a host can now share this upload, and a guest
     // learns which case to open from join.
     const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host" });
-    const guest = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge" });
+    const guest = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Judge" });
     expect(guest.jobId).toBe("abc123");
   });
 

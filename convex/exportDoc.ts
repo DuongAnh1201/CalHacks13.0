@@ -23,7 +23,7 @@ function checkedSections(sections: string[]) {
 }
 function needsPrivate(sections: string[]) { return sections.some((part) => [...PRIVATE_SECTIONS, suggested].includes(part)); }
 
-async function snapshot(ctx: QueryCtx, jobId: string, sections: string[], sessionId?: Id<"sessions">, auto = false): Promise<ExportSnapshot> {
+export async function snapshot(ctx: QueryCtx, jobId: string, sections: string[], sessionId?: Id<"sessions">, auto = false): Promise<ExportSnapshot> {
   const data: ExportSnapshot = { annotations: [], messages: [], summary: null };
   if (!needsPrivate(sections)) return data;
   if (!sessionId) throw appError("NOT_AUTHENTICATED", "Private export sections require session_id and participant_token.");

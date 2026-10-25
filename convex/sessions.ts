@@ -53,6 +53,7 @@ import {
   type PublicParticipant,
 } from "./lib/auth";
 import { appError } from "./lib/errors";
+import { normaliseEmail } from "./lib/email";
 import { MAX_CREDENTIAL_LENGTH, newInviteCode, newParticipantToken } from "./lib/tokens";
 import { sliceIndexFromCursor, type Plane } from "./lib/transform";
 import {
@@ -291,6 +292,8 @@ export const join = mutation({
   args: {
     inviteCode: v.string(),
     displayName: v.string(),
+    /** Required in review rooms (the report goes there); playgrounds send no report. */
+    email: v.optional(v.string()),
     /** The kind of room the joining page expects; default "review". */
     kind: v.optional(vSessionKind),
   },
@@ -307,6 +310,7 @@ export const join = mutation({
     kind: "review" | "play";
   }> => {
     const displayName = normaliseDisplayName(args.displayName);
+    const email = (args.kind ?? "review") === "play" ? null : normaliseEmail(args.email ?? "");
 
     // Oversized input cannot be a code; answer exactly like an unknown one.
     const inviteCode = args.inviteCode.trim();
@@ -346,6 +350,9 @@ export const join = mutation({
       joinedAt: now,
       lastSeenAt: now,
     });
+
+    // Mandatory for guests: the report goes out when the host ends the session.
+    if (email) await ctx.db.insert("reportRecipients", { sessionId: session._id, participantId, email, status: "pending" });
 
     const scan = await loadScan(ctx, session.scanId);
     return { sessionId: session._id, participantToken, participantId, role: "viewer", jobId: scan.jobId, kind: session.kind ?? "review" };

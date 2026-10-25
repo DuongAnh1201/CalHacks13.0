@@ -12,7 +12,7 @@ async function setup() {
   const t = convexTest({ schema });
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: 'Presenter' });
-  const guest = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: 'Guest' });
+  const guest = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: 'Guest' });
   const scope = { jobId: 'sample', sessionId: host.sessionId, participantToken: host.participantToken };
   const file = (blob = new Blob([png], { type: 'image/png' })) => t.run(ctx => ctx.storage.store(blob));
   return { t, host, guest, scope, file };

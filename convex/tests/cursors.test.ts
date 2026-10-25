@@ -15,7 +15,7 @@ async function room() {
   const t = convexTest({ schema });
   const scanId: Id<"scans"> = await t.mutation(internal.seed.seedSampleScan, {});
   const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Presenter" });
-  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge" });
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Judge" });
   const as = (r: { sessionId: Id<"sessions">; participantToken: string }) => ({ sessionId: r.sessionId, participantToken: r.participantToken });
   return { t, host: as(host), viewer: as(viewer), viewerId: viewer.participantId };
 }

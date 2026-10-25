@@ -79,7 +79,7 @@ async function setUpRoom() {
     hostDisplayName: "Presenter",
   });
 
-  const viewer = await t.mutation(api.sessions.join, {
+  const viewer = await t.mutation(api.sessions.join, { email: "guest@example.com",
     inviteCode: host.inviteCode,
     displayName: "Judge",
   });
@@ -224,7 +224,7 @@ describe("creating and joining a session", () => {
   it("refuses an unknown invite code", async () => {
     const { t } = await setUpRoom();
     await expectAppError(
-      t.mutation(api.sessions.join, { inviteCode: "ZZZZ-ZZZZ-ZZZZ-ZZZZ", displayName: "Nobody" }),
+      t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: "ZZZZ-ZZZZ-ZZZZ-ZZZZ", displayName: "Nobody" }),
       "INVALID_INVITE",
     );
   });
@@ -232,7 +232,7 @@ describe("creating and joining a session", () => {
   it("refuses an empty or whitespace display name", async () => {
     const { t, host } = await setUpRoom();
     await expectAppError(
-      t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "   " }),
+      t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "   " }),
       "INVALID_ARGUMENT",
     );
   });
@@ -771,7 +771,7 @@ describe("ending a session", () => {
     // A dead invite reports as invalid, so probing cannot tell "no such room"
     // from "room is over".
     await expectAppError(
-      t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Late" }),
+      t.mutation(api.sessions.join, { email: "guest@example.com", inviteCode: host.inviteCode, displayName: "Late" }),
       "INVALID_INVITE",
     );
   });
@@ -821,5 +821,29 @@ describe("W2 scene sync", () => {
       t.mutation(api.sessions.updateView, { sessionId: viewer.sessionId, participantToken: viewer.participantToken, command: { type: "setPage", page: "3d" } }),
       "NOT_PRESENTER",
     );
+  });
+});
+
+describe("join email (session report)", () => {
+  async function hosted() {
+    const t = convexTest({ schema });
+    const scanId = await t.mutation(internal.seed.seedSampleScan, {});
+    const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host" });
+    return { t, host };
+  }
+  it("rejects a malformed email", async () => {
+    const { t, host } = await hosted();
+    await expectAppError(t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Tom", email: "not-an-email" }), "INVALID_ARGUMENT");
+    await expectAppError(t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Tom", email: `${"a".repeat(250)}@x.io` }), "INVALID_ARGUMENT");
+  });
+  it("rejects a join without an email", async () => {
+    const { t, host } = await hosted();
+    await expect(t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Tom" } as never)).rejects.toThrow();
+  });
+  it("stores a trimmed address as a pending recipient", async () => {
+    const { t, host } = await hosted();
+    const guest = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Tom", email: "  tom@example.com " });
+    const rows = await t.run((ctx) => ctx.db.query("reportRecipients").collect());
+    expect(rows).toMatchObject([{ participantId: guest.participantId, email: "tom@example.com", status: "pending" }]);
   });
 });
