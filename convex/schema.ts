@@ -353,7 +353,6 @@ export default defineSchema({
     text: v.string(),
     coversUpTo: v.number(),
     version: v.number(),
-    final: v.optional(v.boolean()), // #60: the end-of-meeting summary, set once by notes.finalizeSession
   })
     .index("by_session", ["sessionId"])
     .index("by_client", ["clientId"]),

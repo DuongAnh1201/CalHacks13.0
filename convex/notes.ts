@@ -158,13 +158,16 @@ export const prepare = internalMutation({
     }
     const previous = await latestSummary(ctx, scope);
     const base = { previous: previous?.text ?? null, version: previous?.version ?? 0 };
-    if (final && previous?.final) return { status: "empty" as const, ...base }; // written once
     const endedAt = final ? await sessionEnd(ctx, scope) : undefined;
     if (final && endedAt === undefined) return { status: "empty" as const, ...base };
+    if (final && previous && previous.coversUpTo >= endedAt!) return { status: "empty" as const, ...base }; // written once
     const { events, coversUpTo, count } = await collect(ctx, scope, previous?.coversUpTo ?? 0, endedAt);
     if (count === 0) {
-      // Nothing new at the end: the existing note becomes the final one.
-      if (final && previous) await ctx.db.patch(previous._id, { final: true });
+      // Nothing new at the end: restate the existing note as the final version (no model call).
+      if (final && previous) {
+        const { version } = await insertSummary(ctx, scope, { text: previous.text, coversUpTo: endedAt! });
+        return { status: "empty" as const, previous: previous.text, version };
+      }
       return { status: "empty" as const, ...base };
     }
     try {
@@ -177,12 +180,11 @@ export const prepare = internalMutation({
 });
 
 export const write = internalMutation({
-  args: { scope: vScope, text: v.string(), coversUpTo: v.number(), final: v.boolean() },
-  handler: async (ctx, { scope, text, coversUpTo, final }) => {
+  args: { scope: vScope, text: v.string(), coversUpTo: v.number() },
+  handler: async (ctx, { scope, text, coversUpTo }) => {
     const previous = await latestSummary(ctx, scope);
-    if (previous && (previous.final || previous.coversUpTo >= coversUpTo))
-      return { version: previous.version, written: false };
-    const { version } = await insertSummary(ctx, scope, { text, coversUpTo, final });
+    if (previous && previous.coversUpTo >= coversUpTo) return { version: previous.version, written: false };
+    const { version } = await insertSummary(ctx, scope, { text, coversUpTo });
     return { version, written: true };
   },
 });
@@ -196,7 +198,7 @@ export const readLatest = internalQuery({
   args: { scope: vScope },
   handler: async (ctx, { scope }) => {
     const row = await latestSummary(ctx, scope);
-    return row ? { text: row.text, version: row.version, coversUpTo: row.coversUpTo, final: row.final === true } : null;
+    return row ? { text: row.text, version: row.version, coversUpTo: row.coversUpTo } : null;
   },
 });
 
@@ -229,7 +231,15 @@ export const forSession = query({
     if (!session || !scan) throw appError("NOT_FOUND", "That review session does not exist.");
     const row = await latestSummary(ctx, { kind: "session", sessionId: session._id, jobId: scan.jobId });
     return row
-      ? { text: row.text, version: row.version, final: row.final === true, coversUpTo: row.coversUpTo, authorName: row.authorName, author: row.author }
+      ? {
+          text: row.text,
+          version: row.version,
+          // Derived, not stored: the final note is the one covering the session's end time.
+          isFinal: session.status === "ended" && row.coversUpTo >= session.updatedAt,
+          coversUpTo: row.coversUpTo,
+          authorName: row.authorName,
+          author: row.author,
+        }
       : null;
   },
 });
@@ -257,7 +267,7 @@ type Prep = {
   coversUpTo?: number;
 };
 const prepareRef = makeFunctionReference<"mutation", { scope: SummaryScope; clearPending: boolean; final: boolean }, Prep>("notes:prepare");
-const writeRef = makeFunctionReference<"mutation", { scope: SummaryScope; text: string; coversUpTo: number; final: boolean }, { version: number; written: boolean }>("notes:write");
+const writeRef = makeFunctionReference<"mutation", { scope: SummaryScope; text: string; coversUpTo: number }, { version: number; written: boolean }>("notes:write");
 const readRef = makeFunctionReference<"query", { scope: SummaryScope }, { text: string; version: number } | null>("notes:readLatest");
 const updateRef = makeFunctionReference<"action", { scope: SummaryScope }, null>("notes:update");
 const clearPendingRef = makeFunctionReference<"mutation", { scope: SummaryScope }, null>("notes:clearPending");
@@ -294,7 +304,6 @@ export async function runNotes(
     scope,
     text,
     coversUpTo: prep.coversUpTo!,
-    final: opts.final ?? false,
   });
   return { status: written.written ? "updated" : "unchanged", version: written.version, text };
 }

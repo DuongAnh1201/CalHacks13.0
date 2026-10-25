@@ -39,7 +39,7 @@ export async function latestSummary(
 export async function insertSummary(
   ctx: MutationCtx,
   scope: SummaryScope,
-  args: { text: string; coversUpTo: number; final?: boolean },
+  args: { text: string; coversUpTo: number },
 ): Promise<{ summaryId: Id<"sessionSummaries">; version: number }> {
   const previous = await latestSummary(ctx, scope);
   const version = (previous?.version ?? 0) + 1;
@@ -50,7 +50,6 @@ export async function insertSummary(
     text: args.text,
     coversUpTo: args.coversUpTo,
     version,
-    ...(args.final ? { final: true } : {}),
   });
   return { summaryId, version };
 }

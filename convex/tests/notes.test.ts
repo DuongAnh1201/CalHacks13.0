@@ -215,7 +215,7 @@ describe("session scope and the final summary", () => {
     await t.finishAllScheduledFunctions(() => vi.runAllTimers());
     const rows = await summaries(t);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ final: true, version: 1, sessionId: host.sessionId, authorName: "Scribe", author: "agent" });
+    expect(rows[0]).toMatchObject({ version: 1, sessionId: host.sessionId, authorName: "Scribe", author: "agent" });
     expect(rows[0].clientId).toBeUndefined();
     const sent = fake.complete.mock.calls[0][0].messages[0].content as string;
     for (const needle of ["HOST-QUESTION", "JUDGE-QUESTION", "HUMAN-CHAT", "ANNOTATION-TEXT"]) expect(sent).toContain(needle);
@@ -230,7 +230,7 @@ describe("session scope and the final summary", () => {
     // Members read it after the meeting; strangers and other rooms' members cannot.
     for (const p of [host, viewer]) {
       expect(await t.query(api.notes.forSession, { sessionId: host.sessionId, participantToken: p.participantToken }))
-        .toMatchObject({ final: true, version: 1, text: "Host and judge explored the tumor together." });
+        .toMatchObject({ isFinal: true, version: 1, text: "Host and judge explored the tumor together." });
     }
     const other = await room(t);
     const refuse = async (token: string) => {
@@ -267,6 +267,13 @@ describe("session scope and the final summary", () => {
     await t.mutation(api.sessions.end, { sessionId: host.sessionId, participantToken: host.participantToken });
     await t.action(finalize, { sessionId: host.sessionId });
     const rows = await summaries(t);
-    expect(rows.map((r) => [r.version, r.final === true])).toEqual([[1, false], [2, true]]);
+    // v1 interim, v2 the immediate (non-debounced-away) update, v3 the final at the end time;
+    // the final is derived: the latest version covering the session's end time.
+    const session = await t.run((ctx) => ctx.db.get(host.sessionId));
+    expect(rows.map((r) => r.version)).toEqual([1, 2, 3]);
+    expect(rows[0].coversUpTo).toBeLessThan(session!.updatedAt);
+    expect(rows[1].coversUpTo).toBeLessThan(session!.updatedAt);
+    expect(rows[2].coversUpTo).toBeGreaterThanOrEqual(session!.updatedAt);
+    expect(await t.query(api.notes.forSession, { sessionId: host.sessionId, participantToken: host.participantToken })).toMatchObject({ isFinal: true, version: 3 });
   });
 });
