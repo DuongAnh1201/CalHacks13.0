@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, flairUrl, getLibrary, segUrl } from '../api/client';
 import type { LibraryCase } from '../api/types';
-import { Footer } from '../components/Footer';
 import { TopNavBar } from '../components/TopNavBar';
 import { BeatTheAi } from '../games/BeatTheAi';
 import { Bigger } from '../games/Bigger';
@@ -234,7 +233,6 @@ export default function Play() {
           <button type="button" aria-label="Dismiss" onClick={() => setError(null)}>×</button>
         </div>
       )}
-      <Footer />
     </div>
   );
 }
