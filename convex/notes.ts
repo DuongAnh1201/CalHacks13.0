@@ -256,10 +256,11 @@ export const forSession = query({
     const scan = session ? await ctx.db.get(session.scanId) : null;
     if (!session || !scan) throw appError("NOT_FOUND", "That review session does not exist.");
     const row = await latestSummary(ctx, { kind: "session", sessionId: session._id, jobId: scan.jobId });
-    const autoExport = (await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", session._id)).order("desc").collect())
-      .find((e) => e.trigger === "auto" && e.status !== "failed");
-    const exportInfo = autoExport
-      ? { version: autoExport.version, status: autoExport.status, url: autoExport.fileId ? await ctx.storage.getUrl(autoExport.fileId) : null }
+    // The newest export of the session (auto at the end, or a member's manual one), failed included so the panel can offer a retry.
+    const latestExport = await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", session._id)).order("desc").first();
+    const exportInfo = latestExport
+      ? { exportId: latestExport._id, version: latestExport.version, status: latestExport.status, trigger: latestExport.trigger,
+          url: latestExport.fileId ? await ctx.storage.getUrl(latestExport.fileId) : null }
       : null;
     if (!row && !exportInfo) return null;
     return {
