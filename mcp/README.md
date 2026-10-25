@@ -24,6 +24,9 @@ Strict object schemas (unknown properties rejected), snake_case names:
 | `get_report` | optional `job_id`, `page` | original scan facts/report with model metadata |
 | `search` | `query`, optional `sources: [atlas,report]`, `job_id`, `page` | atlas name/group and report field/value matches with source URIs |
 | `export_document` | `job_id`, `format: md`, `sections[]`, optional `session_id`, `participant_token` | shared Markdown builder, storage download URL, export id and version |
+| `add_annotation` | `session_id`, `participant_token`, `text` (≤280), `anchor` point/structure/tumor | shared insert path; stored `suggested`, author agent, source mcp, name from the authenticated caller |
+| `list_annotations` | `session_id`, `participant_token` | live human + AI notes; `can_remove` is true only for your own |
+| `remove_annotation` | `session_id`, `participant_token`, `annotation_id` | removes only your own AI note (same agent name) |
 
 `page: "learn"` or `"/learn"` always suppresses report access, even with a job ID. No job also means no patient report; the server never silently chooses a sample. A missing case says there is no report. No tumor says **"No tumor detected in this scan"**. `certainty` is outline certainty, uncalibrated, and is never synthesized from expertDice. Missing/null certainty is explicitly unavailable. Educational wording is guarded on tool/resource outputs.
 
