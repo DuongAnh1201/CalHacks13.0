@@ -43,9 +43,11 @@ describe("eval cases", () => {
     expect(new Set(CASES.map((c) => key(c.text, c.page, c.jobId))).size).toBe(CASES.length);
   });
 
-  it("has ~40 viewer phrases on /learn and /3d, ~30 + 8 refusals on /mri", () => {
-    expect(viewerCases("/learn").filter((c) => c.id.startsWith("learn-") && !c.id.includes("ask")).length).toBe(40);
-    expect(viewerCases("/3d").length).toBe(40);
+  it("has no /learn cases; ~40 viewer phrases + 2 ask-backs on /3d, ~30 + 8 refusals on /mri", () => {
+    expect(CASES.some((c) => (c.page as string) === "/learn" || c.id.startsWith("learn-"))).toBe(false);
+    expect(Object.keys(PAGE_TOOLS).sort()).toEqual(["/3d", "/mri"]);
+    expect(viewerCases("/3d").filter((c) => !c.id.includes("ask")).length).toBe(40);
+    expect(viewerCases("/3d").filter((c) => c.id.includes("ask")).length).toBe(2);
     expect(viewerCases("/mri").filter((c) => !c.id.includes("offpage")).length).toBe(30);
     expect(viewerCases("/mri").filter((c) => c.id.includes("offpage")).length).toBe(8);
   });
@@ -103,7 +105,7 @@ describe("score", () => {
     const report = await score(CASES, runnerFrom(perfectReply));
     expect(report.results.filter((r) => !r.pass)).toEqual([]);
     expect(report.ok).toBe(true);
-    expect(Object.keys(report.byPage).sort()).toEqual(["/3d", "/learn", "/mri"]);
+    expect(Object.keys(report.byPage).sort()).toEqual(["/3d", "/mri"]);
     expect(Object.keys(report.byKind).sort()).toEqual(["1", "2", "3", "4", "5"]);
     for (const r of [...Object.values(report.byPage), ...Object.values(report.byKind)]) expect(r.rate).toBe(1);
     expect(() => assertPassing(report)).not.toThrow();
@@ -118,15 +120,15 @@ describe("score", () => {
   });
 
   it("fails a page under 90% and passes one at or above", async () => {
-    const learn = viewerCases("/learn").slice(0, 40);
+    const learn = viewerCases("/3d").filter((c) => !c.id.includes("ask")).slice(0, 40);
     const breakFirst = (n: number): Runner => {
       const broken = new Set(learn.slice(0, n).map((c) => c.id));
       return runnerFrom((c) => (broken.has(c.id) ? { steps: [{ tool: "reset_view" }], reply: "" } : perfectReply(c)));
     };
     const four = await score(learn, breakFirst(4));             // 36/40 = 90%
-    expect(four.byPage["/learn"]).toMatchObject({ passed: 36, total: 40, ok: true });
+    expect(four.byPage["/3d"]).toMatchObject({ passed: 36, total: 40, ok: true });
     const five = await score(learn, breakFirst(5));             // 35/40 = 87.5%
-    expect(five.byPage["/learn"]).toMatchObject({ passed: 35, ok: false });
+    expect(five.byPage["/3d"]).toMatchObject({ passed: 35, ok: false });
     expect(five.ok).toBe(false);
   });
 
@@ -139,19 +141,19 @@ describe("score", () => {
 
   it("flags wrong args, wrong order, extra calls, wrong kind and web search on a scan question", async () => {
     const pick = (id: string) => CASES.find((c) => c.id === id)!;
-    const cases = [pick("learn-08"), pick("learn-39"), pick("learn-37"), pick("kind1-01"), pick("kind5-01")];
+    const cases = [pick("3d-08"), pick("3d-39"), pick("3d-37"), pick("kind1-01"), pick("kind5-01")];
     const answers: Record<string, RunResult> = {
-      "learn-08": { steps: [{ tool: "rotate_view", args: { preset: "left" } }], reply: "" },
-      "learn-39": { steps: [{ tool: "set_opacity", args: { target: "cortex" } }, { tool: "rotate_view", args: { preset: "right" } }], reply: "" },
-      "learn-37": { steps: [{ tool: "undo" }, { tool: "undo" }], reply: "" },
+      "3d-08": { steps: [{ tool: "rotate_view", args: { preset: "left" } }], reply: "" },
+      "3d-39": { steps: [{ tool: "set_opacity", args: { target: "cortex" } }, { tool: "rotate_view", args: { preset: "right" } }], reply: "" },
+      "3d-37": { steps: [{ tool: "undo" }, { tool: "undo" }], reply: "" },
       "kind1-01": { kind: 1, steps: [{ tool: WEB_SEARCH }, { tool: "get_tumor_metrics", args: { job_id: "sample" } }], reply: "136.28 cm³" },
       "kind5-01": { kind: 2, steps: [], reply: "I help with the brain viewer. Try: zoom in." },
     };
     const report = await score(cases, runnerFrom((c) => answers[c.id]));
     const failures = Object.fromEntries(report.results.map((r) => [r.id, r.failures.join("; ")]));
-    expect(failures["learn-08"]).toMatch(/args of rotate_view/);
-    expect(failures["learn-39"]).toMatch(/tools: expected \[rotate_view, set_opacity\]/);
-    expect(failures["learn-37"]).toMatch(/tools: expected \[undo\], got \[undo, undo\]/);
+    expect(failures["3d-08"]).toMatch(/args of rotate_view/);
+    expect(failures["3d-39"]).toMatch(/tools: expected \[rotate_view, set_opacity\]/);
+    expect(failures["3d-37"]).toMatch(/tools: expected \[undo\], got \[undo, undo\]/);
     expect(failures["kind1-01"]).toMatch(/web_search/);
     expect(failures["kind5-01"]).toMatch(/kind: expected 5, got 2/);
   });
@@ -168,6 +170,6 @@ describe("score", () => {
     const c = CASES[0];
     const report = await score([c, c], async () => { throw new Error("no key"); });
     expect(report.results[0].failures).toEqual(["runner threw: no key"]);
-    expect(formatReport(report)).toMatch(/FAIL \/learn/);
+    expect(formatReport(report)).toMatch(/FAIL \//);
   });
 });

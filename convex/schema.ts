@@ -417,6 +417,8 @@ export default defineSchema({
     jobId: v.optional(v.string()),
     text: v.string(),
     source: v.union(v.literal("chat"), v.literal("voice"), v.literal("text")),
+    // "learn" is LEGACY: Learning Mode was removed (#134) and nothing new writes it, but rows from
+    // before may exist and removing the literal would fail schema validation on deploy.
     page: v.union(v.literal("learn"), v.literal("mri"), v.literal("3d")),
     status: v.union(v.literal("queued"), v.literal("running"), v.literal("done"), v.literal("failed"), v.literal("cancelled")),
     steps: v.array(vAgentStep),

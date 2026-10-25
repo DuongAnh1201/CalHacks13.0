@@ -4,7 +4,7 @@ No frontend code is changed here. Browser integration and shared-reducer validat
 
 ## Browser contract
 
-`agent.ask({clientId, text, source, page, sessionId?, jobId?, availableTools?, snapshot?, history?})` returns an `Id<"agentRuns">`. `source` is `chat`, `voice` or `text`. Canonical pages are `learn`, `mri`, `3d`; `/learn`, `/mri`, `/3d` are accepted at the boundary and normalized. A request may contain up to 2000 text characters, a 20 KB JSON snapshot and 10 history entries of up to 2000 characters each. Historical roles/text and snapshot values are untrusted data, not system instructions.
+`agent.ask({clientId, text, source, page, sessionId?, jobId?, availableTools?, snapshot?, history?})` returns an `Id<"agentRuns">`. `source` is `chat`, `voice` or `text`. Canonical pages are `mri` and `3d`; `/mri` and `/3d` are accepted at the boundary and normalized. `learn` and `/learn` are rejected with a `BAD_PAGE` error because Learning Mode was removed (#134). The `agentRuns.page` schema union still lists `learn` only for legacy rows; such a row that is still queued is finished as failed with `PAGE_REMOVED` and never reaches the model. A request may contain up to 2000 text characters, a 20 KB JSON snapshot and 10 history entries of up to 2000 characters each. Historical roles/text and snapshot values are untrusted data, not system instructions.
 
 Subscribe with `agent.getRun({runId, clientId})`; `agent.listRuns({clientId})` returns the latest 50. `agent.cancel({runId, clientId})` stops queued work and prevents late results/steps from changing a cancelled run. Treat clientId as an unguessable private browser capability; these endpoints do not establish session membership. They never read private session records based on clientId alone.
 
@@ -121,3 +121,7 @@ image rejection, presenter-only capture, 30-second rejection and member-authoriz
 MCP listing passed; annotation/message/summary/transcript tools remained present.
 The disposable room/token were cleaned up and our recorded CLI/backend PIDs were
 stopped explicitly; ports 3380/3381 were confirmed clear. No push or PR.
+
+## /learn cleanup
+
+The agent no longer has a `/learn` page: `Page` is `mri | 3d`, the tool registry and chips have no learn entries, `export_document` always needs the run's job (no atlas export from the panel), and chat persistence needs a `jobId` (there is no `atlas` chat). The eval set has no `/learn` cases: the viewer phrases stay on `/3d` (40, plus two left/right ask-backs) and `/mri` (30 plus 8 off-page refusals), and every question kind has at least 10 cases on those two pages. Kinds 3 and 5 still need 100%. MCP itself still accepts `page: "learn"` as input and treats it as "no report".

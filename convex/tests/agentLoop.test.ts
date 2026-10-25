@@ -58,7 +58,7 @@ function fixture(client?: ClaudeClient) {
   };
   const input: LoopInput = {
     runId: "run-1",
-    page: "learn",
+    page: "3d",
     text: "Zoom in",
     availableTools: ["zoom_view", "reset_view"],
   };

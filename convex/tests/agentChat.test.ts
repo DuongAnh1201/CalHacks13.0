@@ -66,15 +66,13 @@ describe("Agent Panel chat is separate from session chat", () => {
     expect((await t.run((ctx) => ctx.db.get(runId)))?.status).toBe("cancelled");
   });
 
-  it("uses atlas for learn without a jobId", async () => {
+  it("finishes a legacy learn row without chat rows or a model call", async () => {
     const t = convexTest({ schema });
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     const runId = await running(t, { page: "learn", jobId: undefined, status: "queued" });
     await t.action(internal.agent.run, { runId });
-    await t.action(internal.agent.run, { runId });
-    const rows = await t.query(api.agent.listChat, { clientId, jobId: "atlas", limit: 50 });
-    expect(rows).toHaveLength(2);
-    expect(rows.every((row) => row.jobId === "atlas")).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get(runId)))).toMatchObject({ status: "failed", error: "PAGE_REMOVED" });
+    expect(await t.run((ctx) => ctx.db.query("messages").collect())).toEqual([]);
   });
 
   it.each(["mri", "3d"] as const)("skips persistence on %s without jobId while finishing the run", async (page) => {
@@ -124,7 +122,7 @@ describe("Agent Panel chat is separate from session chat", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "injected-fake-key");
     vi.stubEnv("AGENT_DAILY_RUN_LIMIT", "0");
     const t = convexTest({ schema });
-    const runId = await running(t, { status: "queued", page: "learn", jobId: undefined, spendDay: "2000-01-01", text: "Explain the hippocampus" });
+    const runId = await running(t, { status: "queued", page: "3d", jobId: "atlas", spendDay: "2000-01-01", text: "Explain the hippocampus" });
     expect(await t.mutation(internal.agent.claim, { runId })).toBeNull();
     expect(await t.mutation(internal.agent.claim, { runId })).toBeNull();
     const run = await t.run((ctx) => ctx.db.get(runId));
