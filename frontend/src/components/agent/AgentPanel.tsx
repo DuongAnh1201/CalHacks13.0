@@ -81,10 +81,10 @@ export function AgentPanel(p: AgentPanelProps) {
   const [draft, setDraft] = useState('');
   if (p.hidden) return null;
   return (
-    <section className={css.panel} aria-label="Pons Assistant">
+    <section className={css.panel} aria-label="Lobe Assistant">
       <header className={css.head}>
         <span className={css.avatar}><img src={avatarIcon} alt="" width={16} height={16} /></span>
-        <div className={css.titles}><h2 className={css.title}>Pons Assistant</h2><p className={css.sub}>{p.tabContent ? 'Live meeting notes' : 'Voice & script control for the workspace'}</p></div>
+        <div className={css.titles}><h2 className={css.title}>Lobe Assistant</h2><p className={css.sub}>{p.tabContent ? 'Live meeting notes' : 'Voice & script control for the workspace'}</p></div>
         <span className={`${css.status} ${css[p.status]}`} role="status"><img src={statusDot} alt="" width={6} height={6} />{STATUS[p.status]}</span>
       </header>
       {!p.tabContent && <ul className={css.chips} aria-label="Agents">

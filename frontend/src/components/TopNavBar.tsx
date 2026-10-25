@@ -8,7 +8,7 @@ export function TopNavBar() {
     <header className={css.bar}>
       <NavLink to="/" className={css.brand}>
         <img src={brandMark} alt="" width={19} height={20} />
-        Pons
+        Lobe
       </NavLink>
       <nav className={css.links} aria-label="Main">
         <NavLink to="/explore" className={({ isActive }) => (isActive ? `${css.link} ${css.on}` : css.link)}>Explore</NavLink>

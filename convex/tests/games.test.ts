@@ -26,9 +26,9 @@ async function expectAppError(promise: Promise<unknown>, code: AppErrorCode): Pr
 async function setUpRoom() {
   const t = convexTest({ schema });
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
-  const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Tutor" });
-  const ana = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Ana" });
-  const ben = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Ben" });
+  const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Tutor", kind: "play" });
+  const ana = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Ana", kind: "play" });
+  const ben = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Ben", kind: "play" });
   const as = (p: { sessionId: typeof host.sessionId; participantToken: string }) => ({ sessionId: p.sessionId, participantToken: p.participantToken });
   return { t, host: as(host), ana: as(ana), ben: as(ben) };
 }
@@ -49,7 +49,8 @@ describe("games: a which-side round", () => {
     expect(open.round?.answered.map((a) => a.displayName)).toEqual(["Ana"]); // who, not what
     expect(open.round?.mine).toBeNull();
     expect((await t.query(api.games.current, ana)).round?.mine).toEqual({ answer: { kind: "whichSide", side: "right" }, result: null });
-    expect(open.leaderboard).toEqual([]); // a score change before the reveal would say who was right
+    // Everyone is listed from the start, and nobody's score moves before the reveal (it would say who was right).
+    expect(open.leaderboard.map((r) => [r.displayName, r.points])).toEqual([["Ana", 0], ["Ben", 0], ["Tutor", 0]]);
 
     await t.mutation(api.games.answer, { ...ben, roundId, answer: { kind: "whichSide", side: "left" } });
     await t.mutation(api.games.reveal, { ...host, roundId });
@@ -58,17 +59,17 @@ describe("games: a which-side round", () => {
     expect(done.round?.secret).toEqual({ kind: "whichSide", side: "right" });
     expect(done.round?.answers?.map((a) => [a.displayName, a.result.correct, a.result.points])).toEqual([["Ana", true, 100], ["Ben", false, 0]]);
     expect(done.round?.mine?.result).toEqual({ points: 0, correct: false });
-    expect(done.leaderboard.map((r) => [r.displayName, r.points, r.rounds])).toEqual([["Ana", 100, 1], ["Ben", 0, 1]]);
+    expect(done.leaderboard.map((r) => [r.displayName, r.points, r.rounds])).toEqual([["Ana", 100, 1], ["Ben", 0, 1], ["Tutor", 0, 0]]);
   });
 
-  it("takes one answer per player, none from the host, and none after the reveal", async () => {
+  it("takes one answer per player, the host included, and none after the reveal", async () => {
     const { t, host, ana, ben } = await setUpRoom();
     const { roundId } = await t.mutation(api.games.start, {
       ...host, prompt: { kind: "whichSide", jobId: "lib-03" }, secret: { kind: "whichSide", side: "left" },
     });
     await t.mutation(api.games.answer, { ...ana, roundId, answer: { kind: "whichSide", side: "left" } });
     await expectAppError(t.mutation(api.games.answer, { ...ana, roundId, answer: { kind: "whichSide", side: "right" } }), "INVALID_ARGUMENT");
-    await expectAppError(t.mutation(api.games.answer, { ...host, roundId, answer: { kind: "whichSide", side: "left" } }), "NOT_ALLOWED");
+    await t.mutation(api.games.answer, { ...host, roundId, answer: { kind: "whichSide", side: "left" } }); // everyone plays
     await expectAppError(t.mutation(api.games.answer, { ...ben, roundId, answer: { kind: "bigger", pick: "A" } }), "INVALID_ARGUMENT");
     await t.mutation(api.games.reveal, { ...host, roundId });
     await expectAppError(t.mutation(api.games.answer, { ...ben, roundId, answer: { kind: "whichSide", side: "left" } }), "INVALID_ARGUMENT");
@@ -91,7 +92,7 @@ describe("games: rounds and totals", () => {
     await t.mutation(api.games.reveal, { ...host, roundId: second.roundId }); // a second reveal adds nothing
     const { round, leaderboard } = await t.query(api.games.current, ana);
     expect(round?.answers?.[0].result).toEqual({ points: 90, distanceMm: 5 });
-    expect(leaderboard).toEqual([expect.objectContaining({ displayName: "Ana", points: 190, rounds: 2 })]);
+    expect(leaderboard[0]).toEqual(expect.objectContaining({ displayName: "Ana", points: 190, rounds: 2 }));
   });
 
   it("refuses malformed rounds before storing anything", async () => {
@@ -112,11 +113,34 @@ describe("games: rounds and totals", () => {
     const { t, host } = await setUpRoom();
     const { roundId } = await t.mutation(api.games.start, { ...host, prompt: { kind: "beatAi", jobId: "sample", slice: 70 } });
     const scanId = await t.mutation(internal.seed.seedSampleScan, {});
-    const other = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Elsewhere" });
-    const guest = await t.mutation(api.sessions.join, { inviteCode: other.inviteCode, displayName: "Cara" });
+    const other = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Elsewhere", kind: "play" });
+    const guest = await t.mutation(api.sessions.join, { inviteCode: other.inviteCode, displayName: "Cara", kind: "play" });
     const g = { sessionId: guest.sessionId, participantToken: guest.participantToken };
     await expectAppError(t.mutation(api.games.answer, { ...g, roundId, answer: { kind: "beatAi", dice: 0.9 } }), "NOT_FOUND");
     await expectAppError(t.mutation(api.games.reveal, { sessionId: other.sessionId, participantToken: other.participantToken, roundId }), "NOT_FOUND");
+  });
+});
+
+describe("games: playgrounds are separate from case workspaces", () => {
+  it("refuses every game function in a review room", async () => {
+    const t = convexTest({ schema });
+    const scanId = await t.mutation(internal.seed.seedSampleScan, {});
+    const room = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host" });
+    const host = { sessionId: room.sessionId, participantToken: room.participantToken };
+    await expectAppError(t.mutation(api.games.start, { ...host, prompt: { kind: "beatAi", jobId: "sample", slice: 70 } }), "NOT_ALLOWED");
+    await expectAppError(t.query(api.games.current, host), "NOT_ALLOWED");
+  });
+
+  it("an invite only opens the kind of room its page asked for", async () => {
+    const t = convexTest({ schema });
+    const scanId = await t.mutation(internal.seed.seedSampleScan, {});
+    const play = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host", kind: "play" });
+    const review = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Host" });
+    const wrong1 = await expectAppError(t.mutation(api.sessions.join, { inviteCode: play.inviteCode, displayName: "A" }), "INVALID_INVITE");
+    expect(wrong1.message).toMatch(/playground/);
+    await expectAppError(t.mutation(api.sessions.join, { inviteCode: review.inviteCode, displayName: "A", kind: "play" }), "INVALID_INVITE");
+    expect((await t.mutation(api.sessions.join, { inviteCode: play.inviteCode, displayName: "A", kind: "play" })).kind).toBe("play");
+    expect((await t.mutation(api.sessions.join, { inviteCode: review.inviteCode, displayName: "A" })).kind).toBe("review");
   });
 });
 

@@ -40,6 +40,8 @@ import { vGameAnswer, vGamePrompt, vGameResult, vGameSecret } from "./lib/games"
 export const vVec3 = v.array(v.number());
 export const vMat4RowMajor = v.array(v.number());
 
+export const vSessionKind = v.union(v.literal("review"), v.literal("play"));
+
 /** which anatomical plane the shared slice cursor is currently sliced along */
 export const vPlane = v.union(
   v.literal("axial"), // perpendicular to RAS +z (inferior -> superior)
@@ -241,6 +243,13 @@ export default defineSchema({
     viewVersion: v.number(),
 
     status: v.union(v.literal("active"), v.literal("ended")),
+    /**
+     * What the room is for. Absent = "review" (a case workspace: shared view,
+     * notes, chat). "play" = a playground for the study games (games.ts). The
+     * two never mix: games refuse review rooms, and an invite only opens a
+     * room of the kind its page asked for.
+     */
+    kind: v.optional(vSessionKind),
     createdAt: v.number(),
     /** Last time the shared view changed. Used for "stale room" cleanup later. */
     updatedAt: v.number(),

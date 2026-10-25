@@ -43,8 +43,8 @@ def describe(label_path):
     return side, round(wt.sum() * voxel_cm3, 1)
 
 
-def pick(task_dir, count):
-    """Round-robin over (side, size tercile) buckets so the library is not 25 near-identical cases."""
+def pick(task_dir):
+    """Every case, ordered round-robin over (side, size tercile) buckets so any prefix is varied."""
     cases = []
     for label in sorted((task_dir / "labelsTr").glob("BRATS_*.nii.gz")):
         name = label.name.removesuffix(".nii.gz")
@@ -56,7 +56,7 @@ def pick(task_dir, count):
     for c in cases:
         buckets.setdefault((c[1], int(np.searchsorted(cuts, c[2]))), []).append(c)
     order = [c for row in zip_longest(*buckets.values()) for c in row if c]
-    return order[:count]
+    return order
 
 
 def size_word(cm3):
@@ -68,12 +68,21 @@ SIDE = {"left": "Left hemisphere", "right": "Right hemisphere", "bilateral": "Bo
 
 def build(task_dir, count, out):
     task_dir, out = Path(task_dir), Path(out)
-    for n, (name, _, _) in enumerate(pick(task_dir, count), start=1):
-        job_id = f"lib-{n:02d}"
+    n = 0
+    for name, _, _ in pick(task_dir):
+        if n == count:
+            break
+        job_id = f"lib-{n + 1:02d}"
         with tempfile.TemporaryDirectory() as tmp:
             split(task_dir / "imagesTr" / f"{name}.nii.gz", tmp)
             shutil.copy(task_dir / "labelsTr" / f"{name}.nii.gz", Path(tmp) / "expert_label.nii.gz")
-            report = make_sample(tmp, job_id, expert=True, out=out)
+            try:
+                report = make_sample(tmp, job_id, expert=True, out=out)
+            except ValueError as exc:   # a pipeline guard, e.g. the mesh triangle or 15 MB budget: take the next case
+                shutil.rmtree(out / job_id, ignore_errors=True)
+                print(f"skip {name}: {exc}", flush=True)
+                continue
+        n += 1
         whole = report["volumesCm3"]["whole"]
         lesions = report["lesionCount"]
         meta = {

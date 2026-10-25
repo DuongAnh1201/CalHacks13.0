@@ -57,8 +57,9 @@ async function setUp() {
   const t = convexTest({ schema });
   const scanId = await t.mutation(internal.seed.seedSampleScan, {});
 
-  const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Presenter" });
-  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge" });
+  // Room A is a playground so the games functions run in it too; nothing else in the matrix checks the kind.
+  const host = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Presenter", kind: "play" });
+  const viewer = await t.mutation(api.sessions.join, { inviteCode: host.inviteCode, displayName: "Judge", kind: "play" });
   const other = await t.mutation(api.sessions.create, { scanId, hostDisplayName: "Other room" });
 
   const asHost: Auth = { sessionId: host.sessionId, participantToken: host.participantToken };
@@ -84,12 +85,7 @@ type Ctx = Awaited<ReturnType<typeof setUp>>;
  * The matrix. `call` runs the function as whoever `auth` says; `hostOnly`
  * marks the functions a viewer must be refused by role.
  */
-const MATRIX: Record<string, {
-  hostOnly: boolean;
-  call: (t: T, auth: Auth, ctx: Ctx) => Promise<unknown>;
-  /** The function a host is refused by design (games.answer: the quizmaster does not play). */
-  succeedsAsViewer?: true;
-}> = {
+const MATRIX: Record<string, { hostOnly: boolean; call: (t: T, auth: Auth, ctx: Ctx) => Promise<unknown> }> = {
   "sessions.get": { hostOnly: false, call: (t, a) => t.query(api.sessions.get, a) },
   "sessions.getInviteCode": { hostOnly: true, call: (t, a) => t.query(api.sessions.getInviteCode, a) },
   "sessions.updateView": {
@@ -125,7 +121,6 @@ const MATRIX: Record<string, {
   },
   "games.answer": {
     hostOnly: false,
-    succeedsAsViewer: true,
     call: (t, a, ctx) => t.mutation(api.games.answer, { ...a, roundId: ctx.roundId, answer: { kind: "whichSide", side: "left" } }),
   },
   "games.reveal": { hostOnly: true, call: (t, a, ctx) => t.mutation(api.games.reveal, { ...a, roundId: ctx.roundId }) },
@@ -136,7 +131,7 @@ const MATRIX: Record<string, {
 // The matrix
 // ---------------------------------------------------------------------------
 
-describe.each(Object.entries(MATRIX))("%s", (_name, { hostOnly, call, succeedsAsViewer }) => {
+describe.each(Object.entries(MATRIX))("%s", (_name, { hostOnly, call }) => {
   it("rejects unknown, empty and oversized tokens", async () => {
     const ctx = await setUp();
     for (const participantToken of ["not-a-real-token", "", "A".repeat(MAX_CREDENTIAL_LENGTH + 1)]) {
@@ -165,9 +160,9 @@ describe.each(Object.entries(MATRIX))("%s", (_name, { hostOnly, call, succeedsAs
     });
   }
 
-  it(succeedsAsViewer ? "succeeds for a viewer" : "succeeds for the host", async () => {
+  it("succeeds for the host", async () => {
     const ctx = await setUp();
-    await call(ctx.t, succeedsAsViewer ? ctx.asViewer : ctx.asHost, ctx);
+    await call(ctx.t, ctx.asHost, ctx);
   });
 });
 

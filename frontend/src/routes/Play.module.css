@@ -32,6 +32,19 @@
 .empty { padding: 60px 0; text-align: center; font-size: 15px; }
 .error { margin: 0; font-size: 13px; color: var(--nv-accent-warm); }
 
+.startBar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px 12px; padding: 14px 16px; border: 1px dashed rgba(31, 86, 115, .45); border-radius: var(--nv-radius-card); background: var(--nv-primary-soft); }
+.startBar b { grid-column: 1; font-size: 14px; color: var(--nv-text); }
+.startBar span { grid-column: 1; font-size: 12px; color: var(--nv-text-2); }
+.nameInput { grid-column: 2; grid-row: 1 / span 2; padding: 9px 12px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); font: 13px var(--nv-font); }
+.startBar .primary { grid-column: 3; grid-row: 1 / span 2; }
+.leave { padding: 8px 12px; border: 1px solid var(--nv-border); border-radius: var(--nv-radius-control); background: #fff; color: var(--nv-accent-warm); font: 700 12px var(--nv-font); }
+.toast {
+  position: fixed; left: 50%; bottom: 24px; z-index: 50; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+  max-width: calc(100vw - 32px); padding: 10px 10px 10px 16px; border-radius: 12px; background: #3f0400; color: #fff;
+  font: 600 13px var(--nv-font); box-shadow: 0 12px 28px -8px rgba(0, 0, 0, .35);
+}
+.toast button { width: 26px; height: 26px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .15); color: #fff; font-size: 16px; }
+
 @media (max-width: 960px) {
   .games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .body { grid-template-columns: 1fr; }
