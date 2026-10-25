@@ -82,7 +82,7 @@ describe("Scribe notes, client scope", () => {
     expect(rows[1].coversUpTo).toBeGreaterThan(rows[0].coversUpTo);
     // Request shape: low effort, small budget, data wrapped as untrusted, previous note passed in.
     const second = fake.complete.mock.calls[1][0];
-    expect(second).toMatchObject({ model: "claude-opus-5-5", max_tokens: 400, output_config: { effort: "low" } });
+    expect(second).toMatchObject({ model: "claude-haiku-5-5", max_tokens: 400, output_config: { effort: "low" } });
     expect(JSON.parse(second.messages[0].content).untrusted.previous_notes).toBe("Asked to show the tumor.");
     expect(await t.run((ctx) => ctx.db.query("agentDailyUsage").collect())).toMatchObject([{ count: 2 }]);
   });
