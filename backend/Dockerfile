@@ -22,6 +22,10 @@ COPY weights/ ./weights/
 COPY brats_mri_segmentation/configs/metadata.json ./brats_mri_segmentation/configs/metadata.json
 COPY seed/ ./seed/
 
+# Uploads must outlive restarts: guests open a shared upload from here. Prod also sets
+# JOBS_DIR to the pod's volume (/workspace/jobs), since the container disk is wiped on deploy.
+ENV KEEP_JOBS=1
+
 # 3. Run as non-root user
 RUN mkdir -p /app/jobs \
  && chown -R appuser /app/jobs

@@ -250,3 +250,14 @@ def test_expert_label_served_only_where_seeded(tmp_path, monkeypatch):
     with TestClient(api.app) as c:
         assert c.get("/jobs/with-expert/expert.nii.gz").content == b"label"
         assert c.get("/jobs/without/expert.nii.gz").status_code == 404
+
+
+def test_jobs_dir_env(tmp_path, monkeypatch):
+    import importlib
+    target = tmp_path / "volume" / "jobs"
+    monkeypatch.setenv("JOBS_DIR", str(target))
+    try:
+        assert importlib.reload(api).JOBS == target and target.is_dir()
+    finally:
+        monkeypatch.delenv("JOBS_DIR")
+        importlib.reload(api)
