@@ -526,6 +526,8 @@ export const end = mutation({
   },
   handler: async (ctx, args): Promise<{ status: "ended" }> => {
     const { session } = await requirePresenter(ctx, args);
+    const cursors = await ctx.db.query("cursors").withIndex("by_session", (q) => q.eq("sessionId", session._id)).collect();
+    for (const c of cursors) await ctx.db.delete(c._id);
     await ctx.db.patch(session._id, { status: "ended", updatedAt: Date.now() });
     return { status: "ended" };
   },

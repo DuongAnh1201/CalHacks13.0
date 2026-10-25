@@ -309,6 +309,22 @@ export default defineSchema({
     // Participant list for a room.
     .index("by_session", ["sessionId"]),
 
+  /**
+   * Live 3D pointers, one row per participant (spec §1.2). Kept OUT of
+   * `sessions` / `sessionParticipants` so `sessions.get` never re-runs at
+   * pointer rate. This is the one high-frequency table (≤ 10 Hz per person
+   * while the pointer moves, 0 when idle) — bends guardrail 7, Sage-reviewed.
+   */
+  cursors: defineTable({
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    /** Hit point in the hit mesh's local frame; null = the pointer is off the model. */
+    cursor: v.union(v.null(), v.object({ node: v.string(), localMm: vVec3 })),
+    updatedAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_participant", ["participantId"]),
+
   // Shared human/agent records. Writers stamp attribution on the server.
   // Text lengths, anchor bounds and D10 transitions belong to shared mutations.
   annotations: defineTable({

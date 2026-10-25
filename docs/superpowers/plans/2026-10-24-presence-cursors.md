@@ -521,7 +521,7 @@ Send `hc send qa "T1 ready: <hash>"` and `hc send lead "T1 done: <hash>, <n> tes
   - `api.cursors.move({ sessionId, participantToken, cursor: null | { node: string, localMm: number[] } })` → `null`
   - `api.cursors.list({ sessionId, participantToken })` → `{ participantId: string, displayName: string, cursor: null | { node, localMm } }[]`, excluding the caller
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `convex/tests/cursors.test.ts`:
 
@@ -579,12 +579,12 @@ describe("cursors", () => {
 });
 ```
 
-- [ ] **Step 2: Run, expect failure**
+- [x] **Step 2: Run, expect failure**
 
 Run: `npx vitest run convex/tests/cursors.test.ts`
 Expected: FAIL (`api.cursors` is undefined).
 
-- [ ] **Step 3: Table**
+- [x] **Step 3: Table**
 
 In `convex/schema.ts`, add a new table inside `defineSchema({...})`, after `sessionParticipants`:
 
@@ -606,7 +606,7 @@ In `convex/schema.ts`, add a new table inside `defineSchema({...})`, after `sess
     .index("by_participant", ["participantId"]),
 ```
 
-- [ ] **Step 4: `convex/cursors.ts`**
+- [x] **Step 4: `convex/cursors.ts`**
 
 ```ts
 /**
@@ -668,7 +668,7 @@ export const list = query({
 });
 ```
 
-- [ ] **Step 5: End clears cursors**
+- [x] **Step 5: End clears cursors**
 
 Run GitNexus `impact({target: "end", direction: "upstream"})` and report the risk.
 
@@ -679,7 +679,7 @@ In the `end` handler of `convex/sessions.ts`, insert directly after `const { ses
     for (const c of cursors) await ctx.db.delete(c._id);
 ```
 
-- [ ] **Step 6: Docs**
+- [x] **Step 6: Docs**
 
 In the API table of `docs/CONVEX_BACKEND.md`, add these rows directly after the `sessions.end` row (line 405):
 
@@ -691,12 +691,12 @@ In the API table of `docs/CONVEX_BACKEND.md`, add these rows directly after the 
 | `cursors.list` | `{ sessionId, participantToken }` | `{ participantId, displayName, cursor }[]` (caller excluded) |
 ```
 
-- [ ] **Step 7: Full root suite**
+- [x] **Step 7: Full root suite**
 
 Run: `npm run typecheck && npm test`
 Expected: all PASS, including the existing `sessions.test.ts`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 Run GitNexus `detect_changes()`. Expected scope: the schema, `cursors.ts`, and `end` in `sessions.ts` only. Then:
 
