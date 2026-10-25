@@ -26,19 +26,6 @@ function safeError(error: unknown) {
 function toolResult(data: unknown) { return { content: [{ type: "text" as const, text: JSON.stringify({ ...data as object, notice: UNTRUSTED }) }] }; }
 
 export function registerMessageTools(server: McpServer, deps: McpDependencies): void {
-  server.registerTool("post_message", {
-    description: `Post an AI-authored chat message (trimmed 1–2000 characters). Requires session_id and participant_token (or the request's session headers); the session must review job_id. MCP authentication alone is not room permission. ${UNTRUSTED}`,
-    inputSchema: z.object({ ...scope, text: z.string() }).strict(),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-  }, async (args) => {
-    if (!deps.ctx) return { isError: true, content: [{ type: "text", text: AUTH_MESSAGE }] };
-    try {
-      const result = await deps.ctx.runMutation(internal.messageMcp.post, {
-        jobId: args.job_id, text: args.text, ...capability(args, deps), agentName: deps.caller.authorName,
-      });
-      return toolResult(result);
-    } catch (error) { return { isError: true, content: [{ type: "text", text: safeError(error) }] }; }
-  });
   server.registerTool("list_messages", {
     description: `Read this authorized room's chat for job_id, newest first. Requires session_id and participant_token (or request session headers). limit is 1–100 (default 50); before is the opaque next_before cursor from a previous result, not a timestamp. ${UNTRUSTED}`,
     inputSchema: z.object({ ...scope, limit: z.number().int().min(1).max(100).default(50), before: z.string().optional() }).strict(),
