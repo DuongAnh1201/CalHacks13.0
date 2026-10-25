@@ -71,7 +71,7 @@ useCall (live && !muted) ─► createTranscriber().start() ─► transcript.ap
 
 **Leave**: `room.disconnect()`, detach all audio, `status = 'idle'`, `speaking` cleared, transcriber stopped.
 
-**Automatic leave**: `useCall` subscribes to `useShare`. When `session` becomes null or not `active` (left, ended, kicked), it calls `leave()`. A `pagehide` listener also calls `leave()`.
+**Automatic leave**: `useCall` subscribes to `useShare`. When `session` becomes null or not `active` (left, ended, kicked), it calls `leave()`. Tab close is handled by `livekit-client` itself (`disconnectOnPageLeave`, default on).
 
 Route changes between `/mri` and `/3d` do nothing to the call. Navigating to a page without `TopNavBar` controls keeps the call running while the session is active. The user can come back to leave.
 
