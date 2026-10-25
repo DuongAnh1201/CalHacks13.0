@@ -195,7 +195,7 @@ describe("session scope and the final summary", () => {
 
   it("writes one final version on end covering all participants, once, readable by members only", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "k");
-    const fake = fakeClient("Host and judge explored the tumor together.");
+    const fake = fakeClient(JSON.stringify({ timeline: ["Host and judge explored the tumor together."], action_items: [] }));
     vi.spyOn(anthropic, "createClaudeClient").mockReturnValue(fake);
     const t = convexTest(schema);
     const { host, viewer, scope } = await room(t);
@@ -230,7 +230,7 @@ describe("session scope and the final summary", () => {
     // Members read it after the meeting; strangers and other rooms' members cannot.
     for (const p of [host, viewer]) {
       expect(await t.query(api.notes.forSession, { sessionId: host.sessionId, participantToken: p.participantToken }))
-        .toMatchObject({ isFinal: true, version: 1, text: "Host and judge explored the tumor together." });
+        .toMatchObject({ isFinal: true, version: 1, text: expect.stringContaining("Host and judge explored the tumor together.") });
     }
     const other = await room(t);
     const refuse = async (token: string) => {
@@ -242,7 +242,7 @@ describe("session scope and the final summary", () => {
     await refuse("not-a-token");
   });
 
-  it("ends with no summary and no model call when there is no key", async () => {
+  it("ends with no summary and no model call when there is no key (the export still happens, see notesFinal)", async () => {
     const t = convexTest(schema);
     const factory = vi.spyOn(anthropic, "createClaudeClient");
     const { host } = await room(t);
@@ -255,7 +255,7 @@ describe("session scope and the final summary", () => {
 
   it("the final summary ignores an open debounce window", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "k");
-    const fake = fakeClient("Interim.", "Final.");
+    const fake = fakeClient("Interim.", "Update.", JSON.stringify({ timeline: ["Final timeline."], action_items: [] }));
     vi.spyOn(anthropic, "createClaudeClient").mockReturnValue(fake);
     const t = convexTest(schema);
     const { host, scope } = await room(t);

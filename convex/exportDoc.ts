@@ -2,18 +2,19 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireSessionMember } from "./lib/auth";
 import { authorFor } from "./lib/author";
 import { appError } from "./lib/errors";
-import { buildMarkdown, EXPORT_SECTIONS, PRIVATE_SECTIONS, type ExportSnapshot } from "./lib/exportMarkdown";
+import { buildMarkdown, EXPORT_SECTIONS, OPTIONAL_EXPORT_SECTIONS, PRIVATE_SECTIONS, type ExportSnapshot } from "./lib/exportMarkdown";
+import { loadExportScreenshots } from "./lib/exportScreenshots";
 import { readExportReport } from "./lib/exportReport";
 
 const sectionsValidator = v.array(v.string());
 const suggested = "suggested_annotations";
 function checkedSections(sections: string[]) {
   const selected = sections.length ? [...new Set(sections)] : [...EXPORT_SECTIONS];
-  if (selected.some((part) => ![...EXPORT_SECTIONS, suggested].includes(part))) {
+  if (selected.some((part) => ![...EXPORT_SECTIONS, ...OPTIONAL_EXPORT_SECTIONS, suggested].includes(part))) {
     throw appError("INVALID_ARGUMENT", "Unknown export section.");
   }
   if (selected.includes(suggested) && !selected.includes("annotations")) selected.push("annotations");
@@ -21,7 +22,7 @@ function checkedSections(sections: string[]) {
 }
 function needsPrivate(sections: string[]) { return sections.some((part) => [...PRIVATE_SECTIONS, suggested].includes(part)); }
 
-async function snapshot(ctx: QueryCtx, jobId: string, sections: string[], sessionId?: Id<"sessions">): Promise<ExportSnapshot> {
+async function snapshot(ctx: QueryCtx, jobId: string, sections: string[], sessionId?: Id<"sessions">, auto = false): Promise<ExportSnapshot> {
   const data: ExportSnapshot = { annotations: [], messages: [], summary: null };
   if (!needsPrivate(sections)) return data;
   if (!sessionId) throw appError("NOT_AUTHENTICATED", "Private export sections require session_id and participant_token.");
@@ -32,6 +33,20 @@ async function snapshot(ctx: QueryCtx, jobId: string, sections: string[], sessio
   if (sections.includes("summary")) {
     data.summary = await ctx.db.query("sessionSummaries").withIndex("by_session", (q) => q.eq("sessionId", sessionId))
       .filter((q) => q.eq(q.field("jobId"), jobId)).order("desc").first();
+  }
+  const wantsShots = sections.includes("screenshots");
+  const wantsTranscript = sections.includes("transcript");
+  if (wantsShots || wantsTranscript || sections.includes("summary")) {
+    const session = await ctx.db.get(sessionId);
+    data.startedAt = session?._creationTime;
+    if (sections.includes("summary") && data.summary && session)
+      data.summaryState = session.status === "ended" && data.summary.coversUpTo >= session.updatedAt ? "final" : "interim";
+    else if (auto && sections.includes("summary")) data.summaryState = "unavailable";
+  }
+  if (wantsShots) data.screenshots = await loadExportScreenshots(ctx, sessionId, jobId);
+  if (wantsTranscript) {
+    data.transcript = await ctx.db.query("transcriptSegments").withIndex("by_session_time", (q) => q.eq("sessionId", sessionId))
+      .filter((q) => q.eq(q.field("jobId"), jobId)).take(5000);
   }
   if (sections.includes("conversation") || sections.includes("tool_steps")) {
     data.messages = await ctx.db.query("messages").withIndex("by_job_time", (q) => q.eq("jobId", jobId))
@@ -56,13 +71,40 @@ export const authorize = internalQuery({
 /** Internal reservation, after request authorization; the human mutation can use the same schema. */
 export const reserve = internalMutation({
   args: { jobId: v.string(), sessionId: v.optional(v.id("sessions")), sections: sectionsValidator, agentName: v.string() },
-  handler: async (ctx, args) => {
-    const previous = await ctx.db.query("exports").withIndex("by_job", (q) => q.eq("jobId", args.jobId)).order("desc").first();
-    return ctx.db.insert("exports", {
-      jobId: args.jobId, sessionId: args.sessionId, sections: args.sections,
-      format: "md", trigger: "manual", status: "pending", version: (previous?.version ?? 0) + 1,
-      ...authorFor({ kind: "agent", name: args.agentName, source: "mcp" }),
-    });
+  handler: async (ctx, args) => reserveRow(ctx, { ...args, trigger: "manual" }),
+});
+
+async function reserveRow(
+  ctx: MutationCtx,
+  args: { jobId: string; sessionId?: Id<"sessions">; sections: string[]; agentName: string; trigger: "manual" | "auto"; source?: "mcp" | "agent" },
+) {
+  const previous = await ctx.db.query("exports").withIndex("by_job", (q) => q.eq("jobId", args.jobId)).order("desc").first();
+  return ctx.db.insert("exports", {
+    jobId: args.jobId, sessionId: args.sessionId, sections: args.sections,
+    format: "md", trigger: args.trigger, ...(args.trigger === "auto" ? { reason: "checkpoint" as const } : {}),
+    status: "pending", version: (previous?.version ?? 0) + 1,
+    ...authorFor({ kind: "agent", name: args.agentName, source: args.source ?? "mcp" }),
+  });
+}
+
+/** Sections of the automatic end-of-meeting export (T4a). */
+export const AUTO_EXPORT_SECTIONS = ["case", "report", "annotations", "summary", "conversation", "screenshots", "transcript"];
+
+/**
+ * End-of-meeting auto export (#138): one per ended session. Returns the new
+ * pending export id, or null when the session is not ended or an auto export
+ * already exists (pending or ready). A failed one may be retried.
+ */
+export const autoReserve = internalMutation({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId);
+    if (!session || session.status !== "ended") return null;
+    const scan = await ctx.db.get(session.scanId);
+    if (!scan) return null;
+    const existing = await ctx.db.query("exports").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
+    if (existing.some((row) => row.trigger === "auto" && row.status !== "failed")) return null;
+    return reserveRow(ctx, { jobId: scan.jobId, sessionId, sections: AUTO_EXPORT_SECTIONS, agentName: "Scribe", trigger: "auto", source: "agent" });
   },
 });
 
@@ -76,7 +118,7 @@ export const load = internalQuery({
   handler: async (ctx, { exportId }) => {
     const row = await ctx.db.get(exportId);
     if (!row) throw appError("NOT_FOUND", "Export not found.");
-    return { row, data: row.status === "pending" ? await snapshot(ctx, row.jobId, checkedSections(row.sections), row.sessionId) : null };
+    return { row, data: row.status === "pending" ? await snapshot(ctx, row.jobId, checkedSections(row.sections), row.sessionId, row.trigger === "auto") : null };
   },
 });
 
