@@ -2,20 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans, inline, with the overrides in "Worker rules" below. Steps use checkbox (`- [ ]`) syntax. Tick your own boxes in this file when a step is done, and commit the ticks with your task.
 
-**Goal:** In a live session of the sample case, people see who is online (heartbeat-based, expires) on `/jobs/sample/mri` and `/3d`, and see each other's pointer as a live 3D dot on the model on `/jobs/sample/3d`.
+**Goal:** Remove Learning Mode from the app (T0). Then, in a live session of the sample case, people see who is online (heartbeat-based, expires) on `/jobs/sample/mri` and `/3d`, and see each other's pointer as a live 3D dot on the model on `/jobs/sample/3d`.
 
 **Architecture:**
 - Presence uses `@convex-dev/presence`, wrapped in our own token-checked functions. A thin client heartbeat loop runs on the existing `ConvexClient`.
 - Cursors live in their own `cursors` table, one row per participant. Each row stores `{node, localMm}`: the hit point in the hit mesh's local frame. Every receiver re-projects that point through its own scene, so cursors stay correct even when explode settings differ.
 - Session create/join/follow (W2) is unchanged.
-- Learn is out of scope.
+- Learning Mode (`/learn`) is deleted from the frontend in T0. `/learn` links redirect to `/`. Backend `/learn` handling (agent eval cases, MCP page enum, export guards) stays as dead input; removing it is a follow-up.
 
 **Tech Stack:**
 - Convex 1.48 + `@convex-dev/presence@0.4.0`, convex-test + vitest (edge-runtime).
 - React 19, react-three-fiber 9, drei 10, three 0.186, zustand 5.
 - Frontend vitest uses the node env, runs `src/**/*.test.ts` only, and has no DOM.
 
-Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: Learn dropped).
+Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: Learning Mode removed, T0).
 
 ## Global Constraints
 
@@ -32,8 +32,9 @@ Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: L
 - **Frontend Convex types:** no codegen. Use `anyApi` plus hand-written mirror types in `frontend/src/share/types.ts`.
 - **Sharing scope:** sample case only (`jobId === 'sample'`), as in W2.
 - **Out of scope:**
-  - Learn (`/learn`) sharing, presence or cursors. Cursors on `/mri`.
-  - Do not touch `routes/Learn.tsx`, `viewer/AtlasCanvas.tsx`, `share/sceneSync.ts`, `share/useShareSync.ts`, `share/useMprShare.ts`, `convex/lib/viewCommands.ts`, or the fields of the `sessions` table.
+  - Cursors on `/mri`. Backend `/learn` cleanup (`convex/agent/eval/*`, `convex/mcp/*`, `convex/exportDoc.ts`, `convex/lib/export*.ts`, `backend/atlas/*`).
+  - Only T0 (fe) touches the Learning Mode files. Nobody deletes `frontend/public/atlas/structures.json` or `frontend/src/content/anatomy.json` (`convex/mcp/data.ts` imports both).
+  - Do not touch `share/sceneSync.ts`, `share/useShareSync.ts`, `share/useMprShare.ts`, `convex/lib/viewCommands.ts`, or the fields of the `sessions` table.
 - **Gates:**
   - Root: `npm run typecheck`, `npm test`.
   - Frontend: `npm --prefix frontend test`, `npm --prefix frontend run build`.
@@ -65,17 +66,251 @@ Spec: `docs/superpowers/specs/2026-10-24-presence-cursors-design.md` (revised: L
 
 | Task | Owner | Depends on | Files |
 |---|---|---|---|
+| T0 Remove Learning Mode | fe | – | delete `frontend/src/routes/Learn.tsx` + css, `frontend/src/learn/*` (move `ExplodeSlider`, `StatusPill` + css to `frontend/src/components/`), `frontend/src/viewer/AtlasCanvas.tsx` + css, `anatomy.ts`, `anatomy.test.ts`, `atlasData.test.ts`, `frontend/src/content/index.ts`, `frontend/public/atlas/brain_atlas.glb`; modify `frontend/src/App.tsx`, `routes/legacy.tsx`, `legacy.test.ts`, `routes/Home.tsx`, `Home.module.css`, `home/workspaces.ts`, `workspaces.test.ts`, `routes/Brain3D.tsx`, `actions/dispatch.ts`, `README.md` |
 | T1 Presence server | be | – | `package.json`, `package-lock.json`, `convex/convex.config.ts`, `convex/_generated/*`, `vitest.config.ts`, `convex/presence.ts`, `convex/tests/presence.test.ts` |
 | T2 Cursors server | be | T1 committed | `convex/schema.ts`, `convex/cursors.ts`, `convex/sessions.ts` (`end` only), `convex/tests/cursors.test.ts`, `docs/CONVEX_BACKEND.md` |
 | T3 Cursor math + types | ai | – | `frontend/src/share/cursorSync.ts`, `cursorSync.test.ts`, `frontend/src/share/types.ts`, `frontend/src/viewer/glbNames.test.ts` |
-| T4 Presence client + store + face pile | fe | T3 committed | `frontend/src/share/presence.ts`, `presence.test.ts`, `client.ts`, `store.ts`, `store.test.ts`, `FacePile.tsx`, `SharePopover.tsx`, `SharePopover.module.css`, `frontend/src/components/TopNavBar.tsx` |
+| T4 Presence client + store + face pile | fe | T0 + T3 committed | `frontend/src/share/presence.ts`, `presence.test.ts`, `client.ts`, `store.ts`, `store.test.ts`, `FacePile.tsx`, `SharePopover.tsx`, `SharePopover.module.css`, `frontend/src/components/TopNavBar.tsx` |
 | T5 Remote cursors in 3D | ai | T4 committed | `frontend/src/share/RemoteCursors.tsx`, `RemoteCursors.module.css`, `frontend/src/viewer/CaseCanvas.tsx` |
 | T6 Review each task | qa | each task | none |
-| T7 Gates + two-browser check | qa (lead deploys) | T1–T5 PASS | `docs/qa/2026-10-24-presence-cursors/README.md` |
+| T7 Gates + two-browser check | qa (lead deploys) | T0–T5 PASS | `docs/qa/2026-10-24-presence-cursors/README.md` |
 
-- be and ai start at once.
-- fe may write T4 code against the T3 interfaces below right away. Run `npm --prefix frontend test` only after ai reports T3 done.
+- be, ai and fe start at once (fe on T0).
+- After T0, fe may write T4 code against the T3 interfaces below right away. Run `npm --prefix frontend test` only after ai reports T3 done.
 - No unit gate touches the network. A running Convex deployment is needed only for T7.
+
+---
+
+### Task 0: Remove Learning Mode from the app (fe)
+
+User decision (2026-10-24): Learning Mode is redundant next to the MRI flow, so delete it. The app becomes the MRI workspace flow only (Home → Upload → Processing → `/mri` → `/3d`).
+
+- **Frontend only.** Backend `/learn` handling stays for now and is harmless once no page sends it: the agent eval `/learn` cases, the `convex/mcp` page enum, the `exportDoc` / `exportReport` / `exportMarkdown` guards, and `backend/atlas/build_atlas.py`. Removing it is a separate follow-up, because it changes eval thresholds.
+- **Keep two data files.** `convex/mcp/data.ts` imports `frontend/public/atlas/structures.json` and `frontend/src/content/anatomy.json` for the MCP `explain_structure` tool. Deleting either breaks the Convex build. Moving them under `convex/` belongs to the backend follow-up.
+- **Keep** the reducer actions `selectStructure`, `setIsolate` and `hiddenStructures` in `frontend/src/actions/*`. They are part of the agent/MCP action vocabulary (`convex/mcp/types.ts`, `convex/agent/eval/cases.ts`).
+
+**Files:**
+- Delete:
+  - `frontend/src/routes/Learn.tsx`, `Learn.module.css`
+  - `frontend/src/learn/InfoPanel.*`, `LearnToolbar.*`, `StructureTree.*`, `filter.ts`, `filter.test.ts`
+  - `frontend/src/viewer/AtlasCanvas.tsx`, `AtlasCanvas.module.css`, `anatomy.ts`, `anatomy.test.ts`, `atlasData.test.ts`
+  - `frontend/src/content/index.ts` (keep `anatomy.json`)
+  - `frontend/public/atlas/brain_atlas.glb` (10.4 MB; keep `structures.json`)
+- Move (`git mv`; Brain3D still uses both):
+  - `frontend/src/learn/ExplodeSlider.tsx` + `.module.css` → `frontend/src/components/`
+  - `frontend/src/learn/StatusPill.tsx` + `.module.css` → `frontend/src/components/`
+- Modify:
+  - `frontend/src/App.tsx`
+  - `frontend/src/routes/legacy.tsx`, `legacy.test.ts`
+  - `frontend/src/routes/Home.tsx`, `Home.module.css`
+  - `frontend/src/home/workspaces.ts`, `workspaces.test.ts`
+  - `frontend/src/routes/Brain3D.tsx` (two imports)
+  - `frontend/src/actions/dispatch.ts` (one comment)
+  - `README.md`
+- Not yours: `frontend/src/viewer/CaseCanvas.tsx` line 19 still mentions AtlasCanvas in a comment. ai fixes it in T5.
+
+**Interfaces:**
+- Produces:
+  - `WorkspaceKind = 'mri'`.
+  - `/learn` and `/learn/*` redirect to `/`.
+  - `ExplodeSlider` and `StatusPill` live in `frontend/src/components/`.
+
+- [ ] **Step 1: Impact**
+
+Run GitNexus `impact` upstream on `AtlasCanvas`, `ExplodeSlider`, `StatusPill`, `Learn`, `listWorkspaces` and `hrefOf`. Run it on `Home` too, and grep (`grep -rn "hrefOf\|from '../learn\|from '../content\|viewer/anatomy\|AtlasCanvas" frontend/src`), because the index misses some importers.
+
+Expected: everything is reached only from `routes/Learn.tsx`, except that `Brain3D.tsx` imports `ExplodeSlider` / `StatusPill` and `Home.tsx` imports `hrefOf`. Report it.
+
+- [ ] **Step 2: Failing tests first**
+
+In `frontend/src/routes/legacy.test.ts`, append:
+
+```ts
+it('/learn redirects home', () => {
+  expect(target('/learn')).toBe('/');
+  expect(target('/learn/ab12cd34')).toBe('/');
+});
+```
+
+In `frontend/src/home/workspaces.test.ts`:
+
+1. Replace the `'links each kind to its page'` test with:
+
+```ts
+  it('links a workspace to its MRI page', () => {
+    expect(hrefOf(w('j1', 0))).toBe('/jobs/j1/mri');
+  });
+```
+
+2. In `'drops rows that are not workspaces'`, add an old Learn row to the stored list. It must be dropped:
+
+```ts
+    const s = fake(); s.setItem('nv.workspaces', JSON.stringify([w('a', 1), { id: 3 }, null, { id: 'x', kind: 'chat' }, { id: 'l', kind: 'learn', name: 'Learning Mode', openedAt: 2 }]));
+```
+
+Run: `npm --prefix frontend test -- src/routes/legacy.test.ts src/home/workspaces.test.ts`
+Expected: FAIL on the `/learn` redirect and on the learn row.
+
+- [ ] **Step 3: Delete and move**
+
+```bash
+git mv frontend/src/learn/ExplodeSlider.tsx frontend/src/learn/ExplodeSlider.module.css frontend/src/learn/StatusPill.tsx frontend/src/learn/StatusPill.module.css frontend/src/components/
+git rm -rq frontend/src/learn frontend/src/routes/Learn.tsx frontend/src/routes/Learn.module.css frontend/src/viewer/AtlasCanvas.tsx frontend/src/viewer/AtlasCanvas.module.css frontend/src/viewer/anatomy.ts frontend/src/viewer/anatomy.test.ts frontend/src/viewer/atlasData.test.ts frontend/src/content/index.ts frontend/public/atlas/brain_atlas.glb
+```
+
+The moved files import `../actions/...` and `./X.module.css`. Both paths still resolve from `components/`.
+
+In `frontend/src/routes/Brain3D.tsx`:
+- `import { ExplodeSlider } from '../learn/ExplodeSlider';` → `import { ExplodeSlider } from '../components/ExplodeSlider';`
+- `import { StatusPill } from '../learn/StatusPill';` → `import { StatusPill } from '../components/StatusPill';`
+
+- [ ] **Step 4: Routes**
+
+In `frontend/src/App.tsx`, delete `import Learn from './routes/Learn';` and the two `/learn` route lines.
+
+In `frontend/src/routes/legacy.tsx`, replace the comment and array:
+
+```tsx
+// Old links keep working: /results became /mri, /explore became /3d (W1); Learning Mode was removed (presence plan T0).
+export const legacyRoutes: RouteObject[] = [
+  { path: '/jobs/:id/results', element: <Navigate to="../mri" relative="path" replace /> },
+  { path: '/jobs/:id/explore', element: <Navigate to="../3d" relative="path" replace /> },
+  { path: '/learn/*', element: <Navigate to="/" replace /> },
+];
+```
+
+- [ ] **Step 5: Workspaces**
+
+In `frontend/src/home/workspaces.ts`:
+
+```ts
+export type WorkspaceKind = 'mri';
+```
+
+```ts
+  return !!w && typeof w.id === 'string' && w.kind === 'mri' && typeof w.openedAt === 'number';
+```
+
+```ts
+export const hrefOf = (w: Workspace) => `/jobs/${w.id}/mri`;
+```
+
+Old Learn rows in a browser's localStorage are then dropped by `listWorkspaces`, and the next save writes the list back without them.
+
+- [ ] **Step 6: Home**
+
+Replace `frontend/src/routes/Home.tsx`. This drops the Learning Mode menu item, the empty-state button, and the filter nav, which is pointless with one kind:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import brainIcon from '../assets/figma/664bf.svg';
+import { ApiError, getReport } from '../api/client';
+import { Footer } from '../components/Footer';
+import { TopNavBar } from '../components/TopNavBar';
+import { ago, hrefOf, listWorkspaces, removeWorkspace, saveWorkspace, type Workspace } from '../home/workspaces';
+import css from './Home.module.css';
+
+const MRI = { label: 'MRI Workspace', hint: 'Upload a brain MRI and see the segmentation' };
+
+export default function Home() {
+  const [items, setItems] = useState(() => listWorkspaces());
+
+  useEffect(() => {
+    const ctl = new AbortController();
+    for (const row of listWorkspaces()) {
+      getReport(row.id, ctl.signal).catch((e: unknown) => {
+        if (ctl.signal.aborted) return;
+        if (!(e instanceof ApiError) || e.status !== 404) return;
+        removeWorkspace(row.id);
+        setItems((list) => list.filter((x) => x.id !== row.id));
+      });
+    }
+    return () => ctl.abort();
+  }, []);
+
+  const open = (w: Workspace) => saveWorkspace({ ...w, openedAt: Date.now() });
+
+  return (
+    <div className={css.page}>
+      <TopNavBar />
+      <div className={css.body}>
+        <aside className={css.side}>
+          <button className={css.new} popoverTarget="nv-new-menu">New workspace</button>
+          <div id="nv-new-menu" popover="auto" className={css.menu}>
+            <Link className={css.item} to="/upload"><b>{MRI.label}</b><small>{MRI.hint}</small></Link>
+          </div>
+        </aside>
+        <main className={css.main}>
+          <h1 className={css.title}>Workspaces</h1>
+          {items.length === 0 ? (
+            <div className={css.empty}>
+              <p>No workspaces yet.</p>
+              <Link className={css.cta} to="/upload">Upload your first MRI</Link>
+            </div>
+          ) : (
+            <ul className={css.grid}>
+              {items.map((w) => (
+                <li key={w.id}>
+                  <Link className={css.card} to={hrefOf(w)} onClick={() => open(w)}>
+                    <div className={`${css.thumb} ${css.mri}`}>
+                      <img src={brainIcon} alt="" width={40} height={40} />
+                    </div>
+                    <div className={css.meta}>
+                      <p className={css.name}>{w.name}</p>
+                      <p className={css.when}>{MRI.label} · opened {ago(w.openedAt)}</p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </main>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+```
+
+In `frontend/src/routes/Home.module.css`, delete:
+- the `.filters { … }`, `.filter { … }` and `.filter[aria-pressed="true"] { … }` rules (lines 69–87);
+- the `.ghost { … }` rule (lines 103–109). The new Home no longer uses it, and CSS modules are per file, so other routes' `.ghost` is unaffected;
+- the `.learn { … }` line (135).
+
+- [ ] **Step 7: Comment + README**
+
+In `frontend/src/actions/dispatch.ts` line 11, change the comment's `AtlasCanvas listens for 'reset'` to `CaseCanvas listens for 'reset'`.
+
+In `README.md`:
+- Line 32: replace `/learn (atlas)` with 14 spaces, so the `▲` keeps its column.
+- Line 53: delete the `| Learning Mode `/learn` | …` row.
+- Line 80: change `{routes,viewer,actions,api,components,learn,content}` to `{routes,viewer,actions,api,components,content}` (`content/anatomy.json` stays for MCP).
+
+Leave `docs/SPEC.md` and the other historical docs as they are.
+
+- [ ] **Step 8: Gates**
+
+Run: `npm --prefix frontend test && npm --prefix frontend run build && npm --prefix frontend run lint && npm run typecheck && grep -rn "learn/\|AtlasCanvas\|viewer/anatomy\|from '../content" frontend/src`
+
+Expected:
+- Tests, build, lint and root typecheck PASS. The root typecheck proves `convex/mcp/data.ts` still finds both JSON files.
+- The grep prints only the `CaseCanvas.tsx` line 19 comment, which T5 owns.
+
+- [ ] **Step 9: Commit**
+
+Run GitNexus `detect_changes()`. Expected scope: Home, App routes, legacy routes, workspaces, Brain3D imports, plus the deleted Learn symbols.
+
+`git mv` / `git rm` in Step 3 already staged the moves and deletions. Stage the edits by path:
+
+```bash
+git add frontend/src/App.tsx frontend/src/routes/legacy.tsx frontend/src/routes/legacy.test.ts frontend/src/routes/Home.tsx frontend/src/routes/Home.module.css frontend/src/home/workspaces.ts frontend/src/home/workspaces.test.ts frontend/src/routes/Brain3D.tsx frontend/src/actions/dispatch.ts README.md
+git commit -m "feat(frontend): remove Learning Mode; /learn redirects home
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+Send `hc send qa "T0 ready: <hash>"` and `hc send lead "T0 done: <hash>, <n> tests"`. Then start T4.
 
 ---
 
@@ -1071,6 +1306,10 @@ Then send:
 
 Run GitNexus `impact({target: "CaseScene", direction: "upstream"})` and report the risk. The only expected caller is `CaseCanvas`.
 
+T0 deleted `AtlasCanvas`. In `frontend/src/viewer/CaseCanvas.tsx` line 19, replace the comment
+`// Same direction as AtlasCanvas HOME; the brain centroid is the scene origin.` with
+`// Front-left three-quarter view; the brain centroid is the scene origin.`
+
 - [ ] **Step 2: `RemoteCursors.tsx` + css**
 
 Create `frontend/src/share/RemoteCursors.module.css`:
@@ -1238,7 +1477,7 @@ Expected: all exit 0. Paste failures verbatim.
 - [ ] Close the guest tab. The host's pile drops to 1 at once (beacon), or within ~25 s at most.
 - [ ] Hide the guest tab (switch tabs). Host shows it offline; when it is visible again, it is back online.
 - [ ] Host ends the session. Guest sees "session ended", and no dots remain.
-- [ ] `/learn` has no Share button and no face pile (unchanged).
+- [ ] `/learn` and `/learn/anything` redirect to `/`. Home shows no Learning Mode item, button or filter.
 
 - [ ] **Step 4: Report**
 
@@ -1254,16 +1493,16 @@ The PR needs Sage's review (schema change + guardrail 7). Do not open it unless 
 
 **be** (Codex):
 
-> You are `be`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Global Constraints", "Worker rules" and "Ownership and order" first, then do **Task 1, then Task 2** exactly as written (superpowers:executing-plans, inline). Shared checkout on branch `agents/presence-cursors`: never switch, stash, reset, push or `git add -A`; stage your files by path. Run each step's command and paste failures verbatim. After each task: `hc send qa "T<n> ready: <hash>"` and `hc send lead "T<n> done: <hash>, <n> tests"`. If `npm run codegen` needs a Convex login, stop and `hc send lead "T1 blocked: codegen needs convex login"`. Learn is out of scope — do not touch `sessions` fields or `viewCommands.ts`.
+> You are `be`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Global Constraints", "Worker rules" and "Ownership and order" first, then do **Task 1, then Task 2** exactly as written (superpowers:executing-plans, inline). Shared checkout on branch `agents/presence-cursors`: never switch, stash, reset, push or `git add -A`; stage your files by path. Run each step's command and paste failures verbatim. After each task: `hc send qa "T<n> ready: <hash>"` and `hc send lead "T<n> done: <hash>, <n> tests"`. If `npm run codegen` needs a Convex login, stop and `hc send lead "T1 blocked: codegen needs convex login"`. Do not touch `sessions` fields, `viewCommands.ts`, or the backend `/learn` handling (follow-up).
 
 **ai** (Claude):
 
-> You are `ai`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Global Constraints", "Worker rules" and "Ownership and order" first. Do **Task 3 now**; when committed, `hc send fe "T3 done: <hash>"`. Then wait for fe's `T4 done` message and do **Task 5**. superpowers:executing-plans, inline, no worktree. Shared checkout on branch `agents/presence-cursors`: never switch, stash, reset, push or `git add -A`. If the GLB test finds duplicate node names, stop and message lead. Do not touch `AtlasCanvas.tsx` or anything Learn.
+> You are `ai`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Global Constraints", "Worker rules" and "Ownership and order" first. Do **Task 3 now**; when committed, `hc send fe "T3 done: <hash>"`. Then wait for fe's `T4 done` message and do **Task 5**. superpowers:executing-plans, inline, no worktree. Shared checkout on branch `agents/presence-cursors`: never switch, stash, reset, push or `git add -A`. If the GLB test finds duplicate node names, stop and message lead. fe deletes Learning Mode in T0; do not touch those files. In T5, also fix the `AtlasCanvas` comment on `CaseCanvas.tsx` line 19 (Task 5 Step 1).
 
 **fe** (Cursor):
 
-> You are `fe`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Global Constraints", "Worker rules" and "Ownership and order" first, then do **Task 4** exactly as written. You may write code now, but run `npm --prefix frontend test` only after ai sends `T3 done` (you import `colorOf` and the `Cursor` types from it). Shared checkout on branch `agents/presence-cursors`: never switch, stash, reset, push or `git add -A`; stage your files by path. When committed: `hc send ai "T4 done: <hash>"`, `hc send qa "T4 ready: <hash>"`, `hc send lead "T4 done: <hash>, <n> tests"`. Learn is out of scope.
+> You are `fe`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Read "Global Constraints", "Worker rules" and "Ownership and order" first, then do **Task 0** (remove Learning Mode) and send `hc send qa "T0 ready: <hash>"` and `hc send lead "T0 done: <hash>, <n> tests"`. Then do **Task 4** exactly as written. You may write T4 code once T0 is committed, but run `npm --prefix frontend test` only after ai sends `T3 done` (you import `colorOf` and the `Cursor` types from it). Shared checkout on branch `agents/presence-cursors`: never switch, stash, reset, push or `git add -A`; stage your files by path. When committed: `hc send ai "T4 done: <hash>"`, `hc send qa "T4 ready: <hash>"`, `hc send lead "T4 done: <hash>, <n> tests"`. Keep `structures.json` and `content/anatomy.json`; the Convex MCP imports them.
 
 **qa** (Claude):
 
-> You are `qa`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Do **Task 6** for every `T<n> ready` message (scope check, diff vs plan, run that task's gate, reply PASS/FAIL to the owner, copy lead on FAIL). When T1–T5 all PASS, do **Task 7** Step 1, then wait for lead's `deployed` message before Steps 3–4. Never edit source files; you only commit the QA README. Shared checkout: never switch, stash, reset or push.
+> You are `qa`. Plan: `docs/superpowers/plans/2026-10-24-presence-cursors.md`. Do **Task 6** for every `T<n> ready` message (scope check, diff vs plan, run that task's gate, reply PASS/FAIL to the owner, copy lead on FAIL). When T0–T5 all PASS, do **Task 7** Step 1, then wait for lead's `deployed` message before Steps 3–4. Never edit source files; you only commit the QA README. Shared checkout: never switch, stash, reset or push.

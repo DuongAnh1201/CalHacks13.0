@@ -1,6 +1,6 @@
 # Presence + 3D cursors (case pages) — design
 
-Date: 2026-10-24 · Status: approved by user; revised 2026-10-24 to drop Learn · Sub-project 1 of the NeuroVision collaborative-workspace brief
+Date: 2026-10-24 · Status: approved by user; revised 2026-10-24 to remove Learning Mode · Sub-project 1 of the NeuroVision collaborative-workspace brief
 
 ## Goal
 
@@ -13,20 +13,35 @@ People in a live session of the sample case see who is online right now (heartbe
 | First sub-project of the brief | Presence + 3D cursors. The rest of the brief (infinite canvas, spatial objects, 4-role workspaces, medical tools, Miro toolset) gets its own spec → plan cycles later. |
 | What a "cursor" is | Raycast hit on the model: `{node, localMm}`, the hit point in the hit mesh's local frame. Others see a coloured dot + name chip. Hidden when the pointer is off the model. No camera ghosts, no screen-space arrows. |
 | Pages | Cursors on `/jobs/sample/3d` only. Presence (face pile, online dots) shows on every case page while a session is active (`/mri` and `/3d`). |
-| Learn (`/learn`) | **Out of scope** (user decision, 2026-10-24: redundant next to the MRI flow). Learn stays as it is today: not shareable, no presence, no cursors. `sessions` is not widened. |
+| Learning Mode (`/learn`) | **Removed from the app** (user decision, 2026-10-24: redundant next to the MRI flow). See §0. `sessions` is not widened. |
 | Presence transport | `@convex-dev/presence` on the server, plus our own thin client loop on the existing `ConvexClient`. The stock `usePresence` hook is **not** used: its `heartbeat` args are fixed (`roomId, userId, sessionId, interval`), so there is no slot for our participant token. It also needs a `ConvexProvider`, which would be a second websocket. |
 | Cursor transport | Separate `cursors` table, one row per participant, ≤ 10 Hz, written only on change. It never touches `sessions` / `sessionParticipants`, so `sessions.get` does not re-run at cursor rate. |
 | Convex review | Sage reviews the PR before merge (schema change + bends guardrail 7, see Limits). |
 
 ## Non-goals
 
-- Learn rooms, sharing `/learn`, atlas cursors.
+- Learn rooms, sharing `/learn`, atlas cursors (Learning Mode no longer exists).
+- Backend `/learn` cleanup: agent eval `/learn` cases and thresholds, the MCP page enum, export guards, `backend/atlas/build_atlas.py`. They stay as dead input; a later change removes them.
 - Cursors on `/mri` (2D slice hover).
 - Camera-pose sync or camera ghosts. An off-screen indicator for a cursor outside the view.
 - Owner / Editor / Commenter / Viewer roles. Roles stay `host | viewer`.
 - Presence `data` / metadata from the component.
 - Uploaded jobs (still sample case only, unchanged from W2).
 - Hashed tokens, single-use invites (accepted demo limits, `docs/CONVEX_BACKEND.md`).
+
+## 0. Remove Learning Mode (frontend)
+
+- Delete the `/learn` route and its units: `routes/Learn.tsx`, `learn/*`, `viewer/AtlasCanvas.tsx`, `viewer/anatomy.ts`, `content/index.ts`, `public/atlas/brain_atlas.glb`, and their tests.
+- `ExplodeSlider` and `StatusPill` move to `components/`, because `/3d` uses them.
+- `/learn` and `/learn/*` redirect to `/`, the same way the legacy `/results` and `/explore` links redirect today.
+- Home becomes MRI only:
+  - no Learning Mode menu item or empty-state button;
+  - no kind filter;
+  - `WorkspaceKind = 'mri'`.
+  - Saved Learn workspaces in localStorage are dropped on read.
+- **Kept:**
+  - `public/atlas/structures.json` and `content/anatomy.json`, which `convex/mcp/data.ts` imports for the MCP `explain_structure` tool.
+  - The `selectStructure` / `setIsolate` / `hiddenStructures` actions, which are part of the agent/MCP action vocabulary.
 
 ## 1. Convex
 
@@ -109,6 +124,7 @@ The local frame is explode-safe because each receiver re-projects through its ow
 - `sessions.end` deletes the room's cursors.
 
 **Frontend (vitest)**
+- `/learn` and `/learn/<id>` redirect to `/`. A stored `learn` workspace is dropped. `hrefOf` → `/jobs/<id>/mri`.
 - `startPresence`: heartbeat + list subscribe, hidden → disconnect, visible → heartbeat, pagehide → beacon, stop cleans up.
 - `cursorSender`: throttle, sends only on change, a single trailing `null`.
 - `colorOf`: same id → same colour. `cursorOf`: local frame survives a parent move; hidden/unnamed → null.
@@ -117,5 +133,6 @@ The local frame is explode-safe because each receiver re-projects through its ow
 **Manual (two browsers)**
 - `/jobs/sample/mri` and `/3d`: avatars appear on join, and disappear after a tab close within the timeout (or at once via the beacon).
 - `/jobs/sample/3d`: cursors track correctly across different explode values per browser.
+- `/learn` redirects to `/`. Home has no Learning Mode entry.
 
-**Gates:** `npm run typecheck`, `npm test` (root), `npm --prefix frontend run build`, `npm --prefix frontend test`.
+**Gates:** `npm run typecheck` (also proves the MCP still finds both atlas JSON files), `npm test` (root), `npm --prefix frontend run build`, `npm --prefix frontend test`.
