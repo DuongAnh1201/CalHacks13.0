@@ -86,6 +86,8 @@ jobs:
       - run: npm ci --prefix frontend
       # Builds the frontend with the prod VITE_CONVEX_URL, runs `convex deploy`, uploads dist.
       - run: npm run deploy
+      # jobs.registerScan fetches uploaded jobs' reports from the model service: same URL as the frontend's.
+      - run: npx convex env set NEUROVISION_API_URL "$VITE_API_URL" --prod
       # Idempotent: patches the sample scan row if it already exists.
       - run: npx convex run seed:seedSampleScan --prod
       - run: curl -sSf --retry 5 --retry-all-errors -o /dev/null "$SITE_URL"

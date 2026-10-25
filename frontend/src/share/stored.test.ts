@@ -5,7 +5,7 @@ const fake = () => {
   const m = new Map<string, string>();
   return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
 };
-const S: Stored = { sessionId: 's1', participantToken: 't1', role: 'viewer', inviteCode: 'ABC123' };
+const S: Stored = { sessionId: 's1', participantToken: 't1', role: 'viewer', inviteCode: 'ABC123', jobId: 'sample' };
 
 describe('stored', () => {
   it('round-trips and clears', () => {

@@ -8,12 +8,26 @@
  * @module
  */
 
+import type * as agent from "../agent.js";
+import type * as agent_anthropic from "../agent/anthropic.js";
+import type * as agent_eval_cases from "../agent/eval/cases.js";
+import type * as agent_eval_score from "../agent/eval/score.js";
+import type * as agent_evalRunner from "../agent/evalRunner.js";
+import type * as agent_guard from "../agent/guard.js";
+import type * as agent_loop from "../agent/loop.js";
+import type * as agent_mcpClient from "../agent/mcpClient.js";
+import type * as agent_validators from "../agent/validators.js";
+import type * as agent_viewerTools from "../agent/viewerTools.js";
+import type * as agentPrompts from "../agentPrompts.js";
 import type * as annotations from "../annotations.js";
+import type * as cursors from "../cursors.js";
 import type * as exportDoc from "../exportDoc.js";
 import type * as exportRecords from "../exportRecords.js";
 import type * as http from "../http.js";
+import type * as jobs from "../jobs.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_author from "../lib/author.js";
+import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_exportMarkdown from "../lib/exportMarkdown.js";
 import type * as lib_exportReport from "../lib/exportReport.js";
@@ -44,12 +58,26 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agent: typeof agent;
+  "agent/anthropic": typeof agent_anthropic;
+  "agent/eval/cases": typeof agent_eval_cases;
+  "agent/eval/score": typeof agent_eval_score;
+  "agent/evalRunner": typeof agent_evalRunner;
+  "agent/guard": typeof agent_guard;
+  "agent/loop": typeof agent_loop;
+  "agent/mcpClient": typeof agent_mcpClient;
+  "agent/validators": typeof agent_validators;
+  "agent/viewerTools": typeof agent_viewerTools;
+  agentPrompts: typeof agentPrompts;
   annotations: typeof annotations;
+  cursors: typeof cursors;
   exportDoc: typeof exportDoc;
   exportRecords: typeof exportRecords;
   http: typeof http;
+  jobs: typeof jobs;
   "lib/auth": typeof lib_auth;
   "lib/author": typeof lib_author;
+  "lib/env": typeof lib_env;
   "lib/errors": typeof lib_errors;
   "lib/exportMarkdown": typeof lib_exportMarkdown;
   "lib/exportReport": typeof lib_exportReport;

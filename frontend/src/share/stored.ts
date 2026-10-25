@@ -1,4 +1,5 @@
-export interface Stored { sessionId: string; participantToken: string; role: 'host' | 'viewer'; inviteCode: string }
+/** jobId: the case this session reviews, /jobs/<jobId>/... (any finished upload, not only the sample). */
+export interface Stored { sessionId: string; participantToken: string; role: 'host' | 'viewer'; inviteCode: string; jobId: string }
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const KEY = 'nv.share';
@@ -10,7 +11,7 @@ function session(): Store | null {
 
 const isStored = (v: unknown): v is Stored => {
   const s = v as Stored | null;
-  return !!s && typeof s.sessionId === 'string' && typeof s.participantToken === 'string' && (s.role === 'host' || s.role === 'viewer') && typeof s.inviteCode === 'string';
+  return !!s && typeof s.sessionId === 'string' && typeof s.participantToken === 'string' && (s.role === 'host' || s.role === 'viewer') && typeof s.inviteCode === 'string' && typeof s.jobId === 'string';
 };
 
 export function loadStored(s: Store | null = session()): Stored | null {

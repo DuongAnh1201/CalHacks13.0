@@ -30,6 +30,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { vScene } from "./lib/viewCommands";
 import { vAuthor } from "./lib/author";
+import { vAgentStep, vHistory } from "./agent/validators";
 
 // ---------------------------------------------------------------------------
 // Reusable validators
@@ -309,6 +310,22 @@ export default defineSchema({
     // Participant list for a room.
     .index("by_session", ["sessionId"]),
 
+  /**
+   * Live 3D pointers, one row per participant (spec §1.2). Kept OUT of
+   * `sessions` / `sessionParticipants` so `sessions.get` never re-runs at
+   * pointer rate. This is the one high-frequency table (≤ 10 Hz per person
+   * while the pointer moves, 0 when idle) — bends guardrail 7, Sage-reviewed.
+   */
+  cursors: defineTable({
+    sessionId: v.id("sessions"),
+    participantId: v.id("sessionParticipants"),
+    /** Hit point in the hit mesh's local frame; null = the pointer is off the model. */
+    cursor: v.union(v.null(), v.object({ node: v.string(), localMm: vVec3 })),
+    updatedAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_participant", ["participantId"]),
+
   // Shared human/agent records. Writers stamp attribution on the server.
   // Text lengths, anchor bounds and D10 transitions belong to shared mutations.
   annotations: defineTable({
@@ -387,5 +404,31 @@ export default defineSchema({
     windowStart: v.number(),
     count: v.number(),
   }).index("by_token_hash", ["tokenHash"]),
+
+  agentRuns: defineTable({
+    clientId: v.string(),
+    sessionId: v.optional(v.id("sessions")),
+    jobId: v.optional(v.string()),
+    text: v.string(),
+    source: v.union(v.literal("chat"), v.literal("voice"), v.literal("text")),
+    page: v.union(v.literal("learn"), v.literal("mri"), v.literal("3d")),
+    status: v.union(v.literal("queued"), v.literal("running"), v.literal("done"), v.literal("failed"), v.literal("cancelled")),
+    steps: v.array(vAgentStep),
+    reply: v.string(),
+    agent: v.string(),
+    error: v.union(v.string(), v.null()),
+    createdAt: v.number(),
+    // Internal request context and conservative daily reservation marker.
+    spendDay: v.optional(v.string()),
+    availableTools: v.array(v.string()),
+    snapshot: v.optional(v.any()),
+    history: v.optional(vHistory),
+  }).index("by_client", ["clientId"]),
+
+  // Conservative daily reservations, shared across clients; no key means no spend.
+  agentDailyUsage: defineTable({
+    day: v.string(),
+    count: v.number(),
+  }).index("by_day", ["day"]),
 
 });
