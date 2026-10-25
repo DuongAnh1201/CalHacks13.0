@@ -1,9 +1,11 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useClientForTest, useShare } from '../share/store';
 import { TopNavBar } from './TopNavBar';
+
+vi.mock('../share/FacePile', () => ({ FacePile: () => 'FACEPILE' }));
 
 const at = (path: string, pattern = '/jobs/:id/mri') => renderToStaticMarkup(
   createElement(MemoryRouter, { initialEntries: [path] }, createElement(Routes, null, createElement(Route, { path: pattern, element: createElement(TopNavBar) }))),
@@ -30,4 +32,13 @@ describe('TopNavBar Share', () => {
     expect(at('/jobs/sample/mri')).toContain('The host ended the session');
   });
   it('never names a keyboard key', () => expect(at('/jobs/sample/mri')).not.toMatch(/\b(space|esc|enter|ctrl|cmd)\b/i));
+  it('mounts the face pile only on case pages', () => {
+    useShare.setState({ session: { status: 'active' } as never });
+    expect(at('/', '/')).not.toContain('FACEPILE');
+    expect(at('/upload', '/upload')).not.toContain('FACEPILE');
+    expect(at('/join/ABC123', '/join/:code')).not.toContain('FACEPILE');
+    expect(at('/jobs/sample/processing', '/jobs/:id/processing')).not.toContain('FACEPILE');
+    expect(at('/jobs/sample/mri')).toContain('FACEPILE');
+    expect(at('/jobs/sample/3d', '/jobs/:id/3d')).toContain('FACEPILE');
+  });
 });

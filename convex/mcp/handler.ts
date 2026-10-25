@@ -37,7 +37,10 @@ export async function handleMcp(request: Request, options: { token?: string; aut
   if (!limit.allowed) return new Response('Rate limit exceeded', { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } });
   // Stateless JSON response mode is part of Streamable HTTP; no long-lived SSE.
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: { Allow: 'POST' } });
-  const server = createServer({ data: options.data ?? fileData(config.IMAGING_API_URL), caller: { kind: isService ? 'service' : 'user', tokenHash: hash, agentName: run?.agentName ?? 'Claude Desktop', authorName: run?.agentName ?? 'Claude Desktop', ...(run ? { agentRunId: run.runId } : {}) }, ctx: options.ctx }, options.modules);
+  const server = createServer({ data: options.data ?? fileData(config.IMAGING_API_URL), caller: { kind: isService ? 'service' : 'user', tokenHash: hash, agentName: run?.agentName ?? 'Claude Desktop', authorName: run?.agentName ?? 'Claude Desktop', ...(run ? { agentRunId: run.runId } : {}) }, ctx: options.ctx, sessionCapability: {
+    sessionId: request.headers.get('x-neuro-session-id') ?? undefined,
+    participantToken: request.headers.get('x-neuro-participant-token') ?? undefined,
+  } }, options.modules);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   try {
     await server.connect(transport);
