@@ -18,6 +18,9 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
   await writeFile(file,output.outputFiles[0].text);
   const {handleMcp} = await import(pathToFileURL(file).href);
   const token='injected-stdio-test-token';
+  const sessionCapability='injected-session-capability';
+  const participantCapability='injected-participant-capability';
+  let capabilityForwarded=false;
   const http = createServer(async (req,res)=>{
     try {
       const chunks=[];
@@ -26,6 +29,9 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
         method:req.method,headers:req.headers,
         ...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})
       });
+      assert.equal(web.headers.get('X-Neuro-Session-Id'),sessionCapability);
+      assert.equal(web.headers.get('X-Neuro-Participant-Token'),participantCapability);
+      capabilityForwarded=true;
       const response=await handleMcp(web,{token,rateCheck:async()=>({allowed:true,retryAfter:0})});
       res.writeHead(response.status,Object.fromEntries(response.headers));
       res.end(Buffer.from(await response.arrayBuffer()));
@@ -33,7 +39,7 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
   });
   await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));
   const client=new Client({name:'desktop-blackbox-test',version:'1'});
-  const transport=new StdioClientTransport({command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`},stderr:'pipe'});
+  const transport=new StdioClientTransport({command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,NEURO_SESSION_ID:sessionCapability,NEURO_PARTICIPANT_TOKEN:participantCapability,NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`},stderr:'pipe'});
   let stderr='';
   transport.stderr?.on('data',chunk=>stderr+=chunk);
   try {
@@ -51,12 +57,14 @@ test('Claude Desktop stdio proxy calls the same HTTP server and file-backed answ
     const report=await client.readResource({uri:'report://sample'});
     assert.deepEqual(JSON.parse(report.contents[0].text),sample);
     assert.doesNotMatch(stderr,new RegExp(token));
+    assert.doesNotMatch(stderr,new RegExp(participantCapability));
+    assert.equal(capabilityForwarded,true);
     if (process.env.MCP_INSPECTOR_CHECK === '1') {
       const inspectorConfig = join(dir, 'inspector.json');
-      await writeFile(inspectorConfig, JSON.stringify({mcpServers:{'neuro-test':{command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`,MCP_TOKEN:token}}}}));
+      await writeFile(inspectorConfig, JSON.stringify({mcpServers:{'neuro-test':{command:process.execPath,args:[resolve('mcp/stdio.mjs')],env:{NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`,MCP_TOKEN:token,NEURO_SESSION_ID:sessionCapability,NEURO_PARTICIPANT_TOKEN:participantCapability}}}}));
       const run = promisify(execFile);
       const inspect = async (method, extra = []) => {
-        const {stdout} = await run('npx', ['--yes','@modelcontextprotocol/inspector@2.5.0','--cli','--config',inspectorConfig,'--server','neuro-test','--method',method,'--format','json',...extra], {env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`},timeout:60000});
+        const {stdout} = await run('npx', ['--yes','@modelcontextprotocol/inspector@2.5.0','--cli','--config',inspectorConfig,'--server','neuro-test','--method',method,'--format','json',...extra], {env:{...process.env,IMAGING_API_URL:'',MCP_TOKEN:token,NEURO_SESSION_ID:sessionCapability,NEURO_PARTICIPANT_TOKEN:participantCapability,NEURO_MCP_URL:`http://127.0.0.1:${http.address().port}/api/mcp`},timeout:60000});
         const parsed=JSON.parse(stdout);
         return parsed.result ?? parsed;
       };

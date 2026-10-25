@@ -4,7 +4,7 @@ import { api, convex, convexUrl } from './client';
 import { codeOf, messageFor, NOT_CONFIGURED, SESSION_ENDED, SYNC_FAILED } from './copy';
 import { startPresence } from './presence';
 import { clearStored, loadStored, saveStored, type Stored } from './stored';
-import type { ChatMessage, SessionState, ViewerCommand } from './types';
+import type { ChatMessage, Cursor, RemoteCursor, SessionState, ViewerCommand } from './types';
 
 type Client = Pick<ConvexClient, 'query' | 'mutation' | 'action' | 'onUpdate'>;
 
@@ -119,4 +119,18 @@ export async function sendChat(text: string): Promise<string | null> {
   const s = useShare.getState().stored;
   if (!client || !s) return NOT_CONFIGURED;
   try { await client.mutation(api.messages.send, { ...auth(s), text }); return null; } catch (e) { return messageFor(e); }
+}
+
+/** Any role. Best-effort: a dropped point is replaced by the next one. */
+export function sendCursor(cursor: Cursor | null): void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return;
+  client.mutation(api.cursors.move, { ...auth(s), cursor }).catch(() => {});
+}
+
+/** Everyone else's cursors in this room. An end or stale token is handled by the sessions.get subscription. */
+export function watchCursors(onRows: (rows: RemoteCursor[]) => void): () => void {
+  const s = useShare.getState().stored;
+  if (!client || !s) return () => {};
+  return client.onUpdate(api.cursors.list, auth(s), onRows, () => onRows([]));
 }

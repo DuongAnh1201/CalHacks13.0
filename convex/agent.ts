@@ -23,6 +23,8 @@ import { vAgentStep, vHistory } from "./agent/validators";
 import { createClaudeClient } from "./agent/anthropic";
 import { runLoop, safeReply } from "./agent/loop";
 import { openAgentMcp } from "./agent/mcpClient";
+import { redactToolArgs } from "./agent/redact";
+import { insertMessage, MAX_MESSAGE_LENGTH, publicMessage } from "./lib/messages";
 import { requireSessionMember } from "./lib/auth";
 
 const settings = env as typeof env & {
@@ -118,6 +120,24 @@ async function reserveSpend(ctx: MutationCtx, text: string, now: number) {
   if (settings.ANTHROPIC_API_KEY && classifyHint(text) === null)
     return await reserveDailyRun(ctx, now);
   return undefined;
+}
+
+/** One terminal transition owns the pair; no model-provided scope is read here. */
+async function persistChat(ctx: MutationCtx, row: Doc<"agentRuns">, reply: string, agent: string) {
+  const jobId = row.jobId ?? (row.page === "learn" ? "atlas" : undefined);
+  if (!jobId || !reply.trim()) return;
+  const scope = { clientId: row.clientId, jobId, runId: row._id };
+  await insertMessage(ctx, { ...scope, role: "user", text: row.text },
+    { kind: "human", displayName: "You", source: "ui" });
+  const toolSteps = row.steps.map(({ id, tool, args, ok, message, ms }) => ({
+    id, tool, args: redactToolArgs(args), ok, message, ms,
+  }));
+  await insertMessage(ctx, { ...scope, role: "assistant", text: reply, toolSteps },
+    { kind: "agent", name: agent, source: "agent" });
+}
+function finalReply(reply: string) {
+  const guarded = (reply === MEDICAL_REFUSAL ? MEDICAL_REFUSAL : safeReply(reply)).trim();
+  return guarded.length > MAX_MESSAGE_LENGTH ? guarded.slice(0, MAX_MESSAGE_LENGTH - 1) + "…" : guarded;
 }
 
 export const ask = mutation({
@@ -239,6 +259,26 @@ export const listRuns = query({
       .take(50);
   },
 });
+/** Agent Panel history is client-scoped, never session chat. Newest first. */
+export const listChat = query({
+  args: { clientId: v.string(), jobId: v.optional(v.string()), limit: v.number() },
+  handler: async (ctx, { clientId, jobId, limit }) => {
+    requireClient(clientId);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new ConvexError({ code: "BAD_REQUEST", message: "Chat limit must be between 1 and 100." });
+    }
+    if (jobId !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(jobId)) {
+      throw new ConvexError({ code: "BAD_JOB", message: "Invalid job identifier." });
+    }
+    let rows = ctx.db.query("messages")
+      .withIndex("by_client_time", (q) => q.eq("clientId", clientId))
+      .filter((q) => q.eq(q.field("sessionId"), undefined));
+    if (jobId !== undefined) rows = rows.filter((q) => q.eq(q.field("jobId"), jobId));
+    const page = await rows.order("desc").take(limit);
+    return page.map((row) => ({ ...publicMessage(row), jobId: row.jobId, runId: row.runId,
+      toolSteps: row.toolSteps?.map((step) => ({ ...step, args: redactToolArgs(step.args) })) ?? [] }));
+  },
+});
 export const cancel = mutation({
   args: { runId: v.id("agentRuns"), clientId: v.string() },
   handler: async (ctx, args) => {
@@ -271,11 +311,9 @@ export const claim = internalMutation({
       try {
         spendDay = await reserveSpend(ctx, row.text, Date.now());
       } catch {
-        await ctx.db.patch(runId, {
-          status: "failed",
-          reply: safeReply("The assistant daily run limit has been reached."),
-          error: "DAILY_LIMIT",
-        });
+        const reply = finalReply("The assistant daily run limit has been reached.");
+        await persistChat(ctx, row, reply, row.agent);
+        await ctx.db.patch(runId, { status: "failed", reply, error: "DAILY_LIMIT" });
         return null;
       }
     }
@@ -291,7 +329,7 @@ export const appendStep = internalMutation({
   handler: async (ctx, { runId, step }) => {
     const row = await ctx.db.get(runId);
     if (row?.status === "running" && !row.steps.some((s) => s.id === step.id))
-      await ctx.db.patch(runId, { steps: [...row.steps, step] });
+      await ctx.db.patch(runId, { steps: [...row.steps, { ...step, args: redactToolArgs(step.args) }] });
     return null;
   },
 });
@@ -314,13 +352,14 @@ export const finish = internalMutation({
     const row = await ctx.db.get(runId);
     // The Guard is applied at the final persistence boundary as well as the loop.
     // A fixed medical refusal must be stored verbatim, without checking it again.
-    if (row?.status === "running")
+    if (row?.status === "running") {
+      const storedReply = finalReply(reply);
+      await persistChat(ctx, row, storedReply, agent);
       await ctx.db.patch(runId, {
         status: error === "AGENT_ERROR" ? "failed" : "done",
-        reply: reply === MEDICAL_REFUSAL ? MEDICAL_REFUSAL : safeReply(reply),
-        agent,
-        error,
+        reply: storedReply, agent, error,
       });
+    }
     return null;
   },
 });
