@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { CaptionLine, LiveTranscript, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } from './MeetingNotes';
+import { LiveTranscript, MeetingOverlay, MeetingPanel, NotesView, TranscriptView } from './MeetingNotes';
 import { CONSENT_BANNER, type NoteTakerBinding, type NoteTakerState } from './useNoteTaker';
 const time = new Date('2026-10-24T12:00:00Z').getTime();
 const m: NoteTakerState = {
@@ -31,9 +31,9 @@ describe('live meeting views', () => {
     expect(h).toContain('<b>Guest</b>'); expect(h).toContain('<time>');
     expect(h).toContain('AI notes on by You (host)'); expect(h).toContain('You muted transcription'); expect(h).toContain('Screenshot: Tumor focused');
   });
-  it('distinguishes interim grey text and finalized text in the live caption bar', () => {
-    const h = renderToStaticMarkup(createElement(CaptionLine, { segments: m.segments.slice(0, 2), selfId: 'me' }));
-    expect(h).toContain('You'); expect(h).toContain('data-final="true"'); expect(h).toContain('data-final="false"'); expect(h).toContain('hsl(');
+  it('shows the Listening panel in the overlay only while AI notes are on', () => {
+    expect(renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding() }))).toContain('aria-label="Live transcript"');
+    expect(renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ enabled: false }) }))).not.toContain('Listening');
   });
   it('shows host opt-in once, a separate toggle, truthful consent, captions control and member mute', () => {
     const prompt = renderToStaticMarkup(createElement(MeetingOverlay, { binding: binding({ enabled: false, promptDismissed: false }) }));
