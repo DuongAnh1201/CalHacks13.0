@@ -13,6 +13,7 @@ export function linkTranscriber(make: Make = (onSegment) => createTranscriber({ 
   let unwatch = () => {};
   let disposed = false;
   let generation = 0;
+  let subscriptionGeneration = 0;
 
   const wanted = () => {
     const { status, muted } = useCall.getState();
@@ -29,12 +30,13 @@ export function linkTranscriber(make: Make = (onSegment) => createTranscriber({ 
     const stored = useShare.getState().stored;
     const key = status === 'live' && stored ? transcriptionKey(stored) : null;
     if (key !== watching) {
+      const subscription = ++subscriptionGeneration;
       stop();
       unwatch();
       enabled = false;
       watching = key;
       unwatch = key ? watchTranscriptEnabled((on) => {
-        if (disposed || watching !== key) return;
+        if (disposed || watching !== key || subscription !== subscriptionGeneration) return;
         enabled = on; sync();
       }) : () => {};
     }

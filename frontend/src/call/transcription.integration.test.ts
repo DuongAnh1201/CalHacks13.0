@@ -157,3 +157,15 @@ it('a controller created for old credentials cannot capture in the new session',
   f.recognizers.forEach((r) => r.emit(segment));
   expect(f.append()).toHaveLength(0);
 });
+
+it('same-session call rejoin ignores settings from the previous subscription', () => {
+  const f = setup(); f.ctl.dispose();
+  useCall.setState({ status: 'live' }); f.enable(true);
+  const oldSettings = f.subs.filter((s) => !s.closed && s.name === 'transcript:state').at(-1)!;
+  useCall.setState({ status: 'idle' });
+  expect(f.active()).toHaveLength(0);
+  useCall.setState({ status: 'live' });
+  oldSettings.push({ enabled: true });
+  expect(f.active()).toHaveLength(0);
+  f.enable(true); expect(f.active()).toHaveLength(1);
+});
