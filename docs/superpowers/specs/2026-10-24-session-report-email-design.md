@@ -47,7 +47,7 @@ Join link and QR code both open `/join/:code` (`SharePopover.tsx:11,18` → `App
 
 **Host (optional).** The host never fills in a form (`startShare` calls `sessions.create` directly), so `sessions.create` is unchanged.
 - `SharePopover` gets an "Email me the report" field plus a Save button.
-- New mutation `reports.setMyEmail({ sessionId, participantToken, email })` authenticates the participant, applies the same validation, and upserts that participant's `reportRecipients` row. It throws `SESSION_ENDED` once the session has ended, because the send has already run.
+- New mutation `reportMail.setMyEmail({ sessionId, participantToken, email })` authenticates the participant, applies the same validation, and upserts that participant's `reportRecipients` row. It throws `SESSION_ENDED` once the session has ended, because the send has already run.
 
 **Storage.**
 
