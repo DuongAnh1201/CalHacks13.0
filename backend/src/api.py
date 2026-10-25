@@ -36,8 +36,9 @@ def run(job_dir, on_stage=None):
     from src.pipeline import run as pipeline_run
     return pipeline_run(job_dir, on_stage=on_stage)
 
-JOBS = Path("jobs")
-JOBS.mkdir(exist_ok=True)
+# JOBS_DIR: point at a persistent volume in prod (RunPod: /workspace/jobs), or every image reset loses the uploads.
+JOBS = Path(os.getenv("JOBS_DIR", "jobs"))
+JOBS.mkdir(parents=True, exist_ok=True)
 MAX_FILE_MB = 200
 SEED = Path("seed")
 INVALID_MESSAGE = "Images and screenshots don't contain 3D scan data. Upload 4 NIfTI sequences (T1c, T1, T2, FLAIR) or use a sample case."

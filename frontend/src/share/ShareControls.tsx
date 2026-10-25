@@ -6,7 +6,7 @@ import { CallControls } from '../call/CallControls';
 import { FacePile } from './FacePile';
 import { FollowBanner } from './FollowBanner';
 import { SharePopover } from './SharePopover';
-import { resume, shareConfigured, startShare, useShare } from './store';
+import { resume, shareConfigured, startShare, switchShare, useShare } from './store';
 
 /** Notice, face pile, follow banner and the Share button + popover. Class names come from the bar that hosts them. */
 export function ShareControls({ css }: { css: { notice?: string; shareWrap?: string; share?: string; error?: string } }) {
@@ -23,6 +23,13 @@ export function ShareControls({ css }: { css: { notice?: string; shareWrap?: str
   const why = !shareConfigured() ? NOT_CONFIGURED : !id ? OPEN_A_SCAN : null;
   const guest = stored?.role === 'viewer';
   const onShare = async () => {
+    if (stored?.role === 'host' && stored.jobId !== id) { // the automatic move failed (useShareSync): retry it
+      setBusy(true);
+      await switchShare(id!, pathname.endsWith('/3d') ? '3d' : 'mri');
+      setBusy(false);
+      setOpen(true); // shows the outcome in the popover's sync note
+      return;
+    }
     if (stored?.role === 'host') { setOpen((o) => !o); return; }
     setBusy(true);
     const e = await startShare(id!); // `why` disables the button when there is no id

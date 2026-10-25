@@ -11,6 +11,7 @@
 #   secret   RUNPOD_API_KEY      RunPod console -> Settings -> API Keys (read/write)
 #   variable RUNPOD_POD_ID       pod serving the model; deploy-runpod is skipped while unset
 # The pod itself needs ALLOWED_ORIGINS=<SITE_URL> in its env, or the browser's calls fail CORS.
+# It also needs JOBS_DIR=/workspace/jobs (its volume disk): the reset below wipes the container disk, uploads with it.
 #
 # Rollback: `git revert` the bad commit on main (or re-run an older main run of this workflow).
 name: CI

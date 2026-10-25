@@ -201,9 +201,11 @@ export async function listLiveAnnotations(
     isSessionHost(session, participant) || a.authorParticipantId === participant._id,
 ): Promise<PublicAnnotation[]> {
   const rows = await sessionAnnotations(ctx, session._id);
+  // A room can move between cases (sessions.setScan): only this case's notes.
+  const { jobId } = await loadScan(ctx, session.scanId);
   const out: PublicAnnotation[] = [];
   for (const a of rows) {
-    if (a.status === "dismissed") continue;
+    if (a.status === "dismissed" || a.jobId !== jobId) continue;
     out.push({
       annotationId: a._id,
       text: a.text,
