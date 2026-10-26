@@ -4,8 +4,6 @@ Lobe turns real brain MRIs into 3D models you can turn, slice and study together
 
 Upload a brain MRI (4 standard sequences) and a pretrained AI model (MONAI SegResNet) segments the tumor. Study the case in linked 2D slices and a 3D brain, invite others into a live review room with voice, chat, notes and a shared whiteboard, ask a Claude-powered assistant about what you are looking at, and get a session report by email when the meeting ends.
 
-> **Educational visualization only — not clinically validated.** Lobe does not diagnose, plan surgery, or give medical advice. The tumor is shown where the model segmented it, in the scan's own coordinates. JPG/PNG images are not accepted: they don't contain 3D scan data.
-
 Built at **CalHacks 13.0** (36 hours).
 
 ## Features
